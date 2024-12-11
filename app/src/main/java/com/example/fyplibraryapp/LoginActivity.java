@@ -20,7 +20,7 @@ public class LoginActivity extends AppCompatActivity {
     }
 
     private void login() {
-        EditText emailEditText = findViewById(R.id.emailEditText);
+        EditText emailEditText = findViewById(R.id.userEditText);
         EditText passwordEditText = findViewById(R.id.passwordEditText);
         String email = emailEditText.getText().toString();
         String password = passwordEditText.getText().toString();
@@ -30,6 +30,7 @@ public class LoginActivity extends AppCompatActivity {
 
         // If login is successful
         Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+        intent.putExtra("USERNAME", email); // Pass the email to MainActivity
         startActivity(intent);
         finish(); // Finish login activity
     }

@@ -6,10 +6,10 @@
     android:padding="16dp">
 
     <EditText
-        android:id="@+id/emailEditText"
+        android:id="@+id/userEditText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Email" />
+        android:hint="Username" />
 
     <EditText
         android:id="@+id/passwordEditText"
@@ -27,7 +27,7 @@
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Don't have an account? Register"
+        android:text="Don't have an account? Register here."
         android:clickable="true"
         android:onClick="onRegisterClick" />
 </LinearLayout>
