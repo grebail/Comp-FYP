@@ -2,33 +2,35 @@
 <RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="16dp">
+    android:padding="16dp"
+    android:background="#100e22">
 
     <ImageView
         android:id="@+id/welcomeImage"
         android:layout_width="1000px"
-        android:layout_height="200px"
-        android:layout_below="@id/welcomeText"
+        android:layout_height="250px"
         android:layout_centerHorizontal="true"
         android:src="@drawable/lib_app_logo" />
 
-    <!-- Centered TextView -->
     <TextView
         android:id="@+id/welcomeText"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Welcome to Smart Library App"
-        android:layout_marginTop="50dp"
+        android:layout_below="@id/welcomeImage"
+        android:layout_marginTop="20dp"
         android:textSize="24sp"
         android:textStyle="bold"
-        android:layout_centerHorizontal="true" />
+        android:layout_centerHorizontal="true"
+        android:gravity="center"
+        android:textColor="#169c40" />
 
     <Button
         android:id="@+id/loginButton"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="Login"
-        android:layout_below="@id/welcomeImage"
+        android:layout_below="@id/welcomeText"
         android:layout_centerHorizontal="true"
         android:layout_marginTop="20dp"/>
 </RelativeLayout>

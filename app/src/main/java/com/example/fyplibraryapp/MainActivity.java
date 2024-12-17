@@ -49,6 +49,27 @@ public class MainActivity extends AppCompatActivity {
         navHeaderUsername = headerView.findViewById(R.id.nav_username); // Use the correct ID
         navHeaderUsername.setText(username); // Set the username in the header
 
+        // Find the logout button in the header and set an OnClickListener
+        Button logoutButton = headerView.findViewById(R.id.logoutButton);
+        logoutButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                Log.d("MainActivity", "Logout button clicked");
+
+                // Clear user data (if any)
+                SharedPreferences sharedPreferences = getSharedPreferences("YourSharedPrefName", MODE_PRIVATE);
+                SharedPreferences.Editor editor = sharedPreferences.edit();
+                editor.clear(); // Clear all data
+                editor.apply();
+
+                // Redirect to Welcome Activity
+                Intent intent = new Intent(MainActivity.this, WelcomeActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                finish(); // Close the current activity
+            }
+        });
+
         setSupportActionBar(binding.appBarMain.toolbar);
         binding.appBarMain.fab.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -68,25 +89,6 @@ public class MainActivity extends AppCompatActivity {
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
         NavigationUI.setupActionBarWithNavController(this, navController, mAppBarConfiguration);
         NavigationUI.setupWithNavController(navigationView, navController);
-
-        Button logoutButton = findViewById(R.id.logoutButton);
-        logoutButton.setOnClickListener(v -> logout());
-    }
-
-    private void logout() {
-        // Clear user session data if applicable
-        Log.d("MainActivity", "Logout button clicked");
-        // For example, if you are using SharedPreferences:
-        SharedPreferences sharedPreferences = getSharedPreferences("MyPrefs", MODE_PRIVATE);
-        SharedPreferences.Editor editor = sharedPreferences.edit();
-        editor.clear(); // Clear all data
-        editor.apply();
-
-        // Redirect to LoginActivity
-        Intent intent = new Intent(MainActivity.this, WelcomeActivity.class);
-        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK); // Clear the activity stack
-        startActivity(intent);
-        finish(); // Finish the current activity
     }
 
     @Override
@@ -98,7 +100,6 @@ public class MainActivity extends AppCompatActivity {
 
     @Override
     public boolean onOptionsItemSelected(@NonNull MenuItem item) {
-        // Handle action bar item clicks here.
         return super.onOptionsItemSelected(item);
     }
 
