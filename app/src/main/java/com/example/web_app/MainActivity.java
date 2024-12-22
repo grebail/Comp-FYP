@@ -28,6 +28,6 @@ public class MainActivity extends AppCompatActivity {
         webApp = findViewById(R.id.webApp);
         webApp.getSettings().setJavaScriptEnabled(true);
         webApp.setWebViewClient(new WebViewClient());
-        webApp.loadUrl("http://10.0.2.2:9875/");
+        webApp.loadUrl("http://59.149.163.241:9875/");
     }
 }
