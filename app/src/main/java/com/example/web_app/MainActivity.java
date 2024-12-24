@@ -27,6 +27,8 @@ public class MainActivity extends AppCompatActivity {
 
         webApp = findViewById(R.id.webApp);
         webApp.getSettings().setJavaScriptEnabled(true);
+        webApp.getSettings().setLoadWithOverviewMode(true);
+        webApp.getSettings().setUseWideViewPort(true);
         webApp.setWebViewClient(new WebViewClient());
         webApp.loadUrl("http://59.149.163.241:9875/");
     }
