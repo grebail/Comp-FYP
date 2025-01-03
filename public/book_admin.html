@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Administration</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Add your CSS file if needed -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+        }
+        .book-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        .action-button {
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+        .details-button {
+            background-color: #2196F3; /* Blue */
+            color: white;
+        }
+        .details-button:hover {
+            background-color: #1976D2;
+        }
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Book Administration</h1>
+    </header>
+
+    <main>
+        <section>
+            <h2>Add New Book</h2>
+            <form id="addBookForm">
+                <label for="googleId">Book ID:</label>
+                <input type="text" id="googleId" name="googleId" required>
+                <label for="bookLocation">Book Location:</label>
+                <select id="bookLocation" name="bookLocation" required>
+                    <option value="Stanley Ho Library">Stanley Ho Library</option>
+                    <option value="Ho Sik Yee Library">Ho Sik Yee Library</option>
+                </select>
+                <label for="availability">Availability:</label>
+                <input type="checkbox" id="availability" name="availability" checked>
+                <label for="noOfCopy">Number of Copies:</label>
+                <input type="number" id="noOfCopy" name="noOfCopy" min="0" required>
+                <button type="submit">Add Book</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Existing Books</h2>
+            <table id="booksTable">
+                <thead>
+                    <tr>
+                        <th>Book ID</th>
+                        <th>Location</th>
+                        <th>Availability</th>
+                        <th>Number of Copies</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Existing book entries will be populated here -->
+                </tbody>
+            </table>
+        </section>
+        
+        <section id="bookDetails" style="display:none;">
+            <h2>Book Details</h2>
+            <div id="bookInfo"></div>
+        </section>
+    </main>
+
+    <script>
+        $(document).ready(function() {
+            const token = localStorage.getItem('token'); // Store the token after login
+
+            // Handle form submission
+            $('#addBookForm').on('submit', function(e) {
+                e.preventDefault();
+
+                const googleId = $('#googleId').val();
+                const bookLocation = $('#bookLocation').val();
+                const availability = $('#availability').is(':checked');
+                const noOfCopy = $('#noOfCopy').val();
+
+                // Fetch the book details from Google Books API
+                $.ajax({
+                    url: `/api/books/${googleId}`,
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    success: function(book) {
+                        const bookData = {
+                            googleId: googleId,
+                            bookLocation,
+                            availability,
+                            noOfCopy,
+                            bookId: book._id // Store the book ID
+                        };
+
+                        // Send the data to the server
+                        $.ajax({
+                            url: '/api/admin_books',
+                            method: 'POST',
+                            contentType: 'application/json',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            },
+                            data: JSON.stringify(bookData),
+                            success: function(response) {
+                                alert('Book added successfully!');
+                                // Append the new book to the table
+                                appendBookToTable(bookData);
+                                // Clear the form
+                                $('#addBookForm')[0].reset();
+                                // Display book details immediately
+                                displayBookDetails(book);
+                            },
+                            error: function(error) {
+                                console.error('Error adding book:', error);
+                                alert('Error adding book: ' + error.responseText);
+                            }
+                        });
+                    },
+                    error: function(error) {
+                        alert('Error finding book: ' + error.responseText);
+                    }
+                });
+            });
+
+            // Function to append new book to the table
+            function appendBookToTable(bookData) {
+                const tbody = $('#booksTable tbody');
+                tbody.append(`
+                    <tr>
+                        <td>${bookData.googleId}</td>
+                        <td>${bookData.bookLocation}</td>
+                        <td>${bookData.availability ? 'Available' : 'Not Available'}</td>
+                        <td>${bookData.noOfCopy}</td>
+                    </tr>
+                `);
+            }
+
+            // Function to display book details
+            function displayBookDetails(book) {
+                const bookInfo = `
+                    <p><strong>Title:</strong> ${book.title}</p>
+                    <p><strong>Authors:</strong> ${book.authors ? book.authors.join(', ') : 'N/A'}</p>
+                    <p><strong>Publisher:</strong> ${book.publisher || 'N/A'}</p>
+                    <p><strong>Published Date:</strong> ${book.publishedDate || 'N/A'}</p>
+                    <p><strong>Description:</strong> ${book.description || 'N/A'}</p>
+                `;
+                $('#bookInfo').html(bookInfo);
+                $('#bookDetails').show();
+            }
+
+            // Initial load of books
+            loadBooks();
+
+            // Function to load existing admin books
+            function loadBooks() {
+                $.ajax({
+                    url: '/api/admin_books',
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    success: function(data) {
+                        const tbody = $('#booksTable tbody');
+                        tbody.empty(); // Clear existing entries
+
+                        data.forEach(adminBook => {
+                            appendBookToTable(adminBook);
+                        });
+                    },
+                    error: function(error) {
+                        console.error('Error loading books:', error);
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>

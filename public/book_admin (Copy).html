@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Administration</title>
+    <link rel="stylesheet" href="styles.css"> <!-- Add your CSS file if needed -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Existing CSS styles */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+        }
+
+        .book-cover {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 15px;
+        }
+
+        .book-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .borrow-button, .back-button {
+            display: block;
+            margin-top: 20px;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            color: white;
+        }
+
+        .borrow-button {
+            background-color: #ffcc00;
+        }
+
+        .borrow-button:hover {
+            background-color: #e6b800;
+        }
+
+        .back-button {
+            background-color: #1565c0;
+        }
+
+        .back-button:hover {
+            background-color: #0d47a1;
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            clear: both;
+        }
+
+        .action-button {
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .edit-button {
+            background-color: #4caf50; /* Green */
+            color: white;
+        }
+
+        .delete-button {
+            background-color: #f44336; /* Red */
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Book Administration</h1>
+    </header>
+
+    <main>
+        <section>
+            <h2>Add New Book</h2>
+            <form id="addBookForm">
+                <label for="googleId">Book ID:</label>
+                <input type="text" id="googleId" name="googleId" required>
+
+                <label for="bookLocation">Book Location:</label>
+                <select id="bookLocation" name="bookLocation" required>
+                    <option value="Stanley Ho Library">Stanley Ho Library</option>
+                    <option value="Ho Sik Yee Library">Ho Sik Yee Library</option>
+                </select>
+
+                <label for="availability">Availability:</label>
+                <input type="checkbox" id="availability" name="availability" checked>
+
+                <label for="noOfCopy">Number of Copies:</label>
+                <input type="number" id="noOfCopy" name="noOfCopy" min="0" required>
+
+                <button type="submit">Add Book</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Existing Books</h2>
+            <table id="booksTable">
+                <thead>
+                    <tr>
+                        <th>Book ID</th>
+                        <th>Location</th>
+                        <th>Availability</th>
+                        <th>Number of Copies</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Existing book entries will be populated here -->
+                </tbody>
+            </table>
+        </section>
+        
+        <section id="bookDetails" style="display:none;">
+            <h2>Book Details</h2>
+            <div id="bookInfo"></div>
+        </section>
+    </main>
+
+    <script>
+        $(document).ready(function() {
+    const token = localStorage.getItem('token'); // Store the token after login
+
+    // Handle form submission
+    $('#addBookForm').on('submit', function(e) {
+        e.preventDefault();
+
+        const googleId = $('#googleId').val(); // Get the googleId directly from input
+        const bookLocation = $('#bookLocation').val();
+        const availability = $('#availability').is(':checked');
+        const noOfCopy = $('#noOfCopy').val();
+
+        // Debugging: Log the values before the AJAX call
+        console.log('Google ID:', googleId);
+        console.log('Book Location:', bookLocation);
+        console.log('Availability:', availability);
+        console.log('Number of Copies:', noOfCopy);
+
+        // Find the book first to get its details
+        $.ajax({
+            url: `/api/books/${googleId}`, // Endpoint to fetch book details
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function(book) {
+                const bookData = {
+                    googleId: googleId, // Use googleId directly from input
+                    bookLocation,
+                    availability,
+                    noOfCopy,
+                    bookId: book._id // Include the book ID for admin_books
+                };
+
+                // Debugging: Log the bookData
+                console.log('Book Data to send:', bookData);
+
+                // Send the data to the server
+                $.ajax({
+                    url: '/api/admin_books',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    data: JSON.stringify(bookData),
+                    success: function(response) {
+                        alert('Book added successfully!');
+                        displayBookDetails(response.book); // Display book details
+                        loadBooks(); // Reload the table data
+                    },
+                    error: function(error) {
+                        console.error('Error adding book:', error);
+                        alert('Error adding book: ' + error.responseText);
+                    }
+                });
+            },
+            error: function(error) {
+                alert('Error finding book: ' + error.responseText);
+            }
+        });
+    });
+
+    // Function to load existing admin books
+    function loadBooks() {
+        $.ajax({
+            url: '/api/admin_books',
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function(data) {
+                const tbody = $('#booksTable tbody');
+                tbody.empty(); // Clear existing entries
+
+                data.forEach(adminBook => {
+                    tbody.append(`
+                        <tr>
+                            <td>${adminBook.googleId}</td>
+                            <td>${adminBook.bookLocation}</td>
+                            <td>${adminBook.availability ? 'Available' : 'Not Available'}</td>
+                            <td>${adminBook.noOfCopy}</td>
+                            <td>${adminBook.bookId.title}</td> <!-- Display book title -->
+                            <td>${adminBook.bookId.authors.join(', ')}</td> <!-- Display authors -->
+                        </tr>
+                    `);
+                });
+            },
+            error: function(error) {
+                console.error('Error loading books:', error);
+            }
+        });
+    }
+
+    // Function to display book details
+    function displayBookDetails(book) {
+        const bookInfo = `
+            <p><strong>Title:</strong> ${book.title}</p>
+            <p><strong>Authors:</strong> ${book.authors.join(', ')}</p>
+            <p><strong>Publisher:</strong> ${book.publisher}</p>
+            <p><strong>Published Date:</strong> ${book.publishedDate}</p>
+            <p><strong>Description:</strong> ${book.description}</p>
+            <p><strong>Location:</strong> ${$('#bookLocation').val()}</p>
+            <p><strong>Availability:</strong> ${$('#availability').is(':checked') ? 'Available' : 'Not Available'}</p>
+            <p><strong>Number of Copies:</strong> ${$('#noOfCopy').val()}</p>
+        `;
+        $('#bookInfo').html(bookInfo);
+        $('#bookDetails').show();
+    }
+
+    // Initial load of books
+    loadBooks();
+});
+    </script>
+</body>
+</html>
