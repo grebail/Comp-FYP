@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borrow History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+        }
+
+        .book-cover {
+            max-width: 200px;
+            height: auto;
+            margin-bottom: 15px;
+        }
+
+        .book-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .borrow-button {
+            display: block;
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #ffcc00;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            color: black;
+        }
+
+        .borrow-button:hover {
+            background-color: #e6b800;
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Borrow History</h1>
+<div id="historyContent" class="history-list"></div>
+<div id="errorMessage" class="error-message"></div>
+<button class="button" onclick="window.history.back()">Go Back</button>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const userid = params.get('userid');
+
+    // Function to fetch borrow history
+    async function fetchBorrowHistory() {
+        const token = localStorage.getItem('token');
+        if (!token) {
+            displayError('No token found. Please log in.');
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/userBorrows?userid=${userid}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.text();
+                displayError(errorData || 'Failed to fetch borrow history.');
+                return;
+            }
+
+            const history = await response.json();
+            await displayBooks(history);
+        } catch (error) {
+            displayError('An error occurred while fetching borrow history.');
+        }
+    }
+
+    // Function to fetch book details by googleId
+    async function fetchBookDetails(googleId) {
+        const token = localStorage.getItem('token');
+        const response = await fetch(`/api/books/${googleId}`, {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to fetch book details.');
+        }
+
+        return await response.json();
+    }
+
+    // Function to display borrowed books
+    // Function to display borrowed books
+async function displayBooks(history) {
+    if (history.length === 0) {
+        document.getElementById('historyContent').innerHTML = '<p>No borrow history found.</p>';
+        return;
+    }
+
+    const seenGoogleIds = new Set(); // Track seen googleIds
+    const bookPromises = history.map(item => fetchBookDetails(item.googleId));
+
+    const books = await Promise.all(bookPromises);
+    const uniqueBooks = [];
+
+    // Filter out duplicates based on googleId
+    books.forEach((book, index) => {
+        if (!seenGoogleIds.has(book.googleId)) {
+            seenGoogleIds.add(book.googleId);
+            uniqueBooks.push({
+                ...book,
+                borrowDate: history[index].borrowDate,
+                dueDate: history[index].dueDate,
+                returned: history[index].returned,
+                borrowId: history[index]._id // Attach borrowId for reference
+            });
+        }
+    });
+
+    const historyHTML = uniqueBooks.map(book => `
+        <div class="book-item">
+            <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title} cover" class="book-cover" />
+            <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
+            <strong>Borrow Date:</strong> ${new Date(book.borrowDate).toLocaleDateString()} <br>
+            <strong>Due Date:</strong> ${new Date(book.dueDate).toLocaleDateString()} <br>
+            <strong>Returned:</strong> ${book.returned ? 'Yes' : 'No'} <br>
+            <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
+            <button onclick="returnBook('${book.borrowId}')">Return</button> <!-- Return button -->
+        </div>
+    `).join('');
+
+    document.getElementById('historyContent').innerHTML = historyHTML;
+}
+
+// Function to handle book return
+    async function returnBook(borrowId) {
+    const token = localStorage.getItem('token'); // Get the token from local storage or wherever you store it
+
+    try {
+        const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ returned: true }) // Update the returned status
+        });
+
+        if (response.ok) {
+            alert('Book returned successfully');
+            // Optionally, refresh the book list or update the UI
+            fetchBorrowHistory(); // Assuming you have a function to fetch the borrowing history again
+        } else {
+            alert('Error returning book');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error returning book');
+    }
+}
+	
+    // Function to display error messages
+    function displayError(message) {
+        document.getElementById('errorMessage').innerHTML = message;
+    }
+
+    // Start fetching borrow history when the page loads
+    window.onload = fetchBorrowHistory;
+</script>
+
+</body>
+</html>

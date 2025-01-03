@@ -55,6 +55,23 @@ const authenticateToken = (req, res, next) => {
     });
 };
 
+// API endpoint to get borrow history for a specific user
+app.get('/api/userBorrows', authenticateToken, async (req, res) => {
+    const { userid } = req.query;
+
+    if (!userid || userid !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to view this borrow history.' });
+    }
+
+    try {
+        const borrows = await UserBorrow.find({ userid: userid });
+        res.json(borrows);
+    } catch (error) {
+        console.error('Error fetching borrow history:', error);
+        res.status(500).json({ error: 'Failed to fetch borrow history.' });
+    }
+});
+
 // Route to borrow a book based on googleId and userid from the query parameters
 app.get('/borrowBook', authenticateToken, async (req, res) => {
     const { googleId, userid } = req.query;
@@ -89,6 +106,29 @@ app.get('/borrowBook', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error borrowing book:', error);
         return res.status(500).json({ error: 'Error borrowing book' });
+    }
+});
+
+// API endpoint to update borrow status (return a book)
+app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { returned } = req.body;
+
+    if (returned !== true) {
+        return res.status(400).json({ error: 'Invalid request. Returned status must be true.' });
+    }
+
+    try {
+        const updatedBorrow = await UserBorrow.findByIdAndUpdate(id, { returned: true }, { new: true });
+
+        if (!updatedBorrow) {
+            return res.status(404).json({ error: 'Borrow record not found' });
+        }
+
+        res.json(updatedBorrow);
+    } catch (error) {
+        console.error('Error updating borrow status:', error);
+        res.status(500).json({ error: 'Failed to update borrow status' });
     }
 });
 
@@ -192,8 +232,6 @@ app.get('/auth/google/callback',
         res.redirect(`http://localhost:9875/index.html?userid=${req.user._id}`);
     }
 );
-
-
 
 // User Management (admin only)
 app.get('/users', authenticateToken, async (req, res) => {
@@ -329,8 +367,6 @@ app.delete('/books/:id', authenticateToken, async (req, res) => {
     await Book.findByIdAndDelete(req.params.id);
     res.status(204).send();
 });
-
-
 
 // Start server and create default admin
 app.listen(PORT, async () => {
