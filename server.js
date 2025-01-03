@@ -13,6 +13,7 @@ const session = require('express-session');
 const Book = require('./models/bookSchema');
 const User = require('./models/userSchema');
 const UserBorrow = require('./models/bookBorrowSchema');
+const Comment = require('./models/commentSchema');
 
 const app = express();
 const PORT = 9875;
@@ -367,7 +368,52 @@ app.delete('/books/:id', authenticateToken, async (req, res) => {
     await Book.findByIdAndDelete(req.params.id);
     res.status(204).send();
 });
+// API endpoint to create a comment
+app.post('/api/comments', authenticateToken, async (req, res) => {
+    const { bookId, rating, comment } = req.body;
 
+    if (!bookId || !rating || !comment) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    const newComment = new Comment({
+        bookId,
+        userId: req.user.id,
+        rating,
+        comment
+    });
+
+    try {
+        const savedComment = await newComment.save();
+        res.status(201).json(savedComment);
+    } catch (error) {
+        console.error('Error creating comment:', error);
+        res.status(500).json({ error: 'Failed to create comment' });
+    }
+});
+
+// API endpoint to update a comment
+app.put('/api/comments/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { rating, comment } = req.body;
+
+    if (!rating || !comment) {
+        return res.status(400).json({ error: 'Rating and comment are required.' });
+    }
+
+    try {
+        const updatedComment = await Comment.findByIdAndUpdate(id, { rating, comment }, { new: true });
+
+        if (!updatedComment) {
+            return res.status(404).json({ error: 'Comment not found' });
+        }
+
+        res.json(updatedComment);
+    } catch (error) {
+        console.error('Error updating comment:', error);
+        res.status(500).json({ error: 'Failed to update comment' });
+    }
+});
 // Start server and create default admin
 app.listen(PORT, async () => {
     console.log(`Server running on http://localhost:${PORT}`);

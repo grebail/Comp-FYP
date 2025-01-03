@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Borrow Book</title>
-    <style>
+   <style>
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -12,37 +12,63 @@
             background-color: #f4f4f4;
             color: #333;
         }
-        h1 {
-            color: #1565c0;
-        }
-        .book-details {
-            background: white;
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
             padding: 20px;
-            border-radius: 5px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            margin-top: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
         }
-        .error-message {
-            color: red;
-        }
-        .success-message {
-            color: green;
-        }
+
         .book-cover {
             max-width: 200px;
-            margin-bottom: 10px;
+            height: auto;
+            margin-bottom: 15px;
         }
-        button {
+
+        .book-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .borrow-button {
+            display: block;
             margin-top: 20px;
-            padding: 10px 15px;
+            padding: 10px;
+            background-color: #ffcc00;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+            text-decoration: none;
+            color: black;
+        }
+
+        .borrow-button:hover {
+            background-color: #e6b800;
+        }
+
+        .back-button {
+            margin-top: 20px;
+            padding: 10px;
             background-color: #1565c0;
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
         }
-        button:hover {
+
+        .back-button:hover {
             background-color: #0d47a1;
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            clear: both;
         }
     </style>
 </head>

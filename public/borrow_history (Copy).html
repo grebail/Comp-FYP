@@ -50,7 +50,7 @@
             flex-grow: 1;
         }
 
-        .return-button, .comment-button {
+        .return-button {
             background-color: #ff5722;
             color: white;
             border: none;
@@ -58,10 +58,9 @@
             padding: 10px;
             cursor: pointer;
             transition: background-color 0.3s;
-            margin-top: 10px;
         }
 
-        .return-button:hover, .comment-button:hover {
+        .return-button:hover {
             background-color: #e64a19;
         }
 
@@ -86,52 +85,10 @@
             background-color: #2e7d32;
         }
 
-        /* Modal styles */
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 400px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-        }
-
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .star {
-            color: gold;
-            cursor: pointer;
-            font-size: 20px;
-        }
-
-        .comment-container {
-            margin-top: 10px;
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            clear: both;
         }
     </style>
 </head>
@@ -145,28 +102,9 @@
 <div id="historyContent" class="history-list"></div>
 <button class="go-back-button" id="goBackButton">Go Back</button>
 
-<!-- Modal for commenting -->
-<div id="commentModal" class="modal">
-    <div class="modal-content">
-        <span class="close" id="closeModal">&times;</span>
-        <h2>Comment on the Book</h2>
-        <div id="starRating">
-            <span class="star" data-value="1">★</span>
-            <span class="star" data-value="2">★</span>
-            <span class="star" data-value="3">★</span>
-            <span class="star" data-value="4">★</span>
-            <span class="star" data-value="5">★</span>
-        </div>
-        <textarea id="commentText" placeholder="Add your comment here..." rows="4" style="width: 100%; margin-top: 10px;"></textarea>
-        <button id="submitComment" class="comment-button" style="margin-top: 10px;">Submit Comment</button>
-    </div>
-</div>
-
 <script>
     const params = new URLSearchParams(window.location.search);
     const userid = params.get('userid');
-    let currentBookId = null; // To store the current book's ID for commenting
-    let currentCommentId = null; // To store the current comment's ID for editing
 
     // Function to fetch borrow history
     async function fetchBorrowHistory() {
@@ -236,8 +174,7 @@
                     borrowDate: history[index].borrowDate,
                     dueDate: history[index].dueDate,
                     returned: history[index].returned,
-                    borrowId: history[index]._id, // Attach borrowId for reference
-                    comments: history[index].comments || [] // Attach comments if available
+                    borrowId: history[index]._id // Attach borrowId for reference
                 });
             }
         });
@@ -252,16 +189,6 @@
                     <strong>Returned:</strong> ${book.returned ? 'Yes' : 'No'} <br>
                     <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
                     <button class="return-button" onclick="returnBook('${book.borrowId}')">Return</button>
-                    <button class="comment-button" onclick="openCommentModal('${book.borrowId}', null)">Comment</button>
-                    <div class="comment-container">
-                        ${book.comments.map(comment => `
-                            <div>
-                                <strong>Rating:</strong> ${comment.rating} stars <br>
-                                <strong>Comment:</strong> ${comment.comment} <br>
-                                <button class="comment-button" onclick="openCommentModal('${book.borrowId}', '${comment._id}', ${comment.rating}, '${comment.comment}')">Edit</button>
-                            </div>
-                        `).join('')}
-                    </div>
                 </div>
             </div>
         `).join('');
@@ -271,7 +198,7 @@
 
     // Function to handle book return
     async function returnBook(borrowId) {
-        const token = localStorage.getItem('token');
+        const token = localStorage.getItem('token'); // Get the token from local storage or wherever you store it
 
         try {
             const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
@@ -280,7 +207,7 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ returned: true })
+                body: JSON.stringify({ returned: true }) // Update the returned status
             });
 
             if (response.ok) {
@@ -305,102 +232,6 @@
         window.location.href = `index.html?userid=${userid}`; // Redirect to index.html with userId
     });
 
-    // Open comment modal
-    function openCommentModal(borrowId, commentId, rating = 0, commentText = '') {
-        currentBookId = borrowId; // Set the current book ID
-        currentCommentId = commentId; // Set the current comment ID
-        document.getElementById('commentModal').style.display = 'block'; // Show the modal
-        resetCommentForm(); // Reset form
-
-        // If editing, set the existing values
-        if (commentId) {
-            document.getElementById('commentText').value = commentText;
-            document.querySelectorAll('.star').forEach(star => {
-                star.classList.remove('selected');
-            });
-            for (let i = 1; i <= rating; i++) {
-                document.querySelector(`.star[data-value="${i}"]`).classList.add('selected');
-            }
-            document.getElementById('submitComment').setAttribute('data-rating', rating); // Set selected rating
-        }
-    }
-
-    // Close modal functionality
-    document.getElementById('closeModal').onclick = function() {
-        document.getElementById('commentModal').style.display = 'none';
-    }
-
-    // Reset comment form
-    function resetCommentForm() {
-        document.getElementById('commentText').value = '';
-        document.querySelectorAll('.star').forEach(star => {
-            star.classList.remove('selected');
-        });
-        document.getElementById('submitComment').setAttribute('data-rating', ''); // Reset selected rating
-    }
-
-    // Handle star rating selection
-    document.querySelectorAll('.star').forEach(star => {
-        star.addEventListener('click', function() {
-            const value = this.getAttribute('data-value');
-            document.querySelectorAll('.star').forEach(star => {
-                star.classList.remove('selected');
-            });
-            for (let i = 1; i <= value; i++) {
-                document.querySelector(`.star[data-value="${i}"]`).classList.add('selected');
-            }
-            document.getElementById('submitComment').setAttribute('data-rating', value); // Set selected rating
-        });
-    });
-
-    // Submit comment functionality
-document.getElementById('submitComment').onclick = async function() {
-    const rating = this.getAttribute('data-rating');
-    const comment = document.getElementById('commentText').value.trim();
-
-    // Basic validation
-    if (!rating || !comment) {
-        alert('Please select a rating and enter a comment.');
-        return;
-    }
-
-    const token = localStorage.getItem('token');
-    let method = 'POST';
-    let url = `http://localhost:9875/api/comments`;
-    let body = JSON.stringify({ bookId: currentBookId, rating: rating, comment: comment });
-
-    // If editing, update the method and URL
-    if (currentCommentId) {
-        method = 'PUT';
-        url += `/${currentCommentId}`; // Assuming the API supports updating comments
-        body = JSON.stringify({ rating: rating, comment: comment });
-    }
-
-    try {
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-            },
-            body: body
-        });
-
-        // Debugging: Check the response
-        const responseData = await response.text();
-        if (response.ok) {
-            alert('Comment submitted successfully');
-            document.getElementById('commentModal').style.display = 'none'; // Close modal
-            fetchBorrowHistory(); // Refresh the book list to show updated comments
-        } else {
-            console.error('Error response:', responseData); // Log the error response
-            alert('Error submitting comment: ' + responseData);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        alert('Error submitting comment');
-    }
-}
     // Start fetching borrow history when the page loads
     window.onload = fetchBorrowHistory;
 </script>

@@ -51,6 +51,20 @@
             background-color: #e6b800;
         }
 
+        .back-button {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .back-button:hover {
+            background-color: #0d47a1;
+        }
+
         footer {
             margin-top: 20px;
             text-align: center;
@@ -64,6 +78,8 @@
     </header>
 
     <main id="bookDetails" class="book-details"></main>
+
+    <button class="back-button" id="goBackButton">Back</button> <!-- New Back button -->
 
     <footer>
         <p>&copy; 2024 Smart Library. All rights reserved.</p>
@@ -110,6 +126,11 @@
             }
             window.location.href = `book_borrow.html?googleId=${googleId}&userid=${userId}`; // Redirect to borrow page
         }
+
+        // Event listener for Back button
+        document.getElementById('goBackButton').addEventListener('click', () => {
+            window.location.href = `index.html?userid=${userId}`; // Redirect to index.html with userId
+        });
     </script>
 </body>
 </html>
