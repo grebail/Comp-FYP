@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up Page</title>
+    <style>
+        /* Basic styles similar to login.html */
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url('lib-background.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        .signup-container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            width: 350px;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #444;
+            font-size: 24px;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 90%;
+            padding: 15px;
+            margin: 12px 0;
+            border: 2px solid #d1d1d1;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="submit"] {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #218838;
+        }
+
+        .return-button {
+            background-color: #62A4F7;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 15px;
+        }
+
+        .return-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div class="signup-container">
+        <h2>Sign Up</h2>
+        <form id="signup-form" onsubmit="return handleSignup(event)">
+            <input type="text" id="signup-username" placeholder="Username" required>
+            <input type="password" id="signup-password" placeholder="Password" required>
+            <input type="password" id="signup-retype-password" placeholder="Re-type Password" required>
+            <input type="submit" value="Sign Up">
+        </form>
+        <button class="return-button" onclick="window.location.href='login.html'">Return to Login</button>
+    </div>
+
+    <script>
+        function handleSignup(event) {
+            event.preventDefault();
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+            const retypePassword = document.getElementById('signup-retype-password').value;
+
+            // Check if passwords match
+            if (password !== retypePassword) {
+                alert("Passwords do not match. Please try again.");
+                return;
+            }
+
+            fetch('http://localhost:9875/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password, role: 'user' }),
+            })
+            .then(response => {
+                if (response.status === 409) { // Assuming 409 Conflict for duplicate username
+                    throw new Error('The username already exists.');
+                }
+                if (!response.ok) {
+                    throw new Error('Sign up failed: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Account created successfully! You can now log in.');
+                window.location.href = 'login.html'; // Redirect to login after successful signup
+            })
+            .catch(error => {
+                alert(error.message);
+            });
+        }
+    </script>
+</body>
+</html>

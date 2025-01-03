@@ -33,15 +33,15 @@
         /* Search */
         #search-form {
             display: flex;
-            justify-content: center;
-            margin-top: 20px;
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        justify-content: center;
+        margin-top: 20px;
+        flex-wrap: wrap; /* Allow wrapping on smaller screens */
         }
 
         #search-input {
             padding: 10px;
             border: 2px solid #4caf50; /* Green border */
-            border-radius: 5px;
+            border-radius: 20px; /* Increased radius for more rounded corners */
             width: 100%; /* Full width on mobile */
             max-width: 400px; /* Limit width on larger screens */
             transition: border-color 0.3s;
@@ -58,7 +58,7 @@
             color: #fff;
             padding: 10px 20px;
             border: none;
-            border-radius: 5px;
+            border-radius: 20px; /* Increased radius for more rounded corners */
             cursor: pointer;
             transition: background-color 0.3s;
             margin-left: 10px; /* Space between input and button */
@@ -214,7 +214,7 @@
     <a id="books-link" href="#">Books</a>
     <a href="#journals">Journals</a>
     <a href="#services">Services</a>
-    <a href="#contact">Contact Us</a>
+    <a href="contact.html">Contact Us</a>
     <a href="login.html" class="login-button">Login</a>
 </nav>
 
@@ -260,11 +260,13 @@
             <li>Events and Workshops</li>
         </ul>
     </section>
-    <section id="contact">
-        <h2>Contact Us</h2>
-        <p>Email: info@smart-library.com</p>
-        <p>Phone: (852) 2345-6789</p>
-    </section>
+    <a href="contact.html" style="text-decoration: none; color: inherit;">
+        <section id="contact" style="cursor: pointer; padding: 20px; background-color: #f9f9f9; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
+            <h2>Contact Us</h2>
+            <p>Email: info@smart-library.com</p>
+            <p>Phone: (852) 2345-6789</p>
+        </section>
+    </a>
 </div>
 
 <footer>
@@ -307,6 +309,7 @@
     // Initialize the slideshow
     showSlide(currentIndex); // Show the first slide
     setInterval(nextSlide, 3000); // Change slide every 3 seconds
+    
     // Books link redirect
     document.getElementById('books-link').addEventListener('click', function() {
         const userId = new URLSearchParams(window.location.search).get('userid');
