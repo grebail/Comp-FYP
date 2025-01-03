@@ -454,8 +454,56 @@ app.post('/api/admin_books', authenticateToken, async (req, res) => {
     }
 });
 
+// API endpoint to update an admin book
+// API endpoint to add a new admin book
+app.post('/api/admin_books', authenticateToken, async (req, res) => {
+    if (req.user.role !== 'admin') return res.sendStatus(403); // Check admin role
 
+    const { googleId, bookLocation, availability, noOfCopy } = req.body;
 
+    // Validate incoming data
+    if (!googleId || !bookLocation || noOfCopy === undefined) {
+        return res.status(400).json({ error: 'Missing required fields: googleId, bookLocation, or noOfCopy.' });
+    }
+
+    try {
+        // Validate the googleId against the Book model
+        const book = await Book.findOne({ googleId });
+        if (!book) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+
+        const newAdminBook = new AdminBook({
+            bookId: book._id, // Use the book's ID from the Book model
+            googleId, // Optionally store googleId for reference
+            bookLocation,
+            availability,
+            noOfCopy,
+        });
+
+        await newAdminBook.save();
+
+        res.status(201).json({ adminBook: newAdminBook, book });
+    } catch (error) {
+        console.error('Error adding admin book:', error); // Log error for debugging
+        res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
+    }
+});
+// API endpoint to delete an admin book
+app.delete('/api/admin_books/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedAdminBook = await AdminBook.findByIdAndDelete(id);
+        if (!deletedAdminBook) {
+            return res.status(404).json({ error: 'Admin book not found' });
+        }
+        res.sendStatus(204); // No content
+    } catch (error) {
+        console.error('Error deleting admin book:', error);
+        res.status(500).json({ error: 'Failed to delete admin book.' });
+    }
+});
 
 // Start server and create default admin
 app.listen(PORT, async () => {
