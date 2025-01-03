@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-image: url('lib-background.jpg');
+            background-size: cover;
+            background-position: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 1;
+        }
+
+        .login-container {
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 15px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+            width: 350px;
+            position: relative;
+            z-index: 2;
+        }
+
+        h2 {
+            text-align: center;
+            margin-bottom: 25px;
+            color: #444;
+            font-size: 24px;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 90%;
+            padding: 15px;
+            margin: 12px 0;
+            border: 2px solid #d1d1d1;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: #6c757d;
+            outline: none;
+        }   
+
+        input[type="submit"], .google-login-button {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            padding: 15px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 18px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        input[type="submit"]:hover, .google-login-button:hover {
+            background-color: #218838;
+        }
+
+        .google-login-button {
+            background-color: #4285F4;
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .google-login-button img {
+            width: 20px;
+            margin-right: 10px;
+        }
+
+        .return-button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: background-color 0.3s ease;
+            width: 100%;
+            margin-top: 15px;
+            z-index: 2;
+            position: relative;
+        }
+
+        .return-button:hover {
+            background-color: #0056b3;
+        }
+
+        .signup-link {
+            display: block;
+            text-align: center;
+            margin-top: 15px;
+            cursor: pointer;
+            color: #007bff;
+        }
+
+        .error-message {
+            color: red;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h2>Library Login</h2>
+        <div class="error-message" id="error-message"></div>
+        <form id="login-form" onsubmit="return handleLogin(event)">
+            <input type="text" id="login-username" placeholder="Username" required>
+            <input type="password" id="login-password" placeholder="Password" required>
+            <input type="submit" value="Login">
+        </form>
+        <button class="google-login-button" id="google-login">
+            <img src="https://img.icons8.com/color/48/000000/google-logo.png" alt="Google Logo"/>
+            Login with Google
+        </button>
+        <span class="signup-link" onclick="showSignup()">Don't have an account? Sign Up</span>
+        <button class="return-button" onclick="window.location.href='index.html'">Return to Home</button>
+    </div>
+
+    <div class="login-container" id="signup-container" style="display: none;">
+        <h2>Sign Up</h2>
+        <form id="signup-form" onsubmit="return handleSignup(event)">
+            <input type="text" id="signup-username" placeholder="Username" required>
+            <input type="password" id="signup-password" placeholder="Password" required>
+            <input type="submit" value="Sign Up">
+        </form>
+        <button class="return-button" onclick="hideSignup()">Cancel</button>
+    </div>
+
+    <script>
+        function handleLogin(event) {
+            event.preventDefault();
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+
+            fetch('http://localhost:9875/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Login failed: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Store the token in localStorage
+                localStorage.setItem('token', data.token);
+                // Redirect based on role
+                window.location.href = data.redirect;
+            })
+            .catch(error => {
+                document.getElementById('error-message').innerText = error.message;
+            });
+        }
+
+        function handleSignup(event) {
+            event.preventDefault();
+            const username = document.getElementById('signup-username').value;
+            const password = document.getElementById('signup-password').value;
+
+            fetch('http://localhost:9875/users', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password, role: 'user' }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Sign up failed: ' + response.statusText);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Account created successfully! You can now log in.');
+                hideSignup(); // Hide the signup form after successful sign up
+            })
+            .catch(error => {
+                alert(error.message);
+            });
+        }
+
+        function showSignup() {
+            document.getElementById('login-form').style.display = 'none';
+            document.getElementById('signup-container').style.display = 'block';
+        }
+
+        function hideSignup() {
+            document.getElementById('signup-container').style.display = 'none';
+            document.getElementById('login-form').style.display = 'block';
+        }
+
+        // Google Login function
+        document.getElementById('google-login').addEventListener('click', () => {
+            window.location.href = 'http://localhost:9875/auth/google';
+        });
+    </script>
+</body>
+</html>

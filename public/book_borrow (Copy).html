@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borrow Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        h1 {
+            color: #1565c0;
+        }
+        .book-details {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        .error-message {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+
+<h1>Borrow Book</h1>
+<div id="bookDetails" class="book-details">
+    <!-- Book details will be displayed here -->
+</div>
+<div id="errorMessage" class="error-message"></div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const googleId = params.get('googleId');
+    const userid = params.get('userid');
+    
+    fetch(`/api/books/${googleId}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Book not found');
+                }
+                return response.json();
+            })
+            .then(book => {
+               const bookDetails = `
+                    <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
+                    <div><strong>Title:</strong> ${book.title}</div>
+                    
+                    <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
+                    <div><strong>Publisher:</strong> ${book.publisher}</div>
+                    <div><strong>Published Date:</strong> ${book.publishedDate}</div>
+                   
+                   
+                `;
+                document.getElementById('bookDetails').innerHTML = bookDetails;
+            })
+            .catch(error => {
+                document.getElementById('bookDetails').innerHTML = `<p>${error.message}</p>`;
+            });
+
+   async function borrowBook() {
+    // Check if googleId and userid are provided
+    if (!googleId || !userid) {
+        displayError('No Google ID or User ID provided.');
+        return;
+    }
+
+    // Log the token for debugging
+    const token = localStorage.getItem('token');
+    if (!token) {
+    	displayError('No token found. Please log in.');
+    	return;
+}
+
+    try {
+        const response = await fetch(`/borrowBook?googleId=${googleId}&userid=${userid}`, {
+            method: 'GET', // Change to GET since you're using query parameters
+            headers: {
+                'Authorization': `Bearer ${token}` // Send the token
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.text(); // Get the error response as text
+            console.error('Error Response:', errorData); // Log the error response
+            displayError(errorData || 'Failed to borrow the book.');
+            return;
+        }
+
+        const data = await response.json();
+        displayBookDetails(data);
+    } catch (error) {
+        console.error('Fetch data error:', error);
+        displayError('An error occurred while borrowing the book.');
+    }
+}
+
+    function displayBookDetails(book) {
+        const bookDetailsDiv = document.getElementById('bookDetails');
+        bookDetailsDiv.innerHTML = `
+            <h2>${book.title}</h2>
+            <p><strong>Authors:</strong> ${book.authors.join(', ')}</p>
+            <p><strong>Borrowing Status:</strong> Successfully borrowed!</p>
+        `;
+    }
+
+    function displayError(message) {
+        const errorMessageDiv = document.getElementById('errorMessage');
+        errorMessageDiv.innerHTML = message;
+    }
+
+    // Start the borrowing process when the page loads
+    window.onload = borrowBook;
+</script>
+
+</body>
+</html>

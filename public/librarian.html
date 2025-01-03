@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library System - Librarian</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        input, button {
+            margin: 5px;
+            padding: 10px;
+            width: 100%;
+        }
+        .book {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Library System - Librarian Page</h1>
+
+    <h2>Add Book</h2>
+    <form id="bookForm">
+        <input type="text" id="title" placeholder="Title" required>
+        <input type="text" id="author" placeholder="Author" required>
+        <input type="number" id="year" placeholder="Year" required>
+        <input type="text" id="isbn" placeholder="ISBN" required>
+        <button type="submit">Add Book</button>
+    </form>
+
+    <h2>Book List</h2>
+    <div id="bookList"></div>
+
+    <script>
+        const bookForm = document.getElementById('bookForm');
+        const bookList = document.getElementById('bookList');
+        const token = localStorage.getItem('token');
+
+        bookForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const title = document.getElementById('title').value;
+            const author = document.getElementById('author').value;
+            const year = document.getElementById('year').value;
+            const isbn = document.getElementById('isbn').value;
+
+            const response = await fetch('http://localhost:9875/books', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ title, author, year, isbn })
+            });
+
+            if (response.ok) {
+                fetchBooks(); // Refresh the book list
+                bookForm.reset();
+            } else {
+                alert('Failed to add book.');
+            }
+        });
+
+        async function fetchBooks() {
+            const response = await fetch('http://localhost:9875/books', {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            const books = await response.json();
+            displayBooks(books);
+        }
+
+        function displayBooks(books) {
+            bookList.innerHTML = '';
+            books.forEach(book => {
+                const div = document.createElement('div');
+                div.className = 'book';
+                div.innerHTML = `
+                    <span>${book.title} by ${book.author} (${book.year}) - ISBN: ${book.isbn}</span>
+                    <button onclick="removeBook('${book._id}')">Remove</button>
+                    <button onclick="updateBook('${book._id}', '${book.title}', '${book.author}', ${book.year}, '${book.isbn}')">Update</button>
+                `;
+                bookList.appendChild(div);
+            });
+        }
+
+        async function removeBook(bookId) {
+            await fetch(`http://localhost:9875/books/${bookId}`, {
+                method: 'DELETE',
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            fetchBooks(); // Refresh the book list
+        }
+
+        async function updateBook(bookId, title, author, year, isbn) {
+            const updatedData = prompt('Update book info (title, author, year, isbn)', `${title}, ${author}, ${year}, ${isbn}`);
+            if (updatedData) {
+                const [newTitle, newAuthor, newYear, newIsbn] = updatedData.split(',').map(item => item.trim());
+                await fetch(`http://localhost:9875/books/${bookId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ title: newTitle, author: newAuthor, year: newYear, isbn: newIsbn })
+                });
+                fetchBooks(); // Refresh the book list
+            }
+        }
+
+        fetchBooks(); // Initial fetch of all books
+    </script>
+</body>
+</html>
