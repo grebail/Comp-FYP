@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Library</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background-color: #e8f5e9; /* Light green background */
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(to right, #55ba59, #27732b);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c; /* Slightly lighter green border */
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        /* Search */
+        #search-form {
+            display: flex;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        #search-input {
+            padding: 10px;
+            border: 2px solid #4caf50; /* Green border */
+            border-radius: 5px;
+            width: 100%; /* Full width on mobile */
+            max-width: 400px; /* Limit width on larger screens */
+            transition: border-color 0.3s;
+        }
+
+        #search-input:focus {
+            outline: none;
+            border-color: #66bb6a; /* Lighter green on focus */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        #search-form button[type="submit"] {
+            background-color: #1976d2; /* Blue background */
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            margin-left: 10px; /* Space between input and button */
+        }
+
+        #search-form button[type="submit"]:hover {
+            background-color: #1565c0; /* Darker blue on hover */
+        }
+
+        /* Navigation */
+        nav {
+            background-color: #1e88e5; /* Bright blue */
+            padding: 10px;
+            text-align: center;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        nav a {
+            color: #fff;
+            text-decoration: none;
+            margin: 0 10px; /* Reduced margin for smaller screens */
+            transition: color 0.3s;
+        }
+
+        nav a:hover {
+            color: #bbdefb; /* Light blue on hover */
+        }
+
+        /* Login Button */
+        .login-button {
+            background-color: #4caf50; /* Green background */
+            color: white;
+            padding: 10px 15px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .login-button:hover {
+            background-color: #45a049; /* Darker green on hover */
+        }
+
+        /* Content */
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .content section {
+            background-color: #fff; /* White background */
+            padding: 20px;
+            margin: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            flex: 1 1 300px; /* Allow sections to grow and shrink */
+            max-width: 400px; /* Limit width */
+        }
+
+        /* Slide Container */
+        .slide-container {
+            width: 100%;
+            height: auto; /* Allow height to adjust based on content */
+            background-color: #e1f5fe; /* Light blue background */
+            text-align : center;
+            position: relative;
+            overflow: hidden; /* Prevent overflow of slides */
+        }
+
+        /* Each Slide */
+        .slide {
+            width: 100%;
+            height: auto; /* Allow height to adjust based on content */
+            position: absolute;
+            top: 0;
+            left: 0;
+            display: none; /* Hide all slides by default */
+        }
+
+        .active {
+            display: block; /* Show the active slide */
+        }
+
+        /* Card Container */
+        .card-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .card {
+            border: 1px solid #90caf9; /* Light blue border */
+            padding: 20px;
+            text-align: center;
+            width: 150px;
+            border-radius: 10px;
+            background-color: #fff; /* White background for cards */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin: 10px; /* Space between cards */
+        }
+
+        .card img {
+            width: 100%; /* Responsive image */
+            height: auto; /* Maintain aspect ratio */
+        }
+
+        .card a {
+            text-decoration: none;
+            color: #1e88e5; /* Blue text for links */
+        }
+
+        /* Footer */
+        footer {
+            background: linear-gradient(to left, #55ba59, #27732b);
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            clear: both;
+        }
+
+        /* Media Queries */
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 24px; /* Smaller font size for mobile */
+            }
+
+            nav a {
+                display: block; /* Stack links vertically */
+                margin: 5px 0; /* Space between links */
+            }
+
+            .card {
+                width: 80%; /* Wider cards on mobile */
+                max-width: 300px; /* Limit width */
+            }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Welcome to Our Library</h1>
+    <form id="search-form">
+        <input type="search" id="search-input" placeholder="Search...">
+        <button type="submit">Search</button>
+    </form>
+</header>
+
+<nav>
+    <a href="#library-database">Library Database</a>
+    <a href="books-catalog.html">Books</a>
+    <a href="#journals">Journals</a>
+    <a href="#services">Services</a>
+    <a href="#contact">Contact Us</a>
+    <a href="login.html" class="login-button">Login</a>
+</nav>
+
+<div class="slide-container">
+    <div class="slide active">
+        <img src="slide-image-test.jpg" alt="Slide Image1">
+    </div>
+    <div class="slide">
+        <img src="slide-image-test2.jpg" alt="Slide Image2">
+    </div>
+</div>
+
+<div class="card-container">
+    <div class="card">
+        <img src="acc_img.png" alt="My Account">
+        <a href="login.html">My Account</a>
+    </div>
+    <div class="card">
+        <img src="database_img.png" alt="Database">
+        <a href=".html">Library Database</a>
+    </div>
+    <div class="card">
+        <img src="booking_img.png" alt="Book Room">
+        <a href=".html">Room Booking</a>
+    </div>
+    <div class="card">
+        <img src="event_img.png" alt="Event">
+        <a href=".html">Event & Promotion</a>
+    </div>
+</div>
+
+<div class="content">
+    <section id="welcome">
+        <h2>Welcome!</h2>
+        <p>Explore our vast collection of books, journals, and digital resources.</p>
+    </section>
+    <section id="services">
+        <h2>Library Services</h2>
+        <ul>
+            <li>Book Lending</li>
+            <li>Study Rooms</li>
+            <li>Online Resources</li>
+            <li>Events and Workshops</li>
+        </ul>
+    </section>
+    <section id="contact">
+        <h2>Contact Us</h2>
+        <p>Email: info@smart-library.com</p>
+        <p>Phone: (852) 2345-6789</p>
+    </section>
+</div>
+
+<footer>
+    <p>&copy 2024 Smart Library. All rights reserved.</p>
+</footer>
+
+<script>
+    // Login Button
+    document.querySelector('.login-button').addEventListener('click', function(event) {
+        event.preventDefault(); // Prevent default link behavior
+        window.location.href = 'login.html'; // Redirect to login page
+    });
+
+    const loginForm = document.getElementById('loginForm');
+    const messageDiv = document.getElementById('message');
+
+    // Slide container
+    const slides = document.querySelectorAll('.slide');
+    var currentIndex = 0;
+
+    // Function to show the current slide
+    function showSlide(index) {
+        slides.forEach((slide, i) => {
+            slide.classList.remove('active'); // Hide all slides
+            if (i === index) {
+                slide.classList.add('active'); // Show the current slide
+            }
+        });
+    }
+
+    // Function to change the slide automatically
+    function nextSlide() {
+        currentIndex += 1; // Move to the next index
+        if (currentIndex >= slides.length) { // Return to the first index
+            currentIndex = 0;
+        }
+        showSlide(currentIndex); // Show the current slide
+    }
+
+    // Initialize the slideshow
+    showSlide(currentIndex); // Show the first slide
+    setInterval(nextSlide, 3000); // Change slide every 3 seconds
+
+    // Login function
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+
+        const response = await fetch('http://localhost:9875/login', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            localStorage.setItem('token', data.token);
+            window.location.href = data.redirect; // Redirect to user or admin page
+        } else {
+            messageDiv.textContent = 'Invalid credentials.';
+        }
+    });
+</script>
+
+</html> 

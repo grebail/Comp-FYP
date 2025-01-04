@@ -38,6 +38,7 @@
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            transition: background-color 0.3s;
         }
 
         .nav-bar button:hover {
@@ -63,6 +64,7 @@
             border-radius: 5px;
             cursor: pointer;
             margin-left: 5px;
+            transition: background-color 0.3s;
         }
 
         .search-container button:hover {
@@ -76,11 +78,13 @@
             position: relative;
             overflow: hidden;
             padding: 20px;
+            flex-wrap: wrap; /* Enable wrapping on smaller screens */
         }
 
         .catalog {
             display: flex;
             transition: transform 0.5s ease;
+            flex-wrap: wrap; /* Allow wrapping for book cards */
         }
 
         .book-card {
@@ -90,7 +94,8 @@
             padding: 10px;
             text-align: center;
             min-width: 150px;
-            margin: 0 10px;
+            margin: 10px; /* Adjusted margin for better spacing */
+            flex: 1 1 150px; /* Flex grow/shrink basis */
         }
 
         .book-title {
@@ -118,16 +123,41 @@
         }
 
         .action-buttons button {
-            padding: 5px;
-            margin: 2px;
+            padding: 8px 12px;
+            margin: 5px;
             background-color: #ffcc00;
             border: none;
             border-radius: 5px;
             cursor: pointer;
+            transition: background-color 0.3s;
         }
 
         .action-buttons button:hover {
             background-color: #e6b800;
+        }
+
+        .nav-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 50%;
+            padding: 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .prev-button {
+            left: 10px;
+        }
+
+        .next-button {
+            right: 10px;
+        }
+
+        .nav-button:hover {
+            background-color: #f0f0f0;
         }
 
         footer {
@@ -136,6 +166,12 @@
             padding: 10px;
             text-align: center;
             clear: both;
+        }
+
+        .loader {
+            display: none; /* Hidden by default */
+            text-align: center;
+            margin: 20px;
         }
     </style>
 </head>
@@ -147,22 +183,25 @@
             <button onclick="viewFavorites()">Favorites List</button>
             <button onclick="viewBorrowed()">Borrow List</button>
             <button onclick="viewAccount()">My Account</button>
-            <button class="return-button" onclick="window.location.href='login.html'">logout</button>
+            <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
-
         </div>
     </header>
 
     <div class="search-container">
-        <input type="text" placeholder="Search for Books by subject, title, or author" id="searchInput">
+        <input type="text" placeholder="Search for Books by subject, title, or author" id="searchInput" oninput="debouncedSearch()">
         <button onclick="searchBooks()">Search</button>
     </div>
 
+    <div class="loader" id="loader">Loading...</div>
+
     <main>
         <section class="bookshelf">
+            <button class="nav-button prev-button" onclick="prevBooks()">&#10094;</button>
             <div class="catalog" id="bookCatalog">
                 <!-- Book cards will be dynamically populated here -->
             </div>
+            <button class="nav-button next-button" onclick="nextBooks()">&#10095;</button>
         </section>
     </main>
 
@@ -171,25 +210,45 @@
     </footer>
 
     <script>
+        let currentStartIndex = 0;
+        const booksPerPage = 5;
         let allBooks = [];
         const userId = new URLSearchParams(window.location.search).get('userid'); // Extract user ID from URL
 
         async function loadBooks() {
+            showLoader();
             try {
                 const response = await fetch('/api/books?q=accounting'); // Example search
                 const result = await response.json();
                 allBooks = result.data;
-                displayBooks(); // Display all books initially
+                displayBooks(currentStartIndex); // Display initial set of books
             } catch (error) {
                 console.error('Error loading books:', error);
+                alert('Failed to load books. Please try again later.');
+            } finally {
+                hideLoader();
             }
         }
 
-        function displayBooks() {
+        function showLoader() {
+            document.getElementById('loader').style.display = 'block';
+        }
+
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        function displayBooks(startIndex) {
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
 
-            allBooks.forEach(book => {
+            const booksToShow = allBooks.slice(startIndex, startIndex + booksPerPage);
+            if (booksToShow.length === 0) {
+                catalog.innerHTML = '<p>No more books found.</p>';
+                return;
+            }
+
+            booksToShow.forEach(book => {
                 const card = document.createElement('div');
                 card.className = 'book-card';
 
@@ -197,7 +256,7 @@
                 const author = book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'N/A';
                 const publishedDate = book.volumeInfo.publishedDate || 'N/A';
                 const coverImage = book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '';
-                const googleId = book.id; // Get the googleId
+                const googleId = book.id;
 
                 card.innerHTML = `
                     <img src="${coverImage}" alt="${title} cover" class="book-cover" />
@@ -213,15 +272,35 @@
             });
         }
 
+        function nextBooks() {
+            if (currentStartIndex + booksPerPage < allBooks.length) {
+                currentStartIndex += booksPerPage;
+                displayBooks(currentStartIndex);
+            }
+        }
+
+        function prevBooks() {
+            if (currentStartIndex - booksPerPage >= 0) {
+                currentStartIndex -= booksPerPage;
+                displayBooks(currentStartIndex);
+            }
+        }
+
         function searchBooks() {
             const query = document.getElementById('searchInput').value;
+            showLoader();
             fetch(`/api/books?q=${encodeURIComponent(query)}`)
                 .then(response => response.json())
                 .then(data => {
                     allBooks = data.data; // Update allBooks with new search results
-                    displayBooks(); // Display fetched books
+                    currentStartIndex = 0; // Reset index for new search
+                    displayBooks(currentStartIndex); // Display fetched books
                 })
-                .catch(error => console.error('Error fetching books:', error));
+                .catch(error => {
+                    console.error('Error fetching books:', error);
+                    alert('Failed to fetch books. Please try again later.');
+                })
+                .finally(() => hideLoader());
         }
 
         function viewDetails(googleId) {
@@ -231,7 +310,13 @@
         function borrowBook(googleId) {
             window.location.href = `book_borrow.html?googleId=${googleId}&userid=${userId}`; // Redirect to borrow page with user ID
         }
-	 document.getElementById('homeButton').addEventListener('click', () => {
+
+        function debouncedSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(searchBooks, 300); // Delay search for 300ms
+        }
+
+        document.getElementById('homeButton').addEventListener('click', () => {
             window.location.href = `index.html?userid=${userId}`;
         });
 
