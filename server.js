@@ -111,17 +111,61 @@ app.get('/borrowBook', authenticateToken, async (req, res) => {
     }
 });
 
-// API endpoint to update borrow status (return a book)
-app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
-    const { id } = req.params;
-    const { returned } = req.body;
 
-    if (returned !== true) {
-        return res.status(400).json({ error: 'Invalid request. Returned status must be true.' });
+    
+// API endpoint to borrow a book
+app.post('/api/userBorrows', authenticateToken, async (req, res) => {
+    const { googleId, userid } = req.body;
+
+    // Ensure userid matches the authenticated user
+    if (!googleId || !userid || userid !== req.user.id) {
+        return res.status(400).json({ error: 'Invalid request.' });
     }
 
     try {
-        const updatedBorrow = await UserBorrow.findByIdAndUpdate(id, { returned: true }, { new: true });
+        // Check if the user has already borrowed this book and it is not returned
+        const existingBorrow = await UserBorrow.findOne({ googleId, userid, returned: false });
+
+        if (existingBorrow) {
+            return res.status(400).json({ error: 'You have already borrowed this book and it is not returned.' });
+        }
+
+        // Proceed with borrowing the book
+        const userBorrow = new UserBorrow({
+            userid: userid,
+            googleId: googleId,
+            returned: false // Set initially to false when borrowing
+        });
+
+        const savedBorrow = await userBorrow.save();
+        return res.status(201).json({
+            message: 'Book borrowed successfully',
+            borrowInfo: {
+                id: savedBorrow._id,
+                userid: savedBorrow.userid,
+                googleId: savedBorrow.googleId,
+                borrowDate: savedBorrow.borrowDate,
+                dueDate: savedBorrow.dueDate,
+                returned: savedBorrow.returned,
+            }
+        });
+    } catch (error) {
+        console.error('Error borrowing book:', error);
+        return res.status(500).json({ error: 'Error borrowing book' });
+    }
+});
+// API endpoint to update borrow status (return or borrow a book)
+app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+    const { returned } = req.body; // Accept returned status from request body
+
+    try {
+        // Validate the returned value
+        if (typeof returned !== 'boolean') {
+            return res.status(400).json({ error: 'Returned status must be a boolean' });
+        }
+
+        const updatedBorrow = await UserBorrow.findByIdAndUpdate(id, { returned: returned }, { new: true });
 
         if (!updatedBorrow) {
             return res.status(404).json({ error: 'Borrow record not found' });
@@ -133,7 +177,6 @@ app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to update borrow status' });
     }
 });
-
 // Create default admin user if it doesn't exist
 const createDefaultAdmin = async () => {
     const existingAdmin = await User.findOne({ username: 'admin' });
