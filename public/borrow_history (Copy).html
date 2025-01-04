@@ -50,7 +50,7 @@
             flex-grow: 1;
         }
 
-        .return-button, .comment-button, .borrow-again-button {
+        .return-button, .comment-button {
             background-color: #ff5722;
             color: white;
             border: none;
@@ -61,7 +61,7 @@
             margin-top: 10px;
         }
 
-        .return-button:hover, .comment-button:hover, .borrow-again-button:hover {
+        .return-button:hover, .comment-button:hover {
             background-color: #e64a19;
         }
 
@@ -168,11 +168,11 @@
         <span class="close" id="closeModal">&times;</span>
         <h2>Comment on the Book</h2>
         <div id="starRating">
-            <span class="star" data-value="1">\u2605</span>
-            <span class="star" data-value="2">\u2605</span>
-            <span class="star" data-value="3">\u2605</span>
-            <span class="star" data-value="4">\u2605</span>
-            <span class="star" data-value="5">\u2605</span>
+            <span class="star" data-value="1">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="5">★</span>
         </div>
         <textarea id="commentText" placeholder="Add your comment here..." rows="4" style="width: 100%; margin-top: 10px;"></textarea>
         <button id="submitComment" class="comment-button" style="margin-top: 10px;">Submit Comment</button>
@@ -269,7 +269,6 @@
                     <strong>Returned:</strong> ${book.returned ? 'Yes' : 'No'} <br>
                     <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
                     <button class="return-button" onclick="returnBook('${book.borrowId}')">Return</button>
-                  ${book.returned ? `<button class="borrow-again-button" onclick="borrowAgain('${book.borrowId}', true)">Borrow Again</button>` : ''}
                     <button class="comment-button" onclick="openCommentModal('${book.borrowId}', null)">Comment</button>
                     <div class="comment-container">
                         ${book.comments.map(comment => `
@@ -313,42 +312,6 @@
         }
     }
 
-    // Function to borrow the book again
-    async function borrowAgain(borrowId, currentReturnedStatus) {
-    const token = localStorage.getItem('token');
-    console.log("Borrow ID:", borrowId, "Current Returned Status:", currentReturnedStatus); // Added log
-
-    if (currentReturnedStatus) {
-        // Only allow borrowing if the book is currently returned
-        const newReturnedStatus = false; // Set to false to indicate it's borrowed again
-
-        try {
-            const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ returned: newReturnedStatus })
-            });
-
-            const responseData = await response.text(); // Capture the response text
-
-            if (response.ok) {
-                alert('Book borrowed successfully!');
-                fetchBorrowHistory(); // Refresh the history after borrowing
-            } else {
-                console.error('Error response:', responseData); // Log the error response
-                alert('Error borrowing the book: ' + responseData);
-            }
-        } catch (error) {
-            console.error('Error borrowing book again:', error);
-            alert('Error borrowing book again: ' + error.message);
-        }
-    } else {
-        alert('Book cannot be borrowed again unless it is returned.');
-    }
-}
     // Function to display error messages
     function displayError(message) {
         document.getElementById('errorMessage').innerHTML = message;
@@ -361,8 +324,9 @@
 
     // Event listener for Back catalog button
     document.getElementById('BackCatalogButton').addEventListener('click', () => {
-        window.location.href = `books-catalog.html?userid=${userid}`; // Redirect to books-catalog.html with userId
+        window.location.href = `books-catalog.html?userid=${userid}`; // Redirect to index.html with userId
     });
+
 
     // Open comment modal
     function openCommentModal(borrowId, commentId, rating = 0, commentText = '') {
@@ -413,54 +377,53 @@
     });
 
     // Submit comment functionality
-    document.getElementById('submitComment').onclick = async function() {
-        const rating = this.getAttribute('data-rating');
-        const comment = document.getElementById('commentText').value.trim();
+document.getElementById('submitComment').onclick = async function() {
+    const rating = this.getAttribute('data-rating');
+    const comment = document.getElementById('commentText').value.trim();
 
-        // Basic validation
-        if (!rating || !comment) {
-            alert('Please select a rating and enter a comment.');
-            return;
-        }
-
-        const token = localStorage.getItem('token');
-        let method = 'POST';
-        let url = `http://localhost:9875/api/comments`;
-        let body = JSON.stringify({ bookId: currentBookId, rating: rating, comment: comment });
-
-        // If editing, update the method and URL
-        if (currentCommentId) {
-            method = 'PUT';
-            url += `/${currentCommentId}`; // Assuming the API supports updating comments
-            body = JSON.stringify({ rating: rating, comment: comment });
-        }
-
-        try {
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: body
-            });
-
-            // Debugging: Check the response
-            const responseData = await response.text();
-            if (response.ok) {
-                alert('Comment submitted successfully');
-                document.getElementById('commentModal').style.display = 'none'; // Close modal
-                fetchBorrowHistory(); // Refresh the book list to show updated comments
-            } else {
-                console.error('Error response:', responseData); // Log the error response
-                alert('Error submitting comment: ' + responseData);
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            alert('Error submitting comment');
-        }
+    // Basic validation
+    if (!rating || !comment) {
+        alert('Please select a rating and enter a comment.');
+        return;
     }
 
+    const token = localStorage.getItem('token');
+    let method = 'POST';
+    let url = `http://localhost:9875/api/comments`;
+    let body = JSON.stringify({ bookId: currentBookId, rating: rating, comment: comment });
+
+    // If editing, update the method and URL
+    if (currentCommentId) {
+        method = 'PUT';
+        url += `/${currentCommentId}`; // Assuming the API supports updating comments
+        body = JSON.stringify({ rating: rating, comment: comment });
+    }
+
+    try {
+        const response = await fetch(url, {
+            method: method,
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: body
+        });
+
+        // Debugging: Check the response
+        const responseData = await response.text();
+        if (response.ok) {
+            alert('Comment submitted successfully');
+            document.getElementById('commentModal').style.display = 'none'; // Close modal
+            fetchBorrowHistory(); // Refresh the book list to show updated comments
+        } else {
+            console.error('Error response:', responseData); // Log the error response
+            alert('Error submitting comment: ' + responseData);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('Error submitting comment');
+    }
+}
     // Start fetching borrow history when the page loads
     window.onload = fetchBorrowHistory;
 </script>
