@@ -91,6 +91,28 @@
         .return-button:hover {
             background-color: #0056b3;
         }
+
+        @media (max-width: 600px) {
+            .login-container {
+                padding:  10px; /* Further reduced padding for very small screens */
+            }
+
+            h2 {
+                font-size: 18px; /* Smaller font size for very small screens */
+            }
+
+            input[type="text"], input[type="password"] {
+                font-size: 14px; /* Smaller font size for inputs */
+            }
+
+            input[type="submit"], .google-login-button, .return-button {
+                font-size: 14px; /* Smaller font size for buttons */
+            }
+
+            .toggle-password-signup {
+                font-size: 12px; /* Smaller font size for toggle buttons */
+            }
+        }
     </style>
 </head>
 <body>
