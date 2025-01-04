@@ -24,9 +24,11 @@
         }
         .error-message {
             color: red;
+            margin-top: 10px;
         }
         .success-message {
             color: green;
+            margin-top: 10px;
         }
         .book-cover {
             max-width: 200px;
@@ -61,7 +63,7 @@
     const params = new URLSearchParams(window.location.search);
     const googleId = params.get('googleId');
     const userid = params.get('userid');
-    
+
     // Function to fetch book details
     async function fetchBookDetails() {
         try {
@@ -71,7 +73,6 @@
             }
             const book = await response.json();
             displayBook(book);
-            await borrowBook(); // Automatically borrow the book after displaying details
         } catch (error) {
             displayError(error.message);
         }
@@ -87,6 +88,9 @@
             <div><strong>Published Date:</strong> ${book.publishedDate}</div>
         `;
         document.getElementById('bookDetails').innerHTML = bookDetailsHTML;
+
+        // Allow borrowing the book after displaying details
+        borrowBook();
     }
 
     // Function to borrow the book
@@ -103,11 +107,13 @@
         }
 
         try {
-            const response = await fetch(`/borrowBook?googleId=${googleId}&userid=${userid}`, {
-                method: 'GET',
+            const response = await fetch('/api/userBorrows', {
+                method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ googleId, userid })
             });
 
             if (!response.ok) {

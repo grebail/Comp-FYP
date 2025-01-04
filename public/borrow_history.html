@@ -168,11 +168,11 @@
         <span class="close" id="closeModal">&times;</span>
         <h2>Comment on the Book</h2>
         <div id="starRating">
-            <span class="star" data-value="1">\u2605</span>
-            <span class="star" data-value="2">\u2605</span>
-            <span class="star" data-value="3">\u2605</span>
-            <span class="star" data-value="4">\u2605</span>
-            <span class="star" data-value="5">\u2605</span>
+            <span class="star" data-value="1">1</span>
+            <span class="star" data-value="2">2</span>
+            <span class="star" data-value="3">3</span>
+            <span class="star" data-value="4">4</span>
+            <span class="star" data-value="5">5</span>
         </div>
         <textarea id="commentText" placeholder="Add your comment here..." rows="4" style="width: 100%; margin-top: 10px;"></textarea>
         <button id="submitComment" class="comment-button" style="margin-top: 10px;">Submit Comment</button>
@@ -269,7 +269,7 @@
                     <strong>Returned:</strong> ${book.returned ? 'Yes' : 'No'} <br>
                     <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
                     <button class="return-button" onclick="returnBook('${book.borrowId}')">Return</button>
-                  ${book.returned ? `<button class="borrow-again-button" onclick="borrowAgain('${book.borrowId}', true)">Borrow Again</button>` : ''}
+<button class="borrow-again-button" onclick="borrowAgain('${book.borrowId}')">Borrow Again</button>
                     <button class="comment-button" onclick="openCommentModal('${book.borrowId}', null)">Comment</button>
                     <div class="comment-container">
                         ${book.comments.map(comment => `
@@ -312,41 +312,31 @@
             alert('Error returning book');
         }
     }
-
-    // Function to borrow the book again
-    async function borrowAgain(borrowId, currentReturnedStatus) {
+    
+// Function to borrow the book again
+async function borrowAgain(borrowId) {
     const token = localStorage.getItem('token');
-    console.log("Borrow ID:", borrowId, "Current Returned Status:", currentReturnedStatus); // Added log
 
-    if (currentReturnedStatus) {
-        // Only allow borrowing if the book is currently returned
-        const newReturnedStatus = false; // Set to false to indicate it's borrowed again
+    try {
+        const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ returned: false }) // Indicate borrowing again
+        });
 
-        try {
-            const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ returned: newReturnedStatus })
-            });
-
-            const responseData = await response.text(); // Capture the response text
-
-            if (response.ok) {
-                alert('Book borrowed successfully!');
-                fetchBorrowHistory(); // Refresh the history after borrowing
-            } else {
-                console.error('Error response:', responseData); // Log the error response
-                alert('Error borrowing the book: ' + responseData);
-            }
-        } catch (error) {
-            console.error('Error borrowing book again:', error);
-            alert('Error borrowing book again: ' + error.message);
+        if (response.ok) {
+            alert('Book borrowed successfully!');
+            fetchBorrowHistory(); // Refresh the history after borrowing
+        } else {
+            const errorData = await response.text();
+            alert('Error borrowing the book: ' + errorData);
         }
-    } else {
-        alert('Book cannot be borrowed again unless it is returned.');
+    } catch (error) {
+        console.error('Error borrowing book again:', error);
+        alert('Error borrowing book again: ' + error.message);
     }
 }
     // Function to display error messages

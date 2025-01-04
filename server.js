@@ -56,8 +56,7 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
-
-// API endpoint to get borrow history for a specific user
+//API endpoint to get borrow history for a specific user
 app.get('/api/userBorrows', authenticateToken, async (req, res) => {
     const { userid } = req.query;
 
@@ -74,36 +73,55 @@ app.get('/api/userBorrows', authenticateToken, async (req, res) => {
     }
 });
 
-// Route to borrow a book based on googleId and userid from the query parameters
-app.get('/borrowBook', authenticateToken, async (req, res) => {
-    const { googleId, userid } = req.query;
+// API endpoint to borrow a book
+// API endpoint to borrow a book
+app.post('/api/userBorrows', authenticateToken, async (req, res) => {
+    const { googleId, userid } = req.body;
 
+    // Validate request body
     if (!googleId || !userid) {
         return res.status(400).json({ error: 'Missing googleId or userid.' });
     }
 
+    // Ensure userid matches the authenticated user
     if (userid !== req.user.id) {
         return res.status(403).json({ error: 'You do not have permission to borrow this book.' });
     }
 
-    // Proceed with borrowing the book
-    const userBorrow = new UserBorrow({
-        userid: userid,
-        googleId: googleId
-    });
-
     try {
+        // Check if the user has already borrowed this book
+        const existingBorrow = await UserBorrow.findOne({ googleId, userid });
+
+        if (existingBorrow) {
+            if (!existingBorrow.returned) {
+                return res.status(400).json({ error: 'You have already borrowed this book and it is not returned.' });
+            } else {
+                // If it has been returned, allow borrowing again
+                // Consider updating the existing record instead of creating a new one
+                existingBorrow.returned = false; // Update the returned status
+                existingBorrow.borrowDate = new Date(); // Update the borrow date
+                existingBorrow.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // Update due date
+                await existingBorrow.save(); // Save the updated borrow record
+                return res.status(200).json({
+                    message: 'Book borrowed successfully',
+                    borrowInfo: existingBorrow
+                });
+            }
+        }
+
+        // Proceed with borrowing the book if no existing record
+        const userBorrow = new UserBorrow({
+            userid: userid,
+            googleId: googleId,
+            returned: false, // Set to false when borrowing
+            borrowDate: new Date(), // Set to the current date
+            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // Set due date to 14 days from now
+        });
+
         const savedBorrow = await userBorrow.save();
         return res.status(201).json({
             message: 'Book borrowed successfully',
-            borrowInfo: {
-                id: savedBorrow._id,
-                userid: savedBorrow.userid,
-                googleId: savedBorrow.googleId,
-                borrowDate: savedBorrow.borrowDate,
-                dueDate: savedBorrow.dueDate,
-                returned: savedBorrow.returned,
-            }
+            borrowInfo: savedBorrow
         });
     } catch (error) {
         console.error('Error borrowing book:', error);
@@ -111,7 +129,8 @@ app.get('/borrowBook', authenticateToken, async (req, res) => {
     }
 });
 
-// Check borrowing status endpoint
+
+// API endpoint to check borrowing status
 app.get('/api/userBorrows/check', authenticateToken, async (req, res) => {
     const { googleId, userid } = req.query;
 
@@ -131,51 +150,9 @@ app.get('/api/userBorrows/check', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: 'Error checking borrow status' });
     }
 });
-    
-// API endpoint to borrow a book
-app.post('/api/userBorrows', authenticateToken, async (req, res) => {
-    const { googleId, userid } = req.body;
 
-    // Ensure userid matches the authenticated user
-    if (!googleId || !userid || userid !== req.user.id) {
-        return res.status(400).json({ error: 'Invalid request.' });
-    }
-
-    try {
-        // Check if the user has already borrowed this book and it is not returned
-        const existingBorrow = await UserBorrow.findOne({ googleId, userid, returned: false });
-
-        if (existingBorrow) {
-            return res.status(400).json({ error: 'You have already borrowed this book and it is not returned.' });
-        }
-
-        // Proceed with borrowing the book
-        const userBorrow = new UserBorrow({
-    userid: userid,
-    googleId: googleId,
-    returned: false,
-    borrowDate: new Date(), // Set current date as borrow date
-    dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // Set due date to 14 days later
-});
-
-        const savedBorrow = await userBorrow.save();
-        return res.status(201).json({
-            message: 'Book borrowed successfully',
-            borrowInfo: {
-                id: savedBorrow._id,
-                userid: savedBorrow.userid,
-                googleId: savedBorrow.googleId,
-                borrowDate: savedBorrow.borrowDate,
-                dueDate: savedBorrow.dueDate,
-                returned: savedBorrow.returned,
-            }
-        });
-    } catch (error) {
-        console.error('Error borrowing book:', error);
-        return res.status(500).json({ error: 'Error borrowing book' });
-    }
-});
-// API endpoint to update borrow status (return or borrow a book)
+// API endpoint to update borrow status (return a book)
+// API endpoint to update borrow status (return a book)
 app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { returned } = req.body; // Accept returned status from request body
@@ -186,6 +163,7 @@ app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
             return res.status(400).json({ error: 'Returned status must be a boolean' });
         }
 
+        // Find the borrow record and update the returned status
         const updatedBorrow = await UserBorrow.findByIdAndUpdate(id, { returned: returned }, { new: true });
 
         if (!updatedBorrow) {
@@ -198,6 +176,7 @@ app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to update borrow status' });
     }
 });
+
 // Create default admin user if it doesn't exist
 const createDefaultAdmin = async () => {
     const existingAdmin = await User.findOne({ username: 'admin' });
