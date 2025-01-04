@@ -189,16 +189,27 @@
                 return; // Exit if no token is found
             }
 
-            if (userId !== '677628249b4bf299cf750680') {
-                alert('You do not have admin access.');
-                return; // Exit if user is not admin
-            }
-
-            initializeAdminPage(); // Call a function to initialize page-specific logic
+            // Fetch user role from the server
+            $.ajax({
+                url: `/api/user-role`, // Use the correct endpoint to fetch user role
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function(response) {
+                    if (response.role === 'admin') {
+                        initializeAdminPage(); // Call a function to initialize page-specific logic
+                    } else {
+                        alert('You do not have admin access.');
+                        window.location.href = '/unauthorized.html'; // Redirect to unauthorized page
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error fetching user role:', xhr.responseText); // Log the response text
+                    alert('Error fetching user role: ' + xhr.responseText);
+                }
+            });
         }
 
         function initializeAdminPage() {
-            const token = localStorage.getItem('token');
             loadBooks(); // Load existing admin books
             setupEventHandlers(); // Setup any event handlers for the page
         }
