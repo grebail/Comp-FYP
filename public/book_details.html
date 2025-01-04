@@ -70,6 +70,15 @@
             text-align: center;
             clear: both;
         }
+
+        #qrCode {
+            margin-top: 20px;
+            width: 200px; /* Width for the QR Code container */
+            height: 200px; /* Height for the QR Code container */
+            border: 1px solid #ccc; /* Optional border */
+            background-color: white; /* Ensure background is white */
+            display: none; /* Initially hidden */
+        }
     </style>
 </head>
 <body>
@@ -78,6 +87,9 @@
     </header>
 
     <main id="bookDetails" class="book-details"></main>
+
+    <button class="borrow-button" onclick="generateQRCode()">Generate QR Code</button> <!-- New QR Code button -->
+    <img id="qrCode" alt="QR Code" /> <!-- QR Code image -->
 
     <button class="back-button" id="goBackButton">Back</button> <!-- New Back button -->
 
@@ -125,6 +137,19 @@
                 return;
             }
             window.location.href = `book_borrow.html?googleId=${googleId}&userid=${userId}`; // Redirect to borrow page
+        }
+
+        function generateQRCode() {
+            console.log('Generating QR code...'); // Confirm function execution
+
+            // Construct the URL for the QR code using fetched googleId and userId
+            const qrCodeValue = `http://localhost:9875/book_borrow.html?googleId=${googleId}&userid=${userId}`;
+
+            // Set the QR Code image source to an external API
+            const qrCodeElement = document.getElementById('qrCode');
+            qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
+            qrCodeElement.style.display = 'block'; // Show the QR Code image
+            console.log(`QR Code generated for: ${qrCodeValue}`);
         }
 
         // Event listener for Back button

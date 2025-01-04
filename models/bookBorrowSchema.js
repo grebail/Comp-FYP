@@ -35,7 +35,7 @@ const bookBorrowSchema = new mongoose.Schema({
         },
         comment: {
             type: String,
-           
+            required: false, // Optional comment
         },
         date: {
             type: Date,
