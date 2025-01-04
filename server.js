@@ -33,7 +33,7 @@ app.use(session({
     secret: 'your_session_secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: false }
+    cookie: { secure: true } 
 }));
 
 app.use(passport.initialize());
@@ -150,16 +150,21 @@ const createDefaultAdmin = async () => {
 // User Login
 app.post('/login', async (req, res) => {
     const { username, password } = req.body;
-    const user = await User.findOne({ username });
 
-    if (user && await bcrypt.compare(password, user.password)) {
+    try {
+        const user = await User.findOne({ username });
+
+        if (!user || !(await bcrypt.compare(password, user.password))) {
+            return res.status(401).json({ error: 'Invalid credentials' });
+        }
+
         const token = jwt.sign({ id: user._id, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
-        console.log(`User logged in: ${user.username}`);
 
+        console.log(`User logged in: ${user.username}`);
         return res.json({ token, redirect: `http://localhost:9875/index.html?userid=${user._id}` });
-    } else {
-        console.error('Login failed: Invalid credentials');
-        return res.status(401).json({ redirect: '/login.html' });
+    } catch (error) {
+        console.error('Login error:', error);
+        return res.status(500).json({ error: 'Internal server error' });
     }
 });
 
@@ -246,6 +251,45 @@ app.get('/users', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch users.' });
     }
 });
+
+
+// Get user by ID
+app.get('/api/users', async (req, res) => {
+    try {
+        // Extract userId from query parameters
+        const userId = req.query.userid;
+
+        // Extract token from headers
+        const token = req.headers['authorization']?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, 'YOUR_SECRET_KEY'); // Use your secret key
+        if (!decoded) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        // Check if the user has an admin role
+        const requestingUser = await User.findById(decoded.id).select('role'); // Assumes `id` is stored in the token
+        if (!requestingUser || requestingUser.role !== 'admin') {
+            return res.status(403).json({ message: 'Forbidden: Admins only' });
+        }
+
+        // Fetch the requested user by userId from query parameters
+        const user = await User.findById(userId).select('role');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        res.json(user); // Send user role back as JSON
+    } catch (error) {
+        console.error('Error fetching user:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
 
 // User Update
 app.put('/users/:id', authenticateToken, async (req, res) => {
@@ -416,20 +460,9 @@ app.put('/api/comments/:id', authenticateToken, async (req, res) => {
     }
 });
 
-// API endpoint to get admin books
-app.get('/api/admin_books', authenticateToken, async (req, res) => {
-    try {
-        const adminBooks = await AdminBook.find();
-        res.json(adminBooks);
-    } catch (error) {
-        console.error('Error fetching admin books:', error);
-        res.status(500).json({ error: 'Failed to fetch admin books.' });
-    }
-});
-
-// API endpoint to add a new admin book
+// API endpoint to add new admin books
 app.post('/api/admin_books', authenticateToken, async (req, res) => {
-    const { googleId, bookLocation, availability, noOfCopy } = req.body;
+    const { googleId, bookLocation, locationId, availability, noOfCopy } = req.body;
 
     try {
         const book = await Book.findOne({ googleId });
@@ -437,31 +470,142 @@ app.post('/api/admin_books', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Book not found' });
         }
 
+        // Create a new AdminBook instance without copyId first
         const newAdminBook = new AdminBook({
             googleId,
             bookLocation,
+            locationId,
             availability,
             noOfCopy,
         });
 
-        await newAdminBook.save();
-        
-        // Return the book details from the books collection
-        res.status(201).json({ adminBook: newAdminBook, book });
+        // Save the new AdminBook to the database
+        const savedAdminBook = await newAdminBook.save();
+
+        // Set the copyId to the ObjectId of the newly created AdminBook
+        const copyId = savedAdminBook._id;
+
+        // Return the copyId along with the new admin book details
+        res.status(201).json({ 
+            copyId: copyId, // Provide the ObjectId as copyId
+            adminBook: savedAdminBook,
+            book 
+        });
     } catch (error) {
         console.error('Error adding admin book:', error);
         res.status(500).json({ error: 'Failed to add admin book.' });
     }
 });
 
+// API endpoint to get all admin books
+app.get('/api/admin_books', authenticateToken, async (req, res) => {
+    try {
+        const adminBooks = await AdminBook.find();
+        res.status(200).json(adminBooks.map(book => ({
+            googleId: book.googleId,
+            copyId: book._id, // Use the ObjectId as copyId
+            bookLocation: book.bookLocation,
+            locationId: book.locationId,
+            availability: book.availability,
+            noOfCopy: book.noOfCopy,
+        }))); // Return all admin books with necessary fields
+    } catch (error) {
+        console.error('Error retrieving admin books:', error);
+        res.status(500).json({ error: 'Failed to retrieve admin books.' });
+    }
+});
+
+// API endpoint to update an admin book
+app.put('/api/admin_books/:copyId', authenticateToken, async (req, res) => {
+    const { copyId } = req.params;
+    const { bookLocation, locationId, availability, noOfCopy } = req.body;
+
+    try {
+        const updatedAdminBook = await AdminBook.findByIdAndUpdate(
+            copyId,
+            { bookLocation, locationId, availability, noOfCopy },
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedAdminBook) {
+            return res.status(404).json({ error: 'Admin book not found' });
+        }
+
+        res.json(updatedAdminBook); // Send back the updated admin book
+    } catch (error) {
+        console.error('Error updating admin book:', error);
+        res.status(500).json({ error: 'Failed to update admin book' });
+    }
+});
+
+// API endpoint to delete an admin book
+app.delete('/api/admin_books/:id', authenticateToken, async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const deletedBook = await AdminBook.findByIdAndDelete(id);
+        if (!deletedBook) {
+            return res.status(404).json({ error: 'Book not found' });
+        }
+        res.sendStatus(204); // No Content
+    } catch (error) {
+        console.error('Error deleting admin book:', error);
+        res.status(500).json({ error: 'Failed to delete admin book.' });
+    }
+});
 
 
 
+// Middleware to check if the user is an admin
+const checkAdminRole = (req, res, next) => {
+    // Log the user role to the console
+    console.log(`User role: ${req.user.role}`);
+
+    if (req.user.role !== 'admin') {
+        return res.sendStatus(403); // Forbidden
+    }
+    next();
+};
+
+// Route to serve the book administration page
+app.get('/book_admin.html', authenticateToken, checkAdminRole, (req, res) => {
+    // If the user is an admin, send the book administration page
+    res.sendFile(path.join(__dirname, 'public', 'book_admin.html'));
+});
+
+app.get('/api/user-role', async (req, res) => {
+    try {
+        // Extract token from headers
+        const token = req.headers['authorization']?.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ message: 'No token provided' });
+        }
+
+        // Verify token
+        const decoded = jwt.verify(token, SECRET_KEY); // Use your secret key
+        if (!decoded) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+
+        // Fetch the user role from the database using the user ID from the token
+        const user = await User.findById(decoded.id).select('role');
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Respond with the user's role
+        res.json({ role: user.role });
+    } catch (error) {
+        console.error('Error fetching user role:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
 // Start server and create default admin
 app.listen(PORT, async () => {
     console.log(`Server running on http://localhost:${PORT}`);
     await createDefaultAdmin();
 });
+
 
 // Catch-all route to redirect to index.html
 app.get('/', (req, res) => {
