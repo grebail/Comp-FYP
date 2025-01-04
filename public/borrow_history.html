@@ -70,7 +70,7 @@
             margin: 20px 0;
         }
 
-        .go-back-button {
+        .go-back-button1 {
             background-color: #388e3c;
             color: white;
             border: none;
@@ -82,8 +82,24 @@
             margin-top: 20px;
         }
 
-        .go-back-button:hover {
+        .go-back-button1:hover {
             background-color: #2e7d32;
+        }
+
+        .go-back-button2 {
+            background-color: #b4b435;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-block;
+            margin-top: 20px;
+        }
+
+        .go-back-button2:hover {
+            background-color: #909931;
         }
 
         /* Modal styles */
@@ -143,7 +159,8 @@
 
 <div id="errorMessage" class="error-message"></div>
 <div id="historyContent" class="history-list"></div>
-<button class="go-back-button" id="goBackButton">Go Back</button>
+<button class="go-back-button1" id="BackHomeButton">Back to Home</button>
+<button class="go-back-button2" id="BackCatalogButton">Back to Catalog</button>
 
 <!-- Modal for commenting -->
 <div id="commentModal" class="modal">
@@ -300,10 +317,16 @@
         document.getElementById('errorMessage').innerHTML = message;
     }
 
-    // Event listener for Go Back button
-    document.getElementById('goBackButton').addEventListener('click', () => {
+    // Event listener for Back home button
+    document.getElementById('BackHomeButton').addEventListener('click', () => {
         window.location.href = `index.html?userid=${userid}`; // Redirect to index.html with userId
     });
+
+    // Event listener for Back catalog button
+    document.getElementById('BackCatalogButton').addEventListener('click', () => {
+        window.location.href = `books-catalog.html?userid=${userid}`; // Redirect to index.html with userId
+    });
+
 
     // Open comment modal
     function openCommentModal(borrowId, commentId, rating = 0, commentText = '') {
