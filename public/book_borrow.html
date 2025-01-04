@@ -61,7 +61,7 @@
     const params = new URLSearchParams(window.location.search);
     const googleId = params.get('googleId');
     const userid = params.get('userid');
-
+    
     // Function to fetch book details
     async function fetchBookDetails() {
         try {
@@ -103,18 +103,16 @@
         }
 
         try {
-            const response = await fetch('/api/userBorrows', {
-                method: 'POST',
+            const response = await fetch(`/borrowBook?googleId=${googleId}&userid=${userid}`, {
+                method: 'GET',
                 headers: {
-                    'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
-                },
-                body: JSON.stringify({ googleId, userid })
+                }
             });
 
             if (!response.ok) {
-                const errorData = await response.json();
-                displayError(errorData.error || 'Failed to borrow the book.');
+                const errorData = await response.text();
+                displayError(errorData || 'Failed to borrow the book.');
                 return;
             }
 
