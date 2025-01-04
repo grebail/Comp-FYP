@@ -179,7 +179,7 @@
     <header>
         <h1>Books Catalog</h1>
         <div class="nav-bar">
-            <button onclick="viewHistory()">Browse History</button>
+            <button onclick="viewHistory(userId)">Browse History</button>
             <button onclick="viewFavorites()">Favorites List</button>
             <button onclick="viewBorrowed()">Borrow List</button>
             <button onclick="viewAccount()">My Account</button>
@@ -309,6 +309,10 @@
 
         function borrowBook(googleId) {
             window.location.href = `book_borrow.html?googleId=${googleId}&userid=${userId}`; // Redirect to borrow page with user ID
+        }
+        
+        function viewHistory(userId) {
+            window.location.href = `http://localhost:9875/borrow_history.html?userid=${userId}`; // Redirect to borrow history page with user ID
         }
 
         function debouncedSearch() {
