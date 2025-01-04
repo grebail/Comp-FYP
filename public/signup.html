@@ -16,6 +16,20 @@
             background-image: url('lib-background.jpg');
             background-size: cover;
             background-position: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.5);
+            backdrop-filter: blur(5px);
+            z-index: 1;
         }
 
         .signup-container {
@@ -24,6 +38,7 @@
             border-radius: 15px;
             box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
             width: 350px;
+            z-index: 2;
         }
 
         h2 {
@@ -84,7 +99,7 @@
         <form id="signup-form" onsubmit="return handleSignup(event)">
             <input type="text" id="signup-username" placeholder="Username" required>
             <input type="password" id="signup-password" placeholder="Password" required>
-            <input type="password" id="signup-retype-password" placeholder="Re-type Password" required>
+            <input type="password" id="signup-retype-password" placeholder="Re-enter Password" required>
             <input type="submit" value="Sign Up">
         </form>
         <button class="return-button" onclick="window.location.href='login.html'">Return to Login</button>
