@@ -111,7 +111,26 @@ app.get('/borrowBook', authenticateToken, async (req, res) => {
     }
 });
 
+// Check borrowing status endpoint
+app.get('/api/userBorrows/check', authenticateToken, async (req, res) => {
+    const { googleId, userid } = req.query;
 
+    if (!googleId || !userid || userid !== req.user.id) {
+        return res.status(400).json({ error: 'Invalid request.' });
+    }
+
+    try {
+        const existingBorrow = await UserBorrow.findOne({ googleId, userid });
+        if (existingBorrow) {
+            return res.status(200).json({ borrowed: true, returned: existingBorrow.returned });
+        }
+
+        return res.status(200).json({ borrowed: false });
+    } catch (error) {
+        console.error('Error checking borrow status:', error);
+        return res.status(500).json({ error: 'Error checking borrow status' });
+    }
+});
     
 // API endpoint to borrow a book
 app.post('/api/userBorrows', authenticateToken, async (req, res) => {
@@ -132,10 +151,12 @@ app.post('/api/userBorrows', authenticateToken, async (req, res) => {
 
         // Proceed with borrowing the book
         const userBorrow = new UserBorrow({
-            userid: userid,
-            googleId: googleId,
-            returned: false // Set initially to false when borrowing
-        });
+    userid: userid,
+    googleId: googleId,
+    returned: false,
+    borrowDate: new Date(), // Set current date as borrow date
+    dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // Set due date to 14 days later
+});
 
         const savedBorrow = await userBorrow.save();
         return res.status(201).json({
