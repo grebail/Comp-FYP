@@ -2,7 +2,7 @@
 <PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
     <network-security-config>
         <domain-config cleartextTrafficPermitted="true">
-            <domain includeSubdomains="true">http://10.0.2.2:9875</domain>
+            <domain includeSubdomains="true">http://59.149.163.241:9875</domain>
         </domain-config>
     </network-security-config>
 </PreferenceScreen>
