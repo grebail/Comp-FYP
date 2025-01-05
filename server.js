@@ -25,7 +25,7 @@ const SECRET_KEY = 'your_secure_secret_key';
 
 // Middleware
 app.use(cors({
-    origin: 'https://finalyearproject-iods.onrender.com',
+    origin: 'http://localhost:3000',
     credentials: true
 }));
 app.use(bodyParser.json());
