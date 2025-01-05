@@ -222,7 +222,6 @@ app.get('/api/userBorrows/check', authenticateToken, async (req, res) => {
 });
 
 // API endpoint to update borrow status (return a book)
-// API endpoint to update borrow status (return a book)
 app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { returned } = req.body; // Accept returned status from request body
