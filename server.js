@@ -20,7 +20,7 @@ const Comment = require('./models/commentSchema');
 const AdminBook = require('./models/adminBookSchema');
 
 const app = express();
-const PORT = 9875;
+const PORT = process.env.PORT || 9875
 const SECRET_KEY = 'your_secure_secret_key';
 
 // Middleware
