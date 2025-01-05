@@ -9,6 +9,9 @@ const path = require('path');
 const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
+const multer = require('multer');
+const xlsx = require('xlsx');
+require('dotenv').config();
 
 const Book = require('./models/bookSchema');
 const User = require('./models/userSchema');
@@ -45,6 +48,72 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB connected'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// Configure multer for file uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage: storage });
+
+// Excel import route for users
+app.post('/import-excel-users', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded.');
+    }
+
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    const usersToCreate = data.map(async (user) => {
+        if (!user.username || !user.password) {
+            throw new Error('Username and password are required.');
+        }
+
+        const hashedPassword = await bcrypt.hash(user.password, 10);
+        return {
+            username: user.username,
+            password: hashedPassword,
+            role: user.role || 'user' // Default role if not provided
+        };
+    });
+
+    try {
+        const users = await User.insertMany(await Promise.all(usersToCreate));
+        res.status(201).json(users);
+    } catch (error) {
+        res.status(500).send('Error importing users: ' + error.message);
+    }
+});
+
+// Excel import route for books
+app.post('/import-excel-books', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).send('No file uploaded.');
+    }
+
+    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+    const sheetName = workbook.SheetNames[0];
+    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
+
+    const booksToCreate = data.map((book) => {
+        if (!book.title || !book.author || !book.year || !book.isbn) {
+            throw new Error('Title, author, year, and ISBN are required.');
+        }
+
+        return {
+            title: book.title,
+            author: book.author,
+            year: book.year,
+            isbn: book.isbn
+        };
+    });
+
+    try {
+        const books = await Book.insertMany(booksToCreate);
+        res.status(201).json(books);
+    } catch (error) {
+        res.status(500).send('Error importing books: ' + error.message);
+    }
+});
+
 // Middleware to authenticate token
 const authenticateToken = (req, res, next) => {
     const token = req.headers['authorization']?.split(' ')[1];
@@ -56,6 +125,7 @@ const authenticateToken = (req, res, next) => {
         next();
     });
 };
+
 //API endpoint to get borrow history for a specific user
 app.get('/api/userBorrows', authenticateToken, async (req, res) => {
     const { userid } = req.query;
@@ -73,7 +143,7 @@ app.get('/api/userBorrows', authenticateToken, async (req, res) => {
     }
 });
 
-// API endpoint to borrow a book
+
 // API endpoint to borrow a book
 app.post('/api/userBorrows', authenticateToken, async (req, res) => {
     const { googleId, userid } = req.body;
@@ -204,7 +274,9 @@ app.post('/login', async (req, res) => {
         const token = jwt.sign({ id: user._id, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
 
         console.log(`User logged in: ${user.username}`);
-        return res.json({ token, redirect: `http://localhost:9875/index.html?userid=${user._id}` });
+        const redirectUrl = user.role === 'admin' ? '/admin.html' :
+                            user.role === 'librarian' ? '/librarian.html' : `http://localhost:9875/index_logined.html?userid=${user._id}`;
+        return res.json({ token, redirect: redirectUrl });
     } catch (error) {
         console.error('Login error:', error);
         return res.status(500).json({ error: 'Internal server error' });
@@ -596,7 +668,6 @@ app.delete('/api/admin_books/:id', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to delete admin book.' });
     }
 });
-
 
 
 // Middleware to check if the user is an admin

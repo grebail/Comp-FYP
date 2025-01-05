@@ -34,6 +34,13 @@
         <button type="submit">Add Book</button>
     </form>
 
+    <h2>Import Books from Excel</h2>
+    <form id="book-import-form" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".xlsx, .xls" required>
+        <button type="submit">Import Books</button>
+    </form>
+    <div id="importBookResult"></div>
+
     <h2>Book List</h2>
     <div id="bookList"></div>
 
@@ -41,6 +48,29 @@
         const bookForm = document.getElementById('bookForm');
         const bookList = document.getElementById('bookList');
         const token = localStorage.getItem('token');
+        const bookImportForm = document.getElementById('book-import-form');
+        const importBookResult = document.getElementById('importBookResult');
+
+        bookImportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(bookImportForm);
+            const response = await fetch('http://localhost:9875/import-excel-books', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                importBookResult.innerText = 'Books imported successfully: ' + JSON.stringify(result, null, 2);
+                fetchBooks(); // Call your function to refresh book list
+            } else {
+                const errorText = await response.text();
+                importBookResult.innerText = 'Error: ' + errorText;
+            }
+        });
 
         bookForm.addEventListener('submit', async (e) => {
             e.preventDefault();

@@ -33,12 +33,22 @@
         <button type="submit">Add User</button>
     </form>
 
+    <h2>Import Users from Excel</h2>
+    <form id="user-import-form" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".xlsx, .xls" required>
+        <button type="submit">Import Users</button>
+    </form>
+    <div id="importUserResult"></div>
+
+
     <h2>User List</h2>
     <div id="userList"></div>
 
     <script>
         const userForm = document.getElementById('userForm');
         const userList = document.getElementById('userList');
+        const userImportForm = document.getElementById('user-import-form');
+        const importUserResult = document.getElementById('importUserResult');
         const token = localStorage.getItem('token');
 
         userForm.addEventListener('submit', async (e) => {
@@ -60,8 +70,28 @@
                 fetchUsers(); // Refresh the user list
                 userForm.reset();
             } else {
-                const errorText = await response.text(); // Get the response text
-                alert('Failed to add user: ' + errorText); // Display the error
+                alert('Failed to add user.');
+            }
+        });
+
+        userImportForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(userImportForm);
+            const response = await fetch('http://localhost:9875/import-excel-users', {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                importUserResult.innerText = 'Users imported successfully: ' + JSON.stringify(result, null, 2);
+                fetchUsers(); // Call your function to refresh user list
+            } else {
+                const errorText = await response.text();
+                importUserResult.innerText = 'Error: ' + errorText;
             }
         });
 
