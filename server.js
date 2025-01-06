@@ -612,9 +612,16 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
     }
 });
 
-// API endpoint to add new admin books
-app.post('/api/admin_books', authenticateToken, async(req, res) => {
+
+
+/// API endpoint to add new admin books
+app.post('/api/admin_books/', authenticateToken, async(req, res) => {
     const { googleId, bookLocation, locationId, availability, noOfCopy } = req.body;
+
+    // Input validation
+    if (!googleId || !bookLocation || !locationId || noOfCopy < 1) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
 
     try {
         const book = await Book.findOne({ googleId });
@@ -622,30 +629,29 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
             return res.status(404).json({ error: 'Book not found' });
         }
 
-        // Create a new AdminBook instance without copyId first
-        const newAdminBook = new AdminBook({
-            googleId,
-            bookLocation,
-            locationId,
-            availability,
-            noOfCopy,
-        });
+        // Create multiple AdminBook instances based on noOfCopy
+        const adminBooks = [];
+        for (let i = 0; i < noOfCopy; i++) {
+            const newAdminBook = new AdminBook({
+                googleId,
+                bookLocation,
+                locationId,
+                availability,
+                noOfCopy: 1 // Set each book's noOfCopy to 1 (or however you want to handle this)
+            });
+            const savedAdminBook = await newAdminBook.save();
+            adminBooks.push({
+                copyId: savedAdminBook._id, // Provide the ObjectId as copyId
+                adminBook: savedAdminBook
+            });
+        }
 
-        // Save the new AdminBook to the database
-        const savedAdminBook = await newAdminBook.save();
-
-        // Set the copyId to the ObjectId of the newly created AdminBook
-        const copyId = savedAdminBook._id;
-
-        // Return the copyId along with the new admin book details
         res.status(201).json({
-            copyId: copyId, // Provide the ObjectId as copyId
-            adminBook: savedAdminBook,
-            book
+            adminBooks // Return all created admin books
         });
     } catch (error) {
         console.error('Error adding admin book:', error);
-        res.status(500).json({ error: 'Failed to add admin book.' });
+        res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
     }
 });
 
@@ -660,50 +666,74 @@ app.get('/api/admin_books', authenticateToken, async(req, res) => {
             locationId: book.locationId,
             availability: book.availability,
             noOfCopy: book.noOfCopy,
-        }))); // Return all admin books with necessary fields
+        })));
     } catch (error) {
         console.error('Error retrieving admin books:', error);
         res.status(500).json({ error: 'Failed to retrieve admin books.' });
     }
 });
-
-// API endpoint to update an admin book
 app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const { copyId } = req.params;
+    const copyId = req.params.copyId.trim().replace(/\s+/g, ''); // Clean copyId
+    console.log('Received copyId:', copyId);
+    console.log('Length of copyId:', copyId.length); // Check length
+    console.log('Type of copyId:', typeof copyId); // Check type
+
+    // Convert copyId to mongoose ObjectId
+    let objectId;
+    try {
+        objectId = new mongoose.Types.ObjectId(copyId);
+        console.log('Converted to ObjectId:', objectId); // Log converted ObjectId
+    } catch (error) {
+        console.error('Error converting copyId to ObjectId:', error.message);
+        return res.status(400).json({ error: 'Invalid copyId format' });
+    }
+
     const { bookLocation, locationId, availability, noOfCopy } = req.body;
 
+    // Input validation
+    if (!bookLocation || !locationId || noOfCopy < 1) {
+        return res.status(400).json({ error: 'Missing required fields' });
+    }
+
     try {
-        const updatedAdminBook = await AdminBook.findByIdAndUpdate(
-            copyId, { bookLocation, locationId, availability, noOfCopy }, { new: true } // Return the updated document
-        );
+        const updatedAdminBook = await AdminBook.findOneAndUpdate({ _id: objectId }, { bookLocation, locationId, availability, noOfCopy }, { new: true });
 
         if (!updatedAdminBook) {
             return res.status(404).json({ error: 'Admin book not found' });
         }
 
-        res.json(updatedAdminBook); // Send back the updated admin book
+        res.json(updatedAdminBook);
     } catch (error) {
-        console.error('Error updating admin book:', error);
+        console.error('Error updating admin book:', error.message);
         res.status(500).json({ error: 'Failed to update admin book' });
     }
 });
 
 // API endpoint to delete an admin book
-app.delete('/api/admin_books/:id', authenticateToken, async(req, res) => {
-    const { id } = req.params;
+app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
+    const copyId = req.params.copyId.trim().replace(/\s+/g, ''); // Clean copyId
+    console.log('Received copyId:', copyId);
+
+    // Convert copyId to mongoose ObjectId
+    let objectId;
+    try {
+        objectId = new mongoose.Types.ObjectId(copyId);
+    } catch (error) {
+        console.error('Error converting copyId to ObjectId:', error.message);
+        return res.status(400).json({ error: 'Invalid copyId format' });
+    }
 
     try {
-        const deletedBook = await AdminBook.findByIdAndDelete(id);
+        const deletedBook = await AdminBook.findOneAndDelete({ _id: objectId });
         if (!deletedBook) {
             return res.status(404).json({ error: 'Book not found' });
         }
         res.sendStatus(204); // No Content
     } catch (error) {
-        console.error('Error deleting admin book:', error);
+        console.error('Error deleting admin book:', error.message);
         res.status(500).json({ error: 'Failed to delete admin book.' });
     }
 });
-
 
 // Middleware to check if the user is an admin
 const checkAdminRole = (req, res, next) => {
