@@ -36,7 +36,7 @@ app.use(session({
     secret: 'your_session_secret',
     resave: false,
     saveUninitialized: true,
-    cookie: { secure: true }
+    cookie: { secure: true } 
 }));
 
 app.use(passport.initialize());
@@ -53,7 +53,7 @@ const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
 // Excel import route for users
-app.post('/import-excel-users', upload.single('file'), async(req, res) => {
+app.post('/import-excel-users', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
@@ -62,7 +62,7 @@ app.post('/import-excel-users', upload.single('file'), async(req, res) => {
     const sheetName = workbook.SheetNames[0];
     const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
 
-    const usersToCreate = data.map(async(user) => {
+    const usersToCreate = data.map(async (user) => {
         if (!user.username || !user.password) {
             throw new Error('Username and password are required.');
         }
@@ -84,7 +84,7 @@ app.post('/import-excel-users', upload.single('file'), async(req, res) => {
 });
 
 // Excel import route for books
-app.post('/import-excel-books', upload.single('file'), async(req, res) => {
+app.post('/import-excel-books', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).send('No file uploaded.');
     }
@@ -116,7 +116,7 @@ app.post('/import-excel-books', upload.single('file'), async(req, res) => {
 
 // Middleware to authenticate token
 const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization'] ? .split(' ')[1];
+    const token = req.headers['authorization']?.split(' ')[1];
     if (!token) return res.sendStatus(401); // No token
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
@@ -127,7 +127,7 @@ const authenticateToken = (req, res, next) => {
 };
 
 //API endpoint to get borrow history for a specific user
-app.get('/api/userBorrows', authenticateToken, async(req, res) => {
+app.get('/api/userBorrows', authenticateToken, async (req, res) => {
     const { userid } = req.query;
 
     if (!userid || userid !== req.user.id) {
@@ -145,7 +145,7 @@ app.get('/api/userBorrows', authenticateToken, async(req, res) => {
 
 
 // API endpoint to borrow a book
-app.post('/api/userBorrows', authenticateToken, async(req, res) => {
+app.post('/api/userBorrows', authenticateToken, async (req, res) => {
     const { googleId, userid } = req.body;
 
     // Validate request body
@@ -201,7 +201,7 @@ app.post('/api/userBorrows', authenticateToken, async(req, res) => {
 
 
 // API endpoint to check borrowing status
-app.get('/api/userBorrows/check', authenticateToken, async(req, res) => {
+app.get('/api/userBorrows/check', authenticateToken, async (req, res) => {
     const { googleId, userid } = req.query;
 
     if (!googleId || !userid || userid !== req.user.id) {
@@ -222,7 +222,7 @@ app.get('/api/userBorrows/check', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to update borrow status (return a book)
-app.put('/api/userBorrows/:id', authenticateToken, async(req, res) => {
+app.put('/api/userBorrows/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { returned } = req.body; // Accept returned status from request body
 
@@ -247,7 +247,7 @@ app.put('/api/userBorrows/:id', authenticateToken, async(req, res) => {
 });
 
 // Create default admin user if it doesn't exist
-const createDefaultAdmin = async() => {
+const createDefaultAdmin = async () => {
     const existingAdmin = await User.findOne({ username: 'admin' });
     if (!existingAdmin) {
         const hashedPassword = await bcrypt.hash('admin', 10);
@@ -260,7 +260,7 @@ const createDefaultAdmin = async() => {
 };
 
 // User Login
-app.post('/login', async(req, res) => {
+app.post('/login', async (req, res) => {
     const { username, password } = req.body;
 
     try {
@@ -274,7 +274,7 @@ app.post('/login', async(req, res) => {
 
         console.log(`User logged in: ${user.username}`);
         const redirectUrl = user.role === 'admin' ? '/admin.html' :
-            user.role === 'librarian' ? '/librarian.html' : `http://localhost:9875/index_logined.html?userid=${user._id}`;
+                            user.role === 'librarian' ? '/librarian.html' : `http://localhost:9875/index_logined.html?userid=${user._id}`;
         return res.json({ token, redirect: redirectUrl });
     } catch (error) {
         console.error('Login error:', error);
@@ -283,7 +283,7 @@ app.post('/login', async(req, res) => {
 });
 
 // User Signup
-app.post('/users', async(req, res) => {
+app.post('/users', async (req, res) => {
     const { username, password, role = 'user' } = req.body;
 
     const existingUser = await User.findOne({ username });
@@ -310,7 +310,7 @@ passport.use(new GoogleStrategy({
     clientSecret: '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',
     callbackURL: "http://localhost:9875/auth/google/callback",
     passReqToCallback: true
-}, async(request, accessToken, refreshToken, profile, done) => {
+}, async (request, accessToken, refreshToken, profile, done) => {
     try {
         let existingUser = await User.findOne({ googleId: profile.id });
         if (existingUser) {
@@ -333,7 +333,7 @@ passport.serializeUser((user, done) => {
     done(null, user._id); // Serialize the user ID
 });
 
-passport.deserializeUser(async(id, done) => {
+passport.deserializeUser(async (id, done) => {
     try {
         const user = await User.findById(id);
         done(null, user);
@@ -345,17 +345,17 @@ passport.deserializeUser(async(id, done) => {
 // Google auth routes
 app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-app.get('/auth/google/callback',
+app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login' }),
     (req, res) => {
         const token = jwt.sign({ id: req.user._id, role: req.user.role }, SECRET_KEY, { expiresIn: '1h' });
         // Redirect directly to index.html with the user ID as a query parameter
-        res.redirect(`http://localhost:9875/index_logined.html?userid=${req.user._id}`);
+        res.redirect(`http://localhost:9875/index.html?userid=${req.user._id}`);
     }
 );
 
 // User Management (admin only)
-app.get('/users', authenticateToken, async(req, res) => {
+app.get('/users', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.sendStatus(403);
     try {
         const users = await User.find();
@@ -368,13 +368,13 @@ app.get('/users', authenticateToken, async(req, res) => {
 
 
 // Get user by ID
-app.get('/api/users', async(req, res) => {
+app.get('/api/users', async (req, res) => {
     try {
         // Extract userId from query parameters
         const userId = req.query.userid;
 
         // Extract token from headers
-        const token = req.headers['authorization'] ? .split(' ')[1];
+        const token = req.headers['authorization']?.split(' ')[1];
         if (!token) {
             return res.status(401).json({ message: 'No token provided' });
         }
@@ -406,9 +406,9 @@ app.get('/api/users', async(req, res) => {
 
 
 // User Update
-app.put('/users/:id', authenticateToken, async(req, res) => {
+app.put('/users/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.sendStatus(403);
-
+    
     try {
         const updatedUser = await User.findByIdAndUpdate(req.params.id, req.body, { new: true });
         if (!updatedUser) return res.status(404).json({ error: 'User not found.' });
@@ -420,9 +420,9 @@ app.put('/users/:id', authenticateToken, async(req, res) => {
 });
 
 // User Deletion
-app.delete('/users/:id', authenticateToken, async(req, res) => {
+app.delete('/users/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'admin') return res.sendStatus(403);
-
+    
     try {
         await User.findByIdAndDelete(req.params.id);
         res.sendStatus(204);
@@ -433,14 +433,14 @@ app.delete('/users/:id', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to search for books
-app.get('/api/books', async(req, res) => {
+app.get('/api/books', async (req, res) => {
     const search = req.query.q;
 
     try {
         const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${search}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A&maxResults=40`); // Replace with your actual API key
         const books = response.data.items;
 
-        await Book.deleteMany({});
+        await Book.deleteMany({}); 
 
         for (const book of books) {
             const industryIdentifier = book.volumeInfo.industryIdentifiers ? book.volumeInfo.industryIdentifiers[0].identifier : 'N/A';
@@ -475,7 +475,7 @@ app.get('/api/books', async(req, res) => {
 });
 
 // API endpoint to get book details by googleId
-app.get('/api/books/:googleId', async(req, res) => {
+app.get('/api/books/:googleId', async (req, res) => {
     const { googleId } = req.params;
 
     try {
@@ -493,7 +493,7 @@ app.get('/api/books/:googleId', async(req, res) => {
 });
 
 // Book Management (librarian only)
-app.get('/books', authenticateToken, async(req, res) => {
+app.get('/books', authenticateToken, async (req, res) => {
     if (req.user.role !== 'librarian') return res.sendStatus(403);
     const search = req.query.search || '';
     try {
@@ -509,26 +509,26 @@ app.get('/books', authenticateToken, async(req, res) => {
     }
 });
 
-app.post('/books', authenticateToken, async(req, res) => {
+app.post('/books', authenticateToken, async (req, res) => {
     if (req.user.role !== 'librarian') return res.sendStatus(403);
     const newBook = new Book(req.body);
     await newBook.save();
     res.json(newBook);
 });
 
-app.put('/books/:id', authenticateToken, async(req, res) => {
+app.put('/books/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'librarian') return res.sendStatus(403);
     await Book.findByIdAndUpdate(req.params.id, req.body);
     res.status(204).send();
 });
 
-app.delete('/books/:id', authenticateToken, async(req, res) => {
+app.delete('/books/:id', authenticateToken, async (req, res) => {
     if (req.user.role !== 'librarian') return res.sendStatus(403);
     await Book.findByIdAndDelete(req.params.id);
     res.status(204).send();
 });
 // API endpoint to create a comment
-app.post('/api/comments', authenticateToken, async(req, res) => {
+app.post('/api/comments', authenticateToken, async (req, res) => {
     const { bookId, rating, comment } = req.body;
 
     if (!bookId || !rating || !comment) {
@@ -552,7 +552,7 @@ app.post('/api/comments', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to update a comment
-app.put('/api/comments/:id', authenticateToken, async(req, res) => {
+app.put('/api/comments/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
     const { rating, comment } = req.body;
 
@@ -575,7 +575,7 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to add new admin books
-app.post('/api/admin_books', authenticateToken, async(req, res) => {
+app.post('/api/admin_books', authenticateToken, async (req, res) => {
     const { googleId, bookLocation, locationId, availability, noOfCopy } = req.body;
 
     try {
@@ -600,10 +600,10 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
         const copyId = savedAdminBook._id;
 
         // Return the copyId along with the new admin book details
-        res.status(201).json({
+        res.status(201).json({ 
             copyId: copyId, // Provide the ObjectId as copyId
             adminBook: savedAdminBook,
-            book
+            book 
         });
     } catch (error) {
         console.error('Error adding admin book:', error);
@@ -612,7 +612,7 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to get all admin books
-app.get('/api/admin_books', authenticateToken, async(req, res) => {
+app.get('/api/admin_books', authenticateToken, async (req, res) => {
     try {
         const adminBooks = await AdminBook.find();
         res.status(200).json(adminBooks.map(book => ({
@@ -630,13 +630,15 @@ app.get('/api/admin_books', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to update an admin book
-app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
+app.put('/api/admin_books/:copyId', authenticateToken, async (req, res) => {
     const { copyId } = req.params;
     const { bookLocation, locationId, availability, noOfCopy } = req.body;
 
     try {
         const updatedAdminBook = await AdminBook.findByIdAndUpdate(
-            copyId, { bookLocation, locationId, availability, noOfCopy }, { new: true } // Return the updated document
+            copyId,
+            { bookLocation, locationId, availability, noOfCopy },
+            { new: true } // Return the updated document
         );
 
         if (!updatedAdminBook) {
@@ -651,7 +653,7 @@ app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to delete an admin book
-app.delete('/api/admin_books/:id', authenticateToken, async(req, res) => {
+app.delete('/api/admin_books/:id', authenticateToken, async (req, res) => {
     const { id } = req.params;
 
     try {
@@ -684,10 +686,10 @@ app.get('/book_admin.html', authenticateToken, checkAdminRole, (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'book_admin.html'));
 });
 
-app.get('/api/user-role', async(req, res) => {
+app.get('/api/user-role', async (req, res) => {
     try {
         // Extract token from headers
-        const token = req.headers['authorization'] ? .split(' ')[1];
+        const token = req.headers['authorization']?.split(' ')[1];
         if (!token) {
             return res.status(401).json({ message: 'No token provided' });
         }
@@ -712,7 +714,7 @@ app.get('/api/user-role', async(req, res) => {
     }
 });
 // Start server and create default admin
-app.listen(PORT, async() => {
+app.listen(PORT, async () => {
     console.log(`Server running on http://localhost:${PORT}`);
     await createDefaultAdmin();
 });
