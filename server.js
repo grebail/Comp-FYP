@@ -52,6 +52,19 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
+// Assuming you have your Book model defined
+const countBooks = async() => {
+    try {
+        const totalBooks = await Book.countDocuments(); // or Book.count()
+        console.log(`Total number of books: ${totalBooks}`);
+    } catch (error) {
+        console.error('Error counting books:', error);
+    }
+};
+
+// Call the function
+countBooks();
+
 // Excel import route for users
 app.post('/import-excel-users', upload.single('file'), async(req, res) => {
     if (!req.file) {
