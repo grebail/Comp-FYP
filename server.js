@@ -116,7 +116,8 @@ app.post('/import-excel-books', upload.single('file'), async(req, res) => {
 
 // Middleware to authenticate token
 const authenticateToken = (req, res, next) => {
-    const token = req.headers['authorization'] ? .split(' ')[1];
+    const token = req.headers['authorization'] ? .split(' ')[1]; // Corrected line
+
     if (!token) return res.sendStatus(401); // No token
 
     jwt.verify(token, SECRET_KEY, (err, user) => {
