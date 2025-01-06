@@ -222,7 +222,6 @@ app.get('/api/userBorrows/check', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to update borrow status (return a book)
-// API endpoint to update borrow status (return a book)
 app.put('/api/userBorrows/:id', authenticateToken, async(req, res) => {
     const { id } = req.params;
     const { returned } = req.body; // Accept returned status from request body
@@ -351,7 +350,7 @@ app.get('/auth/google/callback',
     (req, res) => {
         const token = jwt.sign({ id: req.user._id, role: req.user.role }, SECRET_KEY, { expiresIn: '1h' });
         // Redirect directly to index.html with the user ID as a query parameter
-        res.redirect(`http://localhost:9875/index.html?userid=${req.user._id}`);
+        res.redirect(`http://localhost:9875/index_logined.html?userid=${req.user._id}`);
     }
 );
 
