@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -19,7 +18,7 @@
             position: relative;
             overflow: hidden;
         }
-        
+
         body::before {
             content: '';
             position: absolute;
@@ -31,7 +30,7 @@
             backdrop-filter: blur(5px);
             z-index: 1;
         }
-        
+
         .login-container {
             background: #ffffff;
             padding: 40px;
@@ -41,16 +40,15 @@
             position: relative;
             z-index: 2;
         }
-        
+
         h2 {
             text-align: center;
             margin-bottom: 25px;
             color: #444;
             font-size: 24px;
         }
-        
-        input[type="text"],
-        input[type="password"] {
+
+        input[type="text"], input[type="password"] {
             width: 90%;
             padding: 15px;
             margin: 12px 0;
@@ -59,27 +57,25 @@
             font-size: 18px;
             transition: border-color 0.3s;
         }
-        
+
         .toggle-password-login {
             position: absolute;
-            right: 1px;
-            top: 50%;
-            transform: translateY(-210%);
-            background: none;
-            border: none;
+            right: 1px; 
+            top: 50%; 
+            transform: translateY(-210%); 
+            background: none; 
+            border: none; 
             color: #1e88e5;
             cursor: pointer;
             font-size: 14px;
         }
-        
-        input[type="text"]:focus,
-        input[type="password"]:focus {
+
+        input[type="text"]:focus, input[type="password"]:focus {
             border-color: #6c757d;
             outline: none;
         }
-        
-        input[type="submit"],
-        .google-login-button {
+
+        input[type="submit"], .google-login-button {
             background-color: #28a745;
             color: white;
             border: none;
@@ -91,12 +87,11 @@
             width: 100%;
             margin-top: 10px;
         }
-        
-        input[type="submit"]:hover,
-        .google-login-button:hover {
+
+        input[type="submit"]:hover, .google-login-button:hover {
             background-color: #218838;
         }
-        
+
         .google-login-button {
             background-color: #4285F4;
             margin-top: 15px;
@@ -104,12 +99,12 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .google-login-button img {
             width: 20px;
             margin-right: 10px;
         }
-        
+
         .return-button {
             background-color: #62A4F7;
             color: white;
@@ -124,11 +119,11 @@
             z-index: 2;
             position: relative;
         }
-        
+
         .return-button:hover {
             background-color: #0056b3;
         }
-        
+
         .signup-link {
             display: block;
             text-align: center;
@@ -136,40 +131,35 @@
             cursor: pointer;
             color: #007bff;
         }
-        
+
         .error-message {
             color: red;
             text-align: center;
         }
-        
+
         @media (max-width: 600px) {
             .login-container {
-                padding: 10px;
-                /* Further reduced padding for very small screens */
+                padding:  10px; /* Further reduced padding for very small screens */
             }
+
             h2 {
-                font-size: 18px;
-                /* Smaller font size for very small screens */
+                font-size: 18px; /* Smaller font size for very small screens */
             }
-            input[type="text"],
-            input[type="password"] {
-                font-size: 14px;
-                /* Smaller font size for inputs */
+
+            input[type="text"], input[type="password"] {
+                font-size: 14px; /* Smaller font size for inputs */
             }
-            input[type="submit"],
-            .google-login-button,
-            .return-button {
-                font-size: 14px;
-                /* Smaller font size for buttons */
+
+            input[type="submit"], .google-login-button, .return-button {
+                font-size: 14px; /* Smaller font size for buttons */
             }
+
             .toggle-password-login {
-                font-size: 12px;
-                /* Smaller font size for toggle buttons */
+                font-size: 12px; /* Smaller font size for toggle buttons */
             }
         }
     </style>
 </head>
-
 <body>
     <div class="login-container">
         <h2>Library Login</h2>
@@ -195,30 +185,27 @@
             const password = document.getElementById('login-password').value;
 
             fetch('http://localhost:9875/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username,
-                        password
-                    }),
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Login failed: ' + response.statusText + ' access / User Not Found! ');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    // Store the token in localStorage
-                    localStorage.setItem('token', data.token);
-                    // Redirect based on role
-                    window.location.href = data.redirect;
-                })
-                .catch(error => {
-                    document.getElementById('error-message').innerText = error.message;
-                });
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password }),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Login failed: ' + response.statusText + ' access / User Not Found! ');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Store the token in localStorage
+                localStorage.setItem('token', data.token);
+                // Redirect based on role
+                window.location.href = data.redirect;
+            })
+            .catch(error => {
+                document.getElementById('error-message').innerText = error.message;
+            });
         }
 
         document.getElementById('togglePassword').addEventListener('click', function() {
@@ -238,5 +225,4 @@
         });
     </script>
 </body>
-
 </html>
