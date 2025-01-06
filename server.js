@@ -614,12 +614,11 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
 
 
 
-/// API endpoint to add new admin books
 app.post('/api/admin_books/', authenticateToken, async(req, res) => {
     const { googleId, bookLocation, locationId, availability, noOfCopy } = req.body;
 
     // Input validation
-    if (!googleId || !bookLocation || !locationId || noOfCopy < 1) {
+    if (!googleId || !bookLocation || !locationId || isNaN(noOfCopy) || noOfCopy < 1) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
@@ -629,7 +628,6 @@ app.post('/api/admin_books/', authenticateToken, async(req, res) => {
             return res.status(404).json({ error: 'Book not found' });
         }
 
-        // Create multiple AdminBook instances based on noOfCopy
         const adminBooks = [];
         for (let i = 0; i < noOfCopy; i++) {
             const newAdminBook = new AdminBook({
@@ -637,17 +635,24 @@ app.post('/api/admin_books/', authenticateToken, async(req, res) => {
                 bookLocation,
                 locationId,
                 availability,
-                noOfCopy: 1 // Set each book's noOfCopy to 1 (or however you want to handle this)
+                noOfCopy: 1
             });
             const savedAdminBook = await newAdminBook.save();
             adminBooks.push({
-                copyId: savedAdminBook._id, // Provide the ObjectId as copyId
+                copyId: savedAdminBook._id,
                 adminBook: savedAdminBook
             });
         }
 
         res.status(201).json({
-            adminBooks // Return all created admin books
+            adminBooks: adminBooks.map(book => ({
+                googleId: book.adminBook.googleId,
+                copyId: book.copyId,
+                bookLocation: book.adminBook.bookLocation,
+                locationId: book.adminBook.locationId,
+                availability: book.adminBook.availability,
+                noOfCopy: book.adminBook.noOfCopy,
+            }))
         });
     } catch (error) {
         console.error('Error adding admin book:', error);
