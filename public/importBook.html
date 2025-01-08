@@ -91,6 +91,11 @@
         .delete-button:hover {
             background-color: #c62828;
         }
+        
+        .total-count {
+            margin: 20px 0;
+            font-weight: bold;
+        }
     </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
 </head>
@@ -111,14 +116,15 @@
         <button class="export-button" id="exportButton">Export to CSV</button>
     </div>
 
+    <div id="totalCount" class="total-count">Total Purchased Books: <span id="bookCount">0</span></div>
+
     <table id="bookTable" class="book-table">
         <thead>
             <tr>
-
-                <th>Title</th>
-                <th>Author(s)</th>
                 <th>Google ID</th>
                 <th>Industry Identifier</th>
+                <th>Title</th>
+                <th>Author(s)</th>
                 <th>Purchase Date</th>
                 <th>Action</th>
             </tr>
@@ -196,6 +202,7 @@
 
                 const purchases = await response.json();
                 displayBooks(purchases);
+                updateBookCount(purchases.length); // Update the total count
             } catch (error) {
                 displayError('An error occurred while fetching purchases: ' + error.message);
             }
@@ -218,11 +225,10 @@
             purchases.forEach(purchase => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                  
+                    <td>${purchase.googleId || 'N/A'}</td>
+                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
                     <td>${purchase.title || 'Unknown Title'}</td>
                     <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-                      <td>${purchase.googleId || 'N/A'}</td>
-                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
                     <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
                     <td><button class="delete-button" onclick="deleteBook('${purchase.googleId}')">Delete</button></td>
                 `;
@@ -277,8 +283,14 @@
                         PurchaseDate: new Date(purchase.purchaseDate).toLocaleDateString()
                     }));
 
+                    // Add a total count at the end of the CSV data
+                    const totalCount = [{
+                        TotalPurchasedBooks: document.getElementById('bookCount').textContent
+                    }];
+                    const totalCountRow = `Total Purchased Books,${totalCount[0].TotalPurchasedBooks}\n`;
                     const csv = Papa.unparse(csvData);
-                    const blob = new Blob([csv], {
+
+                    const blob = new Blob([totalCountRow + csv], {
                         type: 'text/csv;charset=utf-8;'
                     });
                     const link = document.createElement('a');
@@ -291,6 +303,10 @@
                 .catch(error => {
                     displayError('Error exporting to CSV: ' + error.message);
                 });
+        }
+
+        function updateBookCount(count) {
+            document.getElementById('bookCount').textContent = count;
         }
 
         // Fetch all purchases when the page loads
