@@ -318,29 +318,37 @@
         }
 
         function searchBooks() {
-            const query = document.getElementById('searchInput').value;
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
             showLoader();
-            fetch(`/api/books?q=${encodeURIComponent(query)}`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    }
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.data && Array.isArray(data.data)) {
-                        allBooks = data.data;
-                        currentStartIndex = 0;
-                        displayBooks(currentStartIndex);
-                    } else {
-                        alert('No books found for your search.');
-                        console.error('Expected an array but got:', data.data);
-                    }
-                })
-                .catch(error => {
-                    console.error('Error fetching books:', error);
-                    alert('Failed to fetch books. Please try again later.');
-                })
-                .finally(() => hideLoader());
+
+            if (!query) {
+                // If the input is empty, reset the book display to show all books
+                currentStartIndex = 0;
+                displayBooks(currentStartIndex);
+                hideLoader();
+                return;
+            }
+
+            // Filter books from the allBooks array based on the query
+            const filteredBooks = allBooks.filter(book => {
+                const volumeInfo = book.googleBookDetails && book.googleBookDetails.volumeInfo;
+                const title = volumeInfo && volumeInfo.title ? volumeInfo.title.toLowerCase() : '';
+                const authors = volumeInfo && volumeInfo.authors ? volumeInfo.authors.join(', ').toLowerCase() : '';
+                return title.includes(query) || authors.includes(query);
+            });
+
+
+            // Reset start index and display filtered books
+            currentStartIndex = 0; // Reset to the first page
+            if (filteredBooks.length > 0) {
+                displayBooks(currentStartIndex);
+            } else {
+                // Show a message if no books are found
+                document.getElementById('bookCatalog').innerHTML = '<p>No books found for your search.</p>';
+            }
+
+            // Hide loader after processing
+            hideLoader();
         }
 
         function viewDetails(googleId) {
