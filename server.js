@@ -638,6 +638,23 @@ app.get('/api/books/:googleId', async(req, res) => {
         res.status(500).json({ error: 'Error fetching book details' });
     }
 });
+// API endpoint to get book details by ISBN
+app.get('/api/books/isbn/:isbn', async(req, res) => {
+    const { isbn } = req.params;
+
+    try {
+        const book = await Book.findOne({ industryIdentifier: isbn });
+
+        if (!book) {
+            return res.status(404).json({ error: 'Book not found by ISBN' });
+        }
+
+        res.json(book);
+    } catch (error) {
+        console.error('Error fetching book details by ISBN:', error);
+        res.status(500).json({ error: 'Error fetching book details' });
+    }
+});
 
 // Book Management (librarian only)
 app.get('/books', authenticateToken, async(req, res) => {

@@ -74,16 +74,46 @@
         const userid = params.get('userid');
 
         // Function to fetch book details
+        // Function to fetch book details
         async function fetchBookDetails() {
             try {
+                // Attempt to fetch book by googleId
                 const response = await fetch(`/api/books/${googleId}`);
                 if (!response.ok) {
-                    throw new Error('Book not found');
+                    throw new Error('Book not found by Google ID. Attempting to fetch by ISBN...');
                 }
                 const book = await response.json();
                 displayBook(book);
             } catch (error) {
-                displayError(error.message);
+                console.error(error.message);
+                // If fetching by googleId fails, try fetching by ISBN
+                try {
+                    const isbn = await fetchISBN();
+                    if (isbn) {
+                        const response = await fetch(`/api/books/isbn/${isbn}`);
+                        if (!response.ok) {
+                            throw new Error('Book not found by ISBN.');
+                        }
+                        const book = await response.json();
+                        displayBook(book);
+                    } else {
+                        displayError('ISBN not available.');
+                    }
+                } catch (isbnError) {
+                    displayError(isbnError.message);
+                }
+            }
+        }
+
+        // Function to fetch ISBN from a local source or another part of the app
+        async function fetchISBN() {
+            try {
+                const response = await fetch(`/api/books/${googleId}`);
+                const book = await response.json();
+                return book.industryIdentifier; // Adjust based on your actual data structure
+            } catch (error) {
+                console.error('Error fetching ISBN:', error);
+                return null;
             }
         }
 
@@ -103,9 +133,10 @@
         }
 
         // Function to borrow the book
+        // Function to borrow the book
         async function borrowBook() {
-            if (!googleId || !userid) {
-                displayError('No Google ID or User ID provided.');
+            if (!googleId && !isbn) {
+                displayError('No Google ID or ISBN provided.');
                 return;
             }
 
@@ -115,6 +146,18 @@
                 return;
             }
 
+            // Prepare the request body
+            const borrowData = {
+                userid
+            };
+
+            // Use googleId if available, otherwise use ISBN
+            if (googleId) {
+                borrowData.googleId = googleId;
+            } else if (isbn) {
+                borrowData.isbn = isbn;
+            }
+
             try {
                 const response = await fetch('/api/userBorrows', {
                     method: 'POST',
@@ -122,10 +165,7 @@
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({
-                        googleId,
-                        userid
-                    })
+                    body: JSON.stringify(borrowData)
                 });
 
                 if (!response.ok) {

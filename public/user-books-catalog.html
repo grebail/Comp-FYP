@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Books Catalog</title>
+    <title>Book Catalog</title>
     <style>
         /* Existing CSS styles */
         
@@ -116,11 +116,6 @@
         .book-published {
             color: #777;
             font-size: 0.9em;
-        }
-        
-        .book-isbn {
-            color: #999;
-            font-size: 0.8em;
         }
         
         .book-cover {
@@ -317,7 +312,6 @@
             });
         }
 
-
         function nextBooks() {
             if (currentStartIndex + booksPerPage < allBooks.length) {
                 currentStartIndex += booksPerPage;
@@ -351,6 +345,7 @@
                 const authors = volumeInfo && volumeInfo.authors ? volumeInfo.authors.join(', ').toLowerCase() : '';
                 return title.includes(query) || authors.includes(query);
             });
+
 
             // Reset start index and display filtered books
             currentStartIndex = 0; // Reset to the first page
