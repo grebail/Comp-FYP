@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Book Catalog</title>
+    <title>Books Catalog</title>
     <style>
         /* Existing CSS styles */
         
@@ -116,6 +116,11 @@
         .book-published {
             color: #777;
             font-size: 0.9em;
+        }
+        
+        .book-isbn {
+            color: #999;
+            font-size: 0.8em;
         }
         
         .book-cover {
@@ -282,16 +287,16 @@
                     const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
                     const publishedDate = volumeInfo.publishedDate || 'N/A';
                     const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : '';
+                    const isbn = volumeInfo.industryIdentifiers ?
+                        volumeInfo.industryIdentifiers.map(id => `${id.type}: ${id.identifier}`).join(', ') :
+                        'N/A';
 
                     card.innerHTML = `
                         <img src="${coverImage}" alt="${title} cover" class="book-cover" />
                         <div class="book-title">${title}</div>
                         <div class="book-author">Author: ${authors}</div>
                         <div class="book-published">Published: ${publishedDate}</div>
-                        <div class="action-buttons">
-                            <button onclick="BorrowBook('${book.googleId}')">Borrow Book</button>
-                            <button onclick="viewDetails('${book.googleId}')">View Details</button>
-                        </div>
+                        <div class="book-isbn">ISBN: ${isbn}</div>
                     `;
                 } else {
                     console.warn('Missing googleBookDetails or volumeInfo for book:', book);
@@ -299,9 +304,19 @@
                         <div class="book-title">Details not available</div>
                     `;
                 }
+
+                // Add action buttons regardless of whether details are available
+                card.innerHTML += `
+                    <div class="action-buttons">
+                        <button onclick="BorrowBook('${book.googleId}')">Borrow Book</button>
+                        <button onclick="viewDetails('${book.googleId}')">View Details</button>
+                    </div>
+                `;
+
                 catalog.appendChild(card);
             });
         }
+
 
         function nextBooks() {
             if (currentStartIndex + booksPerPage < allBooks.length) {
@@ -336,7 +351,6 @@
                 const authors = volumeInfo && volumeInfo.authors ? volumeInfo.authors.join(', ').toLowerCase() : '';
                 return title.includes(query) || authors.includes(query);
             });
-
 
             // Reset start index and display filtered books
             currentStartIndex = 0; // Reset to the first page
