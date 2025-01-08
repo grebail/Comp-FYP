@@ -44,7 +44,8 @@
             margin: 20px 0;
         }
         
-        .upload-button {
+        .upload-button,
+        .export-button {
             background-color: #388e3c;
             color: white;
             border: none;
@@ -52,9 +53,11 @@
             padding: 10px 20px;
             cursor: pointer;
             transition: background-color 0.3s;
+            margin-top: 10px;
         }
         
-        .upload-button:hover {
+        .upload-button:hover,
+        .export-button:hover {
             background-color: #2e7d32;
         }
         
@@ -105,13 +108,17 @@
         <label for="csvFile">Select CSV File:</label>
         <input type="file" id="csvFile" accept=".csv" aria-label="CSV file input" />
         <button class="upload-button" id="uploadButton">Upload CSV</button>
+        <button class="export-button" id="exportButton">Export to CSV</button>
     </div>
 
     <table id="bookTable" class="book-table">
         <thead>
             <tr>
+
                 <th>Title</th>
                 <th>Author(s)</th>
+                <th>Google ID</th>
+                <th>Industry Identifier</th>
                 <th>Purchase Date</th>
                 <th>Action</th>
             </tr>
@@ -138,6 +145,10 @@
                     displayError('Error parsing CSV: ' + error.message);
                 }
             });
+        });
+
+        document.getElementById('exportButton').addEventListener('click', function() {
+            exportToCSV();
         });
 
         async function uploadBooks(books) {
@@ -207,8 +218,11 @@
             purchases.forEach(purchase => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
+                  
                     <td>${purchase.title || 'Unknown Title'}</td>
                     <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                      <td>${purchase.googleId || 'N/A'}</td>
+                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
                     <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
                     <td><button class="delete-button" onclick="deleteBook('${purchase.googleId}')">Delete</button></td>
                 `;
@@ -233,6 +247,50 @@
             } catch (error) {
                 displayError('An error occurred while trying to delete the book.');
             }
+        }
+
+        function exportToCSV() {
+            fetch('/api/allPurchases', {
+                    method: 'GET'
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to fetch purchases for export.');
+                    }
+                    return response.json();
+                })
+                .then(purchases => {
+                    const csvData = purchases.map(purchase => ({
+                        UserId: purchase.userid,
+                        GoogleId: purchase.googleId,
+                        IndustryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
+                        Title: purchase.title || 'Unknown Title',
+                        Subtitle: purchase.subtitle || 'No Subtitle',
+                        Authors: purchase.authors.join(', ') || 'Unknown Author',
+                        Publisher: purchase.publisher || 'Unknown Publisher',
+                        PublishedDate: purchase.publishedDate || 'Unknown Date',
+                        Description: purchase.description || 'No Description',
+                        PageCount: purchase.pageCount || 0,
+                        Categories: purchase.categories.join(', ') || 'N/A',
+                        Language: purchase.language || 'en',
+                        CoverImage: purchase.coverImage || '',
+                        PurchaseDate: new Date(purchase.purchaseDate).toLocaleDateString()
+                    }));
+
+                    const csv = Papa.unparse(csvData);
+                    const blob = new Blob([csv], {
+                        type: 'text/csv;charset=utf-8;'
+                    });
+                    const link = document.createElement('a');
+                    link.href = URL.createObjectURL(blob);
+                    link.setAttribute('download', 'purchased_books.csv');
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                })
+                .catch(error => {
+                    displayError('Error exporting to CSV: ' + error.message);
+                });
         }
 
         // Fetch all purchases when the page loads
