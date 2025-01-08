@@ -1056,6 +1056,105 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
         return res.status(500).json({ error: 'Error fetching user purchases' });
     }
 });
+
+
+
+// API endpoint to import books from CSV
+app.post('/api/importBooks', async(req, res) => {
+    const { books } = req.body;
+
+    if (!Array.isArray(books) || books.length === 0) {
+        return res.status(400).json({ error: 'Invalid book data provided.' });
+    }
+
+    try {
+        // Set a default user ID for testing
+        const userId = 'defaultUserId'; // Replace with a valid user ID if needed
+
+        // Prepare to hold the results of the insertion process
+        const savedPurchases = [];
+        const errors = [];
+
+        for (const book of books) {
+            const { googleId } = book;
+
+            // Validate required fields
+            if (!googleId) {
+                errors.push({ error: 'Missing googleId for a book.', book });
+                continue; // Skip this book and move to the next one
+            }
+
+            // Create a new purchase record using the book details
+            const purchase = new BookBuy({
+                userid: userId,
+                googleId: googleId,
+                industryIdentifier: book.industryIdentifier || [], // Use empty array if not provided
+                title: book.title || 'Unknown Title', // Default title if not provided
+                subtitle: book.subtitle || 'No Subtitle', // Default subtitle if not provided
+                authors: book.authors || 'Unknown Author', // Default authors if not provided
+                publisher: book.publisher || 'Unknown Publisher', // Default publisher if not provided
+                publishedDate: book.publishedDate || 'Unknown Date', // Default date if not provided
+                description: book.description || 'No Description', // Default description if not provided
+                pageCount: book.pageCount || 0, // Default page count if not provided
+                categories: book.categories || [], // Use empty array if not provided
+                language: book.language || 'en', // Default language if not provided
+                coverImage: book.coverImage || '', // Default empty string if not provided
+                purchaseDate: new Date() // Automatically set the purchase date
+            });
+
+            // Save the purchase to the database
+            const savedPurchase = await purchase.save();
+            savedPurchases.push(savedPurchase);
+        }
+
+        // Send response with success and error messages
+        res.status(201).json({
+            message: 'Books imported successfully!',
+            savedPurchases: savedPurchases,
+            errors: errors.length > 0 ? errors : undefined
+        });
+    } catch (error) {
+        console.error('Error importing books:', error);
+        res.status(500).json({ error: 'Failed to import books.' });
+    }
+});
+// API endpoint to get all purchases
+app.get('/api/allPurchases', async(req, res) => {
+    try {
+        // Find all purchases
+        const purchases = await BookBuy.find();
+
+        if (!purchases.length) {
+            return res.status(404).json({ message: 'No purchases found.' });
+        }
+
+        return res.status(200).json(purchases);
+    } catch (error) {
+        console.error('Error fetching all purchases:', error);
+        return res.status(500).json({ error: 'Error fetching all purchases' });
+    }
+});
+// API endpoint to delete a purchase by googleId
+app.delete('/api/deletePurchase', async(req, res) => {
+    const { googleId } = req.query;
+
+    if (!googleId) {
+        return res.status(400).json({ error: 'Missing googleId.' });
+    }
+
+    try {
+        const result = await BookBuy.deleteOne({ googleId });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found.' });
+        }
+
+        return res.status(200).json({ message: 'Purchase deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting purchase:', error);
+        return res.status(500).json({ error: 'Failed to delete purchase.' });
+    }
+});
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);

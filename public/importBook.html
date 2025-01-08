@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload CSV for Book Import</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #eef2f3;
+            color: #333;
+        }
+        
+        header {
+            background: linear-gradient(to right, #1e88e5, #1565c0);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+            border-radius: 8px;
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        
+        .upload-container {
+            margin: 20px auto;
+            width: 300px;
+            text-align: center;
+        }
+        
+        .error-message {
+            color: red;
+            margin: 20px 0;
+        }
+        
+        .success-message {
+            color: green;
+            margin: 20px 0;
+        }
+        
+        .upload-button {
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .upload-button:hover {
+            background-color: #2e7d32;
+        }
+        
+        .book-table {
+            margin-top: 20px;
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .book-table th,
+        .book-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        
+        .book-table th {
+            background-color: #f2f2f2;
+        }
+        
+        .delete-button {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .delete-button:hover {
+            background-color: #c62828;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+</head>
+
+<body>
+
+    <header>
+        <h1>Upload CSV for Book Import</h1>
+    </header>
+
+    <div id="errorMessage" class="error-message"></div>
+    <div id="successMessage" class="success-message"></div>
+
+    <div class="upload-container">
+        <label for="csvFile">Select CSV File:</label>
+        <input type="file" id="csvFile" accept=".csv" aria-label="CSV file input" />
+        <button class="upload-button" id="uploadButton">Upload CSV</button>
+    </div>
+
+    <table id="bookTable" class="book-table">
+        <thead>
+            <tr>
+                <th>Title</th>
+                <th>Author(s)</th>
+                <th>Purchase Date</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody id="bookTableBody"></tbody>
+    </table>
+
+    <script>
+        document.getElementById('uploadButton').addEventListener('click', function() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                displayError('Please select a CSV file to upload.');
+                return;
+            }
+
+            Papa.parse(file, {
+                header: true,
+                complete: async(results) => {
+                    await uploadBooks(results.data);
+                },
+                error: (error) => {
+                    displayError('Error parsing CSV: ' + error.message);
+                }
+            });
+        });
+
+        async function uploadBooks(books) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/importBooks', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(books)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to import books.');
+                    return;
+                }
+
+                const result = await response.json();
+                displaySuccess(result.message || 'Books imported successfully!');
+                fetchAllPurchases(); // Fetch all purchases after import
+            } catch (error) {
+                displayError('An error occurred while importing books: ' + error.message);
+            }
+        }
+
+        async function fetchAllPurchases() {
+            try {
+                const response = await fetch('/api/allPurchases', {
+                    method: 'GET'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to fetch purchases.');
+                    return;
+                }
+
+                const purchases = await response.json();
+                displayBooks(purchases);
+            } catch (error) {
+                displayError('An error occurred while fetching purchases: ' + error.message);
+            }
+        }
+
+        function displayError(message) {
+            document.getElementById('errorMessage').innerHTML = message;
+            document.getElementById('successMessage').innerHTML = '';
+        }
+
+        function displaySuccess(message) {
+            document.getElementById('successMessage').innerHTML = message;
+            document.getElementById('errorMessage').innerHTML = '';
+        }
+
+        function displayBooks(purchases) {
+            const tableBody = document.getElementById('bookTableBody');
+            tableBody.innerHTML = ''; // Clear previous entries
+
+            purchases.forEach(purchase => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${purchase.title || 'Unknown Title'}</td>
+                    <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                    <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+                    <td><button class="delete-button" onclick="deleteBook('${purchase.googleId}')">Delete</button></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        async function deleteBook(googleId) {
+            try {
+                const response = await fetch(`/api/deletePurchase?googleId=${googleId}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to delete the book.');
+                    return;
+                }
+
+                // Refresh the book list after deletion
+                fetchAllPurchases();
+            } catch (error) {
+                displayError('An error occurred while trying to delete the book.');
+            }
+        }
+
+        // Fetch all purchases when the page loads
+        window.onload = fetchAllPurchases;
+    </script>
+
+</body>
+
+</html>

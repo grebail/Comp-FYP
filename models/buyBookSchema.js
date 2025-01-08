@@ -5,6 +5,7 @@ const buyBookSchema = new mongoose.Schema({
     userid: {
         type: String,
         required: true,
+
     },
     googleId: {
         type: String,
