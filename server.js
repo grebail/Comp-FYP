@@ -968,6 +968,34 @@ app.post('/api/userPurchases', authenticateToken, async(req, res) => {
         return res.status(500).json({ error: 'Error recording purchase' });
     }
 });
+// API endpoint to delete a user purchase
+app.delete('/api/userPurchases', authenticateToken, async(req, res) => {
+    const { googleId, userid } = req.query;
+
+    // Validate request parameters
+    if (!googleId || !userid) {
+        return res.status(400).json({ error: 'Missing googleId or userid.' });
+    }
+
+    // Ensure userid matches the authenticated user
+    if (userid !== req.user.id) {
+        console.log(`Permission denied. User ID: ${userid}, Authenticated User ID: ${req.user.id}`);
+        return res.status(403).json({ error: 'You do not have permission to delete this purchase.' });
+    }
+
+    try {
+        const result = await BookBuy.deleteOne({ googleId: googleId, userid: userid });
+
+        if (result.deletedCount === 0) {
+            return res.status(404).json({ error: 'Purchase not found.' });
+        }
+
+        res.json({ message: 'Purchase deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting purchase:', error);
+        res.status(500).json({ error: 'Failed to delete purchase.' });
+    }
+});
 
 // API endpoint to get all purchased books
 app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {

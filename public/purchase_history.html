@@ -37,6 +37,7 @@
             margin: 15px 0;
             display: flex;
             align-items: center;
+            justify-content: space-between;
         }
         
         .book-cover {
@@ -68,6 +69,20 @@
         .go-back-button1:hover,
         .go-back-button2:hover {
             background-color: #2e7d32;
+        }
+        
+        .delete-button {
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .delete-button:hover {
+            background-color: #c62828;
         }
     </style>
 </head>
@@ -133,6 +148,30 @@
             return await response.json();
         }
 
+        // Function to delete a purchased book
+        async function deleteBook(googleId) {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`/api/userPurchases?googleId=${googleId}&userid=${userid}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to delete the book.');
+                    return;
+                }
+
+                // Refresh the purchase history after deletion
+                fetchPurchaseHistory();
+            } catch (error) {
+                displayError('An error occurred while trying to delete the book.');
+            }
+        }
+
         // Function to display purchased books
         async function displayBooks(history) {
             if (history.length === 0) {
@@ -151,6 +190,7 @@
                     <strong>Purchase Date:</strong> ${new Date(history.find(h => h.googleId === book.googleId).purchaseDate).toLocaleDateString()} <br>
                     <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
                 </div>
+                <button class="delete-button" onclick="deleteBook('${book.googleId}')">Delete</button>
             </div>
         `).join('');
 
