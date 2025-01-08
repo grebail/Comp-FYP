@@ -65,6 +65,8 @@ const countBooks = async() => {
 // Call the function
 countBooks();
 
+
+
 // Excel import route for users
 app.post('/import-excel-users', upload.single('file'), async(req, res) => {
     if (!req.file) {
@@ -126,18 +128,51 @@ app.post('/import-excel-books', upload.single('file'), async(req, res) => {
         res.status(500).send('Error importing books: ' + error.message);
     }
 });
-
-// Middleware to authenticate token
+// middleware of token
 const authenticateToken = (req, res, next) => {
-    const authHeader = req.headers['authorization']; // Get the Authorization header
-    const token = authHeader && authHeader.split(' ')[1]
-    if (!token) return res.sendStatus(401); // No token
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-    jwt.verify(token, SECRET_KEY, (err, user) => {
-        if (err) return res.sendStatus(403); // Forbidden
-        req.user = user; // Attach user info to the request
-        next();
+    if (!token) {
+        console.log('No token provided');
+        return res.sendStatus(401); // No token
+    }
+
+    jwt.verify(token, SECRET_KEY, async(err, decoded) => {
+        if (err) {
+            console.log('Token verification failed:', err);
+            return res.sendStatus(403); // Forbidden
+        }
+
+        try {
+            const user = await User.findById(decoded.id).select('role');
+            if (!user) {
+                console.log('User not found in database');
+                return res.sendStatus(404); // User not found
+            }
+            req.user = user; // Attach user info to the request
+            console.log('Authenticated user:', req.user); // Log the authenticated user
+            next();
+        } catch (error) {
+            console.error('Error fetching user from database:', error);
+            return res.status(500).send('Internal server error');
+        }
     });
+};
+
+// Middleware to check if the user is a librarian
+const checkLibrarianRole = (req, res, next) => {
+    if (!req.user) {
+        console.log('User is undefined in checkLibrarianRole');
+        return res.sendStatus(403); // Forbidden
+    }
+
+    console.log(`User role: ${req.user.role}`); // Log the user role
+
+    if (req.user.role !== 'librarian') {
+        return res.sendStatus(403); // Forbidden
+    }
+    next();
 };
 
 //API endpoint to get borrow history for a specific user
@@ -287,8 +322,12 @@ app.post('/login', async(req, res) => {
         const token = jwt.sign({ id: user._id, role: user.role }, SECRET_KEY, { expiresIn: '1h' });
 
         console.log(`User logged in: ${user.username}`);
+        // Log the user's role
+        console.log(`User logged in: ${user.username}, Role: ${user.role}`);
+
+
         const redirectUrl = user.role === 'admin' ? '/admin.html' :
-            user.role === 'librarian' ? '/librarian.html' : `http://localhost:9875/index_logined.html?userid=${user._id}`;
+            user.role === 'librarian' ? `http://localhost:9875/index_logined.html?userid=${user._id}` : `http://localhost:9875/index_logined.html?userid=${user._id}`;
         return res.json({ token, redirect: redirectUrl });
     } catch (error) {
         console.error('Login error:', error);
@@ -364,7 +403,7 @@ app.get('/auth/google/callback',
     (req, res) => {
         const token = jwt.sign({ id: req.user._id, role: req.user.role }, SECRET_KEY, { expiresIn: '1h' });
         // Redirect directly to index.html with the user ID as a query parameter
-        res.redirect(`http://localhost:9875/index.html?userid=${req.user._id}`);
+        res.redirect(`http://localhost:9875/index_logined.html?userid=${req.user._id}`);
     }
 );
 
@@ -448,11 +487,13 @@ app.delete('/users/:id', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to search for books
-app.get('/api/books', async(req, res) => {
+app.get('/api/books', authenticateToken, async(req, res) => {
+    if (req.user.role !== 'librarian') return res.sendStatus(403);
     const search = req.query.q;
 
     try {
         const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${search}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A&maxResults=40`); // Replace with your actual API key
+
         const books = response.data.items;
 
         await Book.deleteMany({});
