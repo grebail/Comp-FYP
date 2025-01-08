@@ -103,9 +103,9 @@
             color: #bbdefb;
             /* Light blue on hover */
         }
-        /* Login Button */
+        /* Logout Button */
         
-        .login-button {
+        .logout-button {
             background-color: #4caf50;
             /* Green background */
             color: white;
@@ -115,7 +115,7 @@
             transition: background-color 0.3s;
         }
         
-        .login-button:hover {
+        .logout-button:hover {
             background-color: #45a049;
             /* Darker green on hover */
         }
@@ -151,8 +151,6 @@
             text-align: center;
             position: relative;
             margin: 10px 0;
-            overflow: hidden;
-            flex-wrap: wrap;
         }
         /* Each Slide */
         
@@ -165,7 +163,6 @@
             left: 0;
             display: none;
             /* Hide all slides by default */
-            overflow: hidden;
         }
         
         .active {
@@ -256,7 +253,7 @@
         <a href="#journals">Journals</a>
         <a href="#services">Services</a>
         <a href="contact.html">Contact Us</a>
-        <a href="login.html" class="login-button">Login</a>
+        <a href="#" class="logout-button" id="logout-button">Logout</a>
     </nav>
 
     <div class="slide-container">
@@ -315,14 +312,20 @@
     </footer>
 
     <script>
-        // Login Button
-        document.querySelector('.login-button').addEventListener('click', function(event) {
+        // Check if user is logged in
+        window.onload = function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = 'login.html'; // Redirect to login if not logged in
+            }
+        };
+
+        // Logout Button
+        document.getElementById('logout-button').addEventListener('click', function(event) {
             event.preventDefault(); // Prevent default link behavior
+            localStorage.removeItem('token'); // Remove the token from local storage
             window.location.href = 'login.html'; // Redirect to login page
         });
-
-        const loginForm = document.getElementById('loginForm');
-        const messageDiv = document.getElementById('message');
 
         // Slide container
         const slides = document.querySelectorAll('.slide');
@@ -355,31 +358,6 @@
         document.getElementById('books-link').addEventListener('click', function() {
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `user-books-catalog.html?userid=${userId}`; // Redirect to books catalog with user ID
-        });
-        // Login function
-        loginForm.addEventListener('submit', async(e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
-
-            const response = await fetch('http://localhost:9875/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    username,
-                    password
-                })
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                localStorage.setItem('token', data.token);
-                window.location.href = data.redirect; // Redirect to user or admin page
-            } else {
-                messageDiv.textContent = 'Invalid credentials.';
-            }
         });
     </script>
 

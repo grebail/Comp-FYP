@@ -674,197 +674,8 @@ app.delete('/books/:id', authenticateToken, async(req, res) => {
     await Book.findByIdAndDelete(req.params.id);
     res.status(204).send();
 });
-// API endpoint to create a comment
-app.post('/api/comments', authenticateToken, async(req, res) => {
-    const { bookId, rating, comment } = req.body;
-
-    if (!bookId || !rating || !comment) {
-        return res.status(400).json({ error: 'All fields are required.' });
-    }
-
-    const newComment = new Comment({
-        bookId,
-        userId: req.user.id,
-        rating,
-        comment
-    });
-
-    try {
-        const savedComment = await newComment.save();
-        res.status(201).json(savedComment);
-    } catch (error) {
-        console.error('Error creating comment:', error);
-        res.status(500).json({ error: 'Failed to create comment' });
-    }
-});
-
-// API endpoint to update a comment
-app.put('/api/comments/:id', authenticateToken, async(req, res) => {
-    const { id } = req.params;
-    const { rating, comment } = req.body;
-
-    if (!rating || !comment) {
-        return res.status(400).json({ error: 'Rating and comment are required.' });
-    }
-
-    try {
-        const updatedComment = await Comment.findByIdAndUpdate(id, { rating, comment }, { new: true });
-
-        if (!updatedComment) {
-            return res.status(404).json({ error: 'Comment not found' });
-        }
-
-        res.json(updatedComment);
-    } catch (error) {
-        console.error('Error updating comment:', error);
-        res.status(500).json({ error: 'Failed to update comment' });
-    }
-});
 
 
-
-app.post('/api/admin_books/', authenticateToken, async(req, res) => {
-    const { googleId, bookLocation, locationId, availability, noOfCopy } = req.body;
-
-    // Input validation
-    if (!googleId || !bookLocation || !locationId || isNaN(noOfCopy) || noOfCopy < 1) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    try {
-        const book = await Book.findOne({ googleId });
-        if (!book) {
-            return res.status(404).json({ error: 'Book not found' });
-        }
-
-        const adminBooks = [];
-        for (let i = 0; i < noOfCopy; i++) {
-            const newAdminBook = new AdminBook({
-                googleId,
-                bookLocation,
-                locationId,
-                availability,
-                noOfCopy: 1
-            });
-            const savedAdminBook = await newAdminBook.save();
-            adminBooks.push({
-                copyId: savedAdminBook._id,
-                adminBook: savedAdminBook
-            });
-        }
-
-        res.status(201).json({
-            adminBooks: adminBooks.map(book => ({
-                googleId: book.adminBook.googleId,
-                copyId: book.copyId,
-                bookLocation: book.adminBook.bookLocation,
-                locationId: book.adminBook.locationId,
-                availability: book.adminBook.availability,
-                noOfCopy: book.adminBook.noOfCopy,
-            }))
-        });
-    } catch (error) {
-        console.error('Error adding admin book:', error);
-        res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
-    }
-});
-
-// API endpoint to get all admin books
-app.get('/api/admin_books', authenticateToken, async(req, res) => {
-    try {
-        const adminBooks = await AdminBook.find();
-        res.status(200).json(adminBooks.map(book => ({
-            googleId: book.googleId,
-            copyId: book._id, // Use the ObjectId as copyId
-            bookLocation: book.bookLocation,
-            locationId: book.locationId,
-            availability: book.availability,
-            noOfCopy: book.noOfCopy,
-        })));
-    } catch (error) {
-        console.error('Error retrieving admin books:', error);
-        res.status(500).json({ error: 'Failed to retrieve admin books.' });
-    }
-});
-app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const copyId = req.params.copyId.trim().replace(/\s+/g, ''); // Clean copyId
-    console.log('Received copyId:', copyId);
-    console.log('Length of copyId:', copyId.length); // Check length
-    console.log('Type of copyId:', typeof copyId); // Check type
-
-    // Convert copyId to mongoose ObjectId
-    let objectId;
-    try {
-        objectId = new mongoose.Types.ObjectId(copyId);
-        console.log('Converted to ObjectId:', objectId); // Log converted ObjectId
-    } catch (error) {
-        console.error('Error converting copyId to ObjectId:', error.message);
-        return res.status(400).json({ error: 'Invalid copyId format' });
-    }
-
-    const { bookLocation, locationId, availability, noOfCopy } = req.body;
-
-    // Input validation
-    if (!bookLocation || !locationId || noOfCopy < 1) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    try {
-        const updatedAdminBook = await AdminBook.findOneAndUpdate({ _id: objectId }, { bookLocation, locationId, availability, noOfCopy }, { new: true });
-
-        if (!updatedAdminBook) {
-            return res.status(404).json({ error: 'Admin book not found' });
-        }
-
-        res.json(updatedAdminBook);
-    } catch (error) {
-        console.error('Error updating admin book:', error.message);
-        res.status(500).json({ error: 'Failed to update admin book' });
-    }
-});
-
-// API endpoint to delete an admin book
-app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const copyId = req.params.copyId.trim().replace(/\s+/g, ''); // Clean copyId
-    console.log('Received copyId:', copyId);
-
-    // Convert copyId to mongoose ObjectId
-    let objectId;
-    try {
-        objectId = new mongoose.Types.ObjectId(copyId);
-    } catch (error) {
-        console.error('Error converting copyId to ObjectId:', error.message);
-        return res.status(400).json({ error: 'Invalid copyId format' });
-    }
-
-    try {
-        const deletedBook = await AdminBook.findOneAndDelete({ _id: objectId });
-        if (!deletedBook) {
-            return res.status(404).json({ error: 'Book not found' });
-        }
-        res.sendStatus(204); // No Content
-    } catch (error) {
-        console.error('Error deleting admin book:', error.message);
-        res.status(500).json({ error: 'Failed to delete admin book.' });
-    }
-});
-
-// Middleware to check if the user is an admin
-const checkAdminRole = (req, res, next) => {
-    // Log the user role to the console
-    console.log(`User role: ${req.user.role}`);
-
-    if (req.user.role !== 'admin') {
-        return res.sendStatus(403); // Forbidden
-    }
-    next();
-};
-
-// Route to serve the book administration page
-app.get('/book_admin.html', authenticateToken, checkAdminRole, (req, res) => {
-    // If the user is an admin, send the book administration page
-    res.sendFile(path.join(__dirname, 'public', 'book_admin.html'));
-});
 
 app.get('/api/user-role', async(req, res) => {
     try {
@@ -899,6 +710,9 @@ app.get('/api/user-role', async(req, res) => {
 app.get('/api/userPurchases', authenticateToken, async(req, res) => {
     const { userid } = req.query;
 
+    if (!userid || userid !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to view this purchase history.' });
+    }
 
     try {
         const purchases = await BookBuy.find({ userid: userid });
@@ -911,8 +725,7 @@ app.get('/api/userPurchases', authenticateToken, async(req, res) => {
 
 // API endpoint to create a user purchase
 app.post('/api/userPurchases', authenticateToken, async(req, res) => {
-    console.log('Request Body:', req.body);
-    const { googleId, userid } = req.body;
+    const { googleId, userid, industryIdentifier, title, subtitle, authors, publisher, publishedDate, description, pageCount, categories, language, coverImage, smallThumbnail, infoLink, saleInfo, accessInfo, searchInfo, previewLink } = req.body;
 
     // Validate request body
     if (!googleId || !userid) {
@@ -921,40 +734,31 @@ app.post('/api/userPurchases', authenticateToken, async(req, res) => {
 
     // Ensure userid matches the authenticated user
     if (userid !== req.user.id) {
-        console.log(`Permission denied. User ID: ${userid}, Authenticated User ID: ${req.user.id}`);
         return res.status(403).json({ error: 'You do not have permission to make this purchase.' });
     }
 
     try {
-        // Fetch book details based on googleId
-        const book = await Book.findOne({ googleId });
-        console.log('Fetched Book:', book);
-        if (!book) {
-            return res.status(404).json({ error: 'Book not found' });
-        }
-
-        // Check if a purchase with the same industryIdentifier already exists
-        const existingPurchase = await BookBuy.findOne({ industryIdentifier: book.industryIdentifier });
-        if (existingPurchase) {
-            console.log(`Purchase already exists for ISBN: ${book.industryIdentifier}`);
-            return res.status(409).json({ error: 'Purchase already exists for this ISBN.' });
-        }
-
-        // Create a new purchase record using the book details
+        // Create a new purchase record
         const purchase = new BookBuy({
             userid: userid,
-            googleId: book.googleId,
-            industryIdentifier: Array.isArray(book.industryIdentifier) ? book.industryIdentifier : [book.industryIdentifier],
-            title: book.title,
-            subtitle: book.subtitle,
-            authors: book.authors,
-            publisher: book.publisher,
-            publishedDate: book.publishedDate,
-            description: book.description,
-            pageCount: book.pageCount,
-            categories: book.categories,
-            language: book.language,
-            coverImage: book.coverImage,
+            googleId: googleId,
+            industryIdentifier: industryIdentifier,
+            title: title,
+            subtitle: subtitle,
+            authors: authors,
+            publisher: publisher,
+            publishedDate: publishedDate,
+            description: description,
+            pageCount: pageCount,
+            categories: categories,
+            language: language,
+            coverImage: coverImage,
+            smallThumbnail: smallThumbnail,
+            infoLink: infoLink,
+            saleInfo: saleInfo,
+            accessInfo: accessInfo,
+            searchInfo: searchInfo,
+            previewLink: previewLink,
             purchaseDate: new Date() // Automatically set the purchase date
         });
 
@@ -969,65 +773,6 @@ app.post('/api/userPurchases', authenticateToken, async(req, res) => {
     }
 });
 
-// API endpoint to get all purchased books
-app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
-    try {
-        // Find all purchases
-        const purchases = await BookBuy.find();
-
-        if (!purchases.length) {
-            return res.status(404).json({ message: 'No purchases found.' });
-        }
-
-        // Fetch additional details from Google Books API
-        const bookDetailsPromises = purchases.map(async(purchase) => {
-            // Check if industryIdentifier exists and is not empty
-            if (!purchase.industryIdentifier || purchase.industryIdentifier.length === 0) {
-                return {
-                    ...purchase.toObject(),
-                    googleBookDetails: null, // Set googleBookDetails to null if identifier is missing
-                };
-            }
-
-            const isbn = purchase.industryIdentifier[0]; // Get the first identifier
-            const isbnResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-            const isbnData = await isbnResponse.json();
-
-            // Check if the response is okay and contains valid items
-            if (isbnResponse.ok && isbnData.totalItems > 0) {
-                return {
-                    ...purchase.toObject(),
-                    googleBookDetails: isbnData.items[0], // Use the first item
-                };
-            } else {
-                console.warn(`ISBN not found for ${isbn}. Attempting to fetch by googleId: ${purchase.googleId}`);
-
-                // Fallback to fetch by googleId
-                const googleIdResponse = await fetch(`https://www.googleapis.com/books/v1/volumes/${purchase.googleId}`);
-                const googleIdData = await googleIdResponse.json();
-
-                if (googleIdResponse.ok) {
-                    return {
-                        ...purchase.toObject(),
-                        googleBookDetails: googleIdData, // Use the data from googleId
-                    };
-                } else {
-                    console.error(`Failed to fetch details for googleId: ${purchase.googleId}`);
-                    return {
-                        ...purchase.toObject(),
-                        googleBookDetails: null, // Set to null if both attempts fail
-                    };
-                }
-            }
-        });
-
-        const detailedPurchases = await Promise.all(bookDetailsPromises);
-        return res.status(200).json({ data: detailedPurchases });
-    } catch (error) {
-        console.error('Error fetching user purchases:', error);
-        return res.status(500).json({ error: 'Error fetching user purchases' });
-    }
-});
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);

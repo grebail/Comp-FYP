@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Purchase History</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #eef2f3;
+            color: #333;
+        }
+        
+        header {
+            background: linear-gradient(to right, #1e88e5, #1565c0);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        h1 {
+            margin: 0;
+            font-size: 2.5em;
+        }
+        
+        .book-item {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+        }
+        
+        .book-cover {
+            max-width: 100px;
+            height: auto;
+            margin-right: 20px;
+            border-radius: 5px;
+            box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        .error-message {
+            color: red;
+            margin: 20px 0;
+        }
+        
+        .go-back-button1,
+        .go-back-button2 {
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            display: inline-block;
+            margin-top: 20px;
+        }
+        
+        .go-back-button1:hover,
+        .go-back-button2:hover {
+            background-color: #2e7d32;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>Purchase History</h1>
+    </header>
+
+    <div id="errorMessage" class="error-message"></div>
+    <div id="historyContent" class="history-list"></div>
+    <button class="go-back-button1" id="BackHomeButton">Back to Home</button>
+    <button class="go-back-button2" id="BackCatalogButton">Back to Catalog</button>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const userid = params.get('userid');
+
+        // Function to fetch purchase history
+        async function fetchPurchaseHistory() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/userPurchases?userid=${userid}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to fetch purchase history.');
+                    return;
+                }
+
+                const history = await response.json();
+                displayBooks(history);
+            } catch (error) {
+                displayError('An error occurred while fetching purchase history.');
+            }
+        }
+
+        // Function to fetch book details by googleId
+        async function fetchBookDetails(googleId) {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/books/${googleId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch book details.');
+            }
+
+            return await response.json();
+        }
+
+        // Function to display purchased books
+        async function displayBooks(history) {
+            if (history.length === 0) {
+                document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
+                return;
+            }
+
+            const bookPromises = history.map(item => fetchBookDetails(item.googleId));
+            const books = await Promise.all(bookPromises);
+
+            const historyHTML = books.map(book => `
+            <div class="book-item">
+                <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title} cover" class="book-cover" />
+                <div class="book-details">
+                    <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
+                    <strong>Purchase Date:</strong> ${new Date(history.find(h => h.googleId === book.googleId).purchaseDate).toLocaleDateString()} <br>
+                    <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
+                </div>
+            </div>
+        `).join('');
+
+            document.getElementById('historyContent').innerHTML = historyHTML;
+        }
+
+        // Function to display error messages
+        function displayError(message) {
+            document.getElementById('errorMessage').innerHTML = message;
+        }
+
+        // Event listener for Back home button
+        document.getElementById('BackHomeButton').addEventListener('click', () => {
+            window.location.href = `index_logined.html?userid=${userid}`; // Redirect to index.html with userId
+        });
+
+        // Event listener for Back catalog button
+        document.getElementById('BackCatalogButton').addEventListener('click', () => {
+            window.location.href = `books-catalog.html?userid=${userid}`; // Redirect to books-catalog.html with userId
+        });
+
+        // Start fetching purchase history when the page loads
+        window.onload = fetchPurchaseHistory;
+    </script>
+
+</body>
+
+</html>

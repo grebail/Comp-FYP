@@ -30,7 +30,6 @@
             background-color: #eee;
             padding: 10px;
             margin-bottom: 20px;
-            border: 1px;
             border-radius: 20px;
             overflow-x: auto;
             white-space: nowrap;
@@ -187,7 +186,7 @@
     <header>
         <h1>Books Catalog</h1>
         <div class="nav-bar">
-            <button onclick="viewHistory(userId)">Purchase History</button>
+            <button onclick="viewHistory()">Borrow History</button>
             <button onclick="viewFavorites()">Favorites List</button>
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
@@ -220,12 +219,12 @@
         let currentStartIndex = 0;
         const booksPerPage = 5;
         let allBooks = [];
-        const userId = new URLSearchParams(window.location.search).get('userid'); // Extract user ID from URL
+        const userId = new URLSearchParams(window.location.search).get('userid');
 
         async function loadBooks() {
             showLoader();
             try {
-                const response = await fetch('/api/books?q=accounting', {
+                const response = await fetch('/api/allUserPurchases', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
@@ -239,8 +238,14 @@
                 }
 
                 const result = await response.json();
-                allBooks = result.data;
-                displayBooks(currentStartIndex);
+                if (result.data && Array.isArray(result.data)) {
+                    allBooks = result.data;
+                    console.log('All Books:', allBooks);
+                    displayBooks(currentStartIndex);
+                } else {
+                    alert('No books available.');
+                    console.error('Expected an array but got:', result.data);
+                }
             } catch (error) {
                 console.error('Error loading books:', error);
                 alert('Failed to load books. Please try again later.');
@@ -271,22 +276,29 @@
                 const card = document.createElement('div');
                 card.className = 'book-card';
 
-                const title = book.volumeInfo.title || 'N/A';
-                const author = book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'N/A';
-                const publishedDate = book.volumeInfo.publishedDate || 'N/A';
-                const coverImage = book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '';
-                const googleId = book.id;
+                if (book.googleBookDetails && book.googleBookDetails.volumeInfo) {
+                    const volumeInfo = book.googleBookDetails.volumeInfo;
+                    const title = volumeInfo.title || 'N/A';
+                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
+                    const publishedDate = volumeInfo.publishedDate || 'N/A';
+                    const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : '';
 
-                card.innerHTML = `
-                    <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                    <div class="book-title">${title}</div>
-                    <div class="book-author">Author: ${author}</div>
-                    <div class="book-published">Published: ${publishedDate}</div>
-                    <div class="action-buttons">
-                        <button onclick="buyBook('${googleId}')">Buy Book</button>
-                        <button onclick="viewDetails('${googleId}')">View Details</button>
-                    </div>
-                `;
+                    card.innerHTML = `
+                        <img src="${coverImage}" alt="${title} cover" class="book-cover" />
+                        <div class="book-title">${title}</div>
+                        <div class="book-author">Author: ${authors}</div>
+                        <div class="book-published">Published: ${publishedDate}</div>
+                        <div class="action-buttons">
+                            <button onclick="BorrowBook('${book.googleId}')">Borrow Book</button>
+                            <button onclick="viewDetails('${book.googleId}')">View Details</button>
+                        </div>
+                    `;
+                } else {
+                    console.warn('Missing googleBookDetails or volumeInfo for book:', book);
+                    card.innerHTML = `
+                        <div class="book-title">Details not available</div>
+                    `;
+                }
                 catalog.appendChild(card);
             });
         }
@@ -315,9 +327,14 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    allBooks = data.data;
-                    currentStartIndex = 0;
-                    displayBooks(currentStartIndex);
+                    if (data.data && Array.isArray(data.data)) {
+                        allBooks = data.data;
+                        currentStartIndex = 0;
+                        displayBooks(currentStartIndex);
+                    } else {
+                        alert('No books found for your search.');
+                        console.error('Expected an array but got:', data.data);
+                    }
                 })
                 .catch(error => {
                     console.error('Error fetching books:', error);
@@ -327,17 +344,18 @@
         }
 
         function viewDetails(googleId) {
-            window.location.href = `book_details.html?googleId=${googleId}&userid=${userId}`;
+            window.location.href = `book_details.html?googleId=${googleId}`;
         }
 
-        function buyBook(googleId) {
-            // Redirect to a purchase page or handle the buying process
-            window.location.href = `book_buy.html?googleId=${googleId}&userid=${userId}`;
+        function BorrowBook(googleId) {
+            window.location.href = `user_borrow.html?googleId=${googleId}&userid=${userId}`;
         }
 
-        function viewHistory(userId) {
-            window.location.href = `http://localhost:9875/purchase_history.html?userid=${userId}`;
+        function viewHistory() {
+            window.location.href = `user_borrow.html`; // Redirect to user borrow history
         }
+
+        let searchTimeout;
 
         function debouncedSearch() {
             clearTimeout(searchTimeout);
@@ -345,7 +363,7 @@
         }
 
         document.getElementById('homeButton').addEventListener('click', () => {
-            window.location.href = `index_logined.html?userid=${userId}`;
+            window.location.href = `index_userlogined.html`;
         });
 
         window.onload = loadBooks; // Load books when the page is loaded

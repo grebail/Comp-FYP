@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bought Book History</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+        
+        h1 {
+            color: #1565c0;
+        }
+        
+        .book-details {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+        
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+        
+        .success-message {
+            color: green;
+            margin-top: 10px;
+        }
+        
+        .book-cover {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+        
+        button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background-color: #0d47a1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Bought Book History</h1>
+    <div id="bookDetails" class="book-details">
+        <!-- Book details will be displayed here -->
+    </div>
+    <div id="errorMessage" class="error-message"></div>
+    <div id="successMessage" class="success-message"></div>
+
+    <button id="purchaseHistoryButton">Purchase History</button>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const googleId = params.get('googleId');
+        const userid = params.get('userid');
+
+        // Function to fetch book details
+        async function fetchBookDetails() {
+            try {
+                const response = await fetch(`/api/books/${googleId}`);
+                if (!response.ok) {
+                    throw new Error('Book not found');
+                }
+                const book = await response.json();
+                displayBook(book);
+            } catch (error) {
+                displayError(error.message);
+            }
+        }
+
+        // Function to display book details
+        function displayBook(book) {
+            const bookDetailsHTML = `
+            <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
+            <div><strong>Title:</strong> ${book.title}</div>
+            <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
+            <div><strong>Publisher:</strong> ${book.publisher}</div>
+            <div><strong>Published Date:</strong> ${book.publishedDate}</div>
+            <div><strong>Description:</strong> ${book.description}</div>
+            <div><strong>Page Count:</strong> ${book.pageCount}</div>
+            <div><strong>Categories:</strong> ${book.categories.join(', ')}</div>
+            <div><strong>Language:</strong> ${book.language}</div>
+        `;
+            document.getElementById('bookDetails').innerHTML = bookDetailsHTML;
+
+            // Allow purchasing the book after displaying details
+            purchaseBook();
+        }
+
+        async function purchaseBook() {
+            if (!googleId || !userid) {
+                displayError('No Google ID or User ID provided.');
+                return;
+            }
+
+            const token = localStorage.getItem('token');
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/userPurchases', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        googleId,
+                        userid,
+                    })
+                });
+
+                // Log the response status for debugging
+                console.log('Response Status:', response.status);
+
+                // Get the response body and parse it
+                const responseBody = await response.json();
+                console.log('Response Body:', responseBody); // Log the parsed response body
+
+                // Check if the response is not OK
+                if (!response.ok) {
+                    displayError(responseBody.error || 'Failed to purchase the book.');
+                    return;
+                }
+
+                // If we reach here, the purchase was successful
+                displaySuccess(responseBody.purchaseInfo);
+            } catch (error) {
+                console.error('Error during fetch:', error);
+                displayError('An error occurred while purchasing the book.');
+            }
+        }
+
+        // Function to display error messages
+        function displayError(message) {
+            document.getElementById('errorMessage').innerHTML = message;
+            document.getElementById('successMessage').innerHTML = ''; // Clear success message
+        }
+
+        // Function to display success messages
+        function displaySuccess(purchaseInfo) {
+            console.log('Purchase Info:', purchaseInfo); // Log purchase info to see its structure
+            const successMessageHTML = `
+                <h2>Successfully Purchased!</h2>
+                <p><strong>Purchase ID:</strong> ${purchaseInfo._id}</p>
+                <p><strong>User ID:</strong> ${purchaseInfo.userid}</p>
+                <p><strong>Google ID:</strong> ${purchaseInfo.googleId}</p>
+                <p><strong>Title:</strong> ${purchaseInfo.title}</p>
+                <p><strong>Author(s):</strong> ${purchaseInfo.authors.join(', ')}</p>
+                <p><strong>Publisher:</strong> ${purchaseInfo.publisher}</p>
+                <p><strong>Published Date:</strong> ${purchaseInfo.publishedDate}</p>
+                <p><strong>ISBN:</strong> ${Array.isArray(purchaseInfo.industryIdentifier) ? purchaseInfo.industryIdentifier.join(', ') : purchaseInfo.industryIdentifier}</p>
+                <p><strong>Purchase Date:</strong> ${new Date(purchaseInfo.purchaseDate).toLocaleDateString()}</p>
+            `;
+            document.getElementById('successMessage').innerHTML = successMessageHTML;
+            document.getElementById('errorMessage').innerHTML = ''; // Clear error message
+        }
+
+        // Event listener for Purchase History button
+        document.getElementById('purchaseHistoryButton').addEventListener('click', () => {
+            window.location.href = `purchase_history.html?userid=${userid}`;
+        });
+
+        // Start fetching book details when the page loads
+        window.onload = fetchBookDetails;
+    </script>
+
+</body>
+
+</html>

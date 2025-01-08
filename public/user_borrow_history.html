@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,7 +13,7 @@
             background-color: #eef2f3;
             color: #333;
         }
-
+        
         header {
             background: linear-gradient(to right, #1e88e5, #1565c0);
             color: #fff;
@@ -22,12 +23,12 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
-
+        
         h1 {
             margin: 0;
             font-size: 2.5em;
         }
-
+        
         .book-item {
             background-color: #ffffff;
             padding: 15px;
@@ -37,7 +38,7 @@
             display: flex;
             align-items: center;
         }
-
+        
         .book-cover {
             max-width: 100px;
             height: auto;
@@ -45,12 +46,14 @@
             border-radius: 5px;
             box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
         }
-
+        
         .book-details {
             flex-grow: 1;
         }
-
-        .return-button, .comment-button, .borrow-again-button {
+        
+        .return-button,
+        .comment-button,
+        .borrow-again-button {
             background-color: #ff5722;
             color: white;
             border: none;
@@ -60,16 +63,18 @@
             transition: background-color 0.3s;
             margin-top: 10px;
         }
-
-        .return-button:hover, .comment-button:hover, .borrow-again-button:hover {
+        
+        .return-button:hover,
+        .comment-button:hover,
+        .borrow-again-button:hover {
             background-color: #e64a19;
         }
-
+        
         .error-message {
             color: red;
             margin: 20px 0;
         }
-
+        
         .go-back-button1 {
             background-color: #388e3c;
             color: white;
@@ -81,11 +86,11 @@
             display: inline-block;
             margin-top: 20px;
         }
-
+        
         .go-back-button1:hover {
             background-color: #2e7d32;
         }
-
+        
         .go-back-button2 {
             background-color: #b4b435;
             color: white;
@@ -97,12 +102,12 @@
             display: inline-block;
             margin-top: 20px;
         }
-
+        
         .go-back-button2:hover {
             background-color: #909931;
         }
-
         /* Modal styles */
+        
         .modal {
             display: none;
             position: fixed;
@@ -112,9 +117,9 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.4);
+            background-color: rgba(0, 0, 0, 0.4);
         }
-
+        
         .modal-content {
             background-color: #fefefe;
             margin: 15% auto;
@@ -123,78 +128,102 @@
             width: 80%;
             max-width: 400px;
             border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-
+        
         .close {
             color: #aaa;
             float: right;
             font-size: 28px;
             font-weight: bold;
         }
-
+        
         .close:hover,
         .close:focus {
             color: black;
             text-decoration: none;
             cursor: pointer;
         }
-
+        
         .star {
             color: gold;
             cursor: pointer;
             font-size: 20px;
         }
-
+        
         .comment-container {
             margin-top: 10px;
         }
     </style>
 </head>
+
 <body>
 
-<header>
-    <h1>Borrow History</h1>
-</header>
+    <header>
+        <h1>Borrow History</h1>
+    </header>
 
-<div id="errorMessage" class="error-message"></div>
-<div id="historyContent" class="history-list"></div>
-<button class="go-back-button1" id="BackHomeButton">Back to Home</button>
-<button class="go-back-button2" id="BackCatalogButton">Back to Catalog</button>
+    <div id="errorMessage" class="error-message"></div>
+    <div id="historyContent" class="history-list"></div>
+    <button class="go-back-button1" id="BackHomeButton">Back to Home</button>
+    <button class="go-back-button2" id="BackCatalogButton">Back to Catalog</button>
 
-<!-- Modal for commenting -->
-<div id="commentModal" class="modal">
-    <div class="modal-content">
-        <span class="close" id="closeModal">&times;</span>
-        <h2>Comment on the Book</h2>
-        <div id="starRating">
-            <span class="star" data-value="1">1</span>
-            <span class="star" data-value="2">2</span>
-            <span class="star" data-value="3">3</span>
-            <span class="star" data-value="4">4</span>
-            <span class="star" data-value="5">5</span>
+    <!-- Modal for commenting -->
+    <div id="commentModal" class="modal">
+        <div class="modal-content">
+            <span class="close" id="closeModal">&times;</span>
+            <h2>Comment on the Book</h2>
+            <div id="starRating">
+                <span class="star" data-value="1">1</span>
+                <span class="star" data-value="2">2</span>
+                <span class="star" data-value="3">3</span>
+                <span class="star" data-value="4">4</span>
+                <span class="star" data-value="5">5</span>
+            </div>
+            <textarea id="commentText" placeholder="Add your comment here..." rows="4" style="width: 100%; margin-top: 10px;"></textarea>
+            <button id="submitComment" class="comment-button" style="margin-top: 10px;">Submit Comment</button>
         </div>
-        <textarea id="commentText" placeholder="Add your comment here..." rows="4" style="width: 100%; margin-top: 10px;"></textarea>
-        <button id="submitComment" class="comment-button" style="margin-top: 10px;">Submit Comment</button>
     </div>
-</div>
 
-<script>
-    const params = new URLSearchParams(window.location.search);
-    const userid = params.get('userid');
-    let currentBookId = null; // To store the current book's ID for commenting
-    let currentCommentId = null; // To store the current comment's ID for editing
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const userid = params.get('userid');
+        let currentBookId = null; // To store the current book's ID for commenting
+        let currentCommentId = null; // To store the current comment's ID for editing
 
-    // Function to fetch borrow history
-    async function fetchBorrowHistory() {
-        const token = localStorage.getItem('token');
-        if (!token) {
-            displayError('No token found. Please log in.');
-            return;
+        // Function to fetch borrow history
+        async function fetchBorrowHistory() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/userBorrows?userid=${userid}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to fetch borrow history.');
+                    return;
+                }
+
+                const history = await response.json();
+                await displayBooks(history);
+            } catch (error) {
+                displayError('An error occurred while fetching borrow history.');
+            }
         }
 
-        try {
-            const response = await fetch(`/api/userBorrows?userid=${userid}`, {
+        // Function to fetch book details by googleId
+        async function fetchBookDetails(googleId) {
+            const token = localStorage.getItem('token');
+            const response = await fetch(`/api/books/${googleId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`
@@ -202,64 +231,41 @@
             });
 
             if (!response.ok) {
-                const errorData = await response.text();
-                displayError(errorData || 'Failed to fetch borrow history.');
+                throw new Error('Failed to fetch book details.');
+            }
+
+            return await response.json();
+        }
+
+        // Function to display borrowed books
+        async function displayBooks(history) {
+            if (history.length === 0) {
+                document.getElementById('historyContent').innerHTML = '<p>No borrow history found.</p>';
                 return;
             }
 
-            const history = await response.json();
-            await displayBooks(history);
-        } catch (error) {
-            displayError('An error occurred while fetching borrow history.');
-        }
-    }
+            const seenGoogleIds = new Set(); // Track seen googleIds
+            const bookPromises = history.map(item => fetchBookDetails(item.googleId));
 
-    // Function to fetch book details by googleId
-    async function fetchBookDetails(googleId) {
-        const token = localStorage.getItem('token');
-        const response = await fetch(`/api/books/${googleId}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
+            const books = await Promise.all(bookPromises);
+            const uniqueBooks = [];
 
-        if (!response.ok) {
-            throw new Error('Failed to fetch book details.');
-        }
+            // Filter out duplicates based on googleId
+            books.forEach((book, index) => {
+                if (!seenGoogleIds.has(book.googleId)) {
+                    seenGoogleIds.add(book.googleId);
+                    uniqueBooks.push({
+                        ...book,
+                        borrowDate: history[index].borrowDate,
+                        dueDate: history[index].dueDate,
+                        returned: history[index].returned,
+                        borrowId: history[index]._id, // Attach borrowId for reference
+                        comments: history[index].comments || [] // Attach comments if available
+                    });
+                }
+            });
 
-        return await response.json();
-    }
-
-    // Function to display borrowed books
-    async function displayBooks(history) {
-        if (history.length === 0) {
-            document.getElementById('historyContent').innerHTML = '<p>No borrow history found.</p>';
-            return;
-        }
-
-        const seenGoogleIds = new Set(); // Track seen googleIds
-        const bookPromises = history.map(item => fetchBookDetails(item.googleId));
-
-        const books = await Promise.all(bookPromises);
-        const uniqueBooks = [];
-
-        // Filter out duplicates based on googleId
-        books.forEach((book, index) => {
-            if (!seenGoogleIds.has(book.googleId)) {
-                seenGoogleIds.add(book.googleId);
-                uniqueBooks.push({
-                    ...book,
-                    borrowDate: history[index].borrowDate,
-                    dueDate: history[index].dueDate,
-                    returned: history[index].returned,
-                    borrowId: history[index]._id, // Attach borrowId for reference
-                    comments: history[index].comments || [] // Attach comments if available
-                });
-            }
-        });
-
-        const historyHTML = uniqueBooks.map(book => `
+            const historyHTML = uniqueBooks.map(book => `
             <div class="book-item">
                 <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title} cover" class="book-cover" />
                 <div class="book-details">
@@ -346,12 +352,12 @@ async function borrowAgain(borrowId) {
 
     // Event listener for Back home button
     document.getElementById('BackHomeButton').addEventListener('click', () => {
-        window.location.href = `index.html?userid=${userid}`; // Redirect to index.html with userId
+        window.location.href = `index_userlogined.html?userid=${userid}`; // Redirect to index.html with userId
     });
 
     // Event listener for Back catalog button
     document.getElementById('BackCatalogButton').addEventListener('click', () => {
-        window.location.href = `books-catalog.html?userid=${userid}`; // Redirect to books-catalog.html with userId
+        window.location.href = `user-books-catalog.html?userid=${userid}`; // Redirect to user books-catalog.html with userId
     });
 
     // Open comment modal
@@ -453,7 +459,8 @@ async function borrowAgain(borrowId) {
 
     // Start fetching borrow history when the page loads
     window.onload = fetchBorrowHistory;
-</script>
+    </script>
 
 </body>
+
 </html>
