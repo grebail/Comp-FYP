@@ -151,6 +151,8 @@
             text-align: center;
             position: relative;
             margin: 10px 0;
+            overflow: hidden;
+            flex-wrap: wrap;
         }
         /* Each Slide */
         
@@ -163,12 +165,14 @@
             left: 0;
             display: none;
             /* Hide all slides by default */
+            overflow: hidden;
         }
         
         .active {
             display: block;
             /* Show the active slide */
         }
+
         /* Card Container */
         
         .card-container {
@@ -268,7 +272,7 @@
     <div class="card-container">
         <div class="card">
             <img src="acc_img.png" alt="My Account">
-            <a href="login.html">My Account</a>
+            <a href="acc_profile.html">My Account</a>
         </div>
         <div class="card">
             <img src="database_img.png" alt="Database">
