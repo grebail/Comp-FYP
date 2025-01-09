@@ -272,7 +272,7 @@
     <div class="card-container">
         <div class="card">
             <img src="acc_img.png" alt="My Account">
-            <a href="acc_profile.html">My Account</a>
+            <a id="acc-link" href="#">My Account</a>
         </div>
         <div class="card">
             <img src="database_img.png" alt="Database">
@@ -362,6 +362,11 @@
         document.getElementById('books-link').addEventListener('click', function() {
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `user-books-catalog.html?userid=${userId}`; // Redirect to books catalog with user ID
+        });
+
+        document.getElementById('acc-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to books catalog with user ID
         });
     </script>
 
