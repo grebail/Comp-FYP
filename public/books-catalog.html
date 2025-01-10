@@ -188,7 +188,7 @@
         <h1>Books Catalog</h1>
         <div class="nav-bar">
             <button onclick="viewHistory(userId)">Purchase History</button>
-            <button onclick="viewFavorites()">Favorites List</button>
+            <button onclick="ImportBook()">Import Book</button>
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
@@ -337,6 +337,10 @@
 
         function viewHistory(userId) {
             window.location.href = `http://localhost:9875/purchase_history.html?userid=${userId}`;
+        }
+
+        function ImportBook() {
+            window.location.href = `http://localhost:9875/importBook.html`;
         }
 
         function debouncedSearch() {
