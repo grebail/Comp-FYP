@@ -267,30 +267,27 @@
                 })
                 .then(purchases => {
                     const csvData = purchases.map(purchase => ({
-                        UserId: purchase.userid,
-                        GoogleId: purchase.googleId,
-                        IndustryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
-                        Title: purchase.title || 'Unknown Title',
-                        Subtitle: purchase.subtitle || 'No Subtitle',
-                        Authors: purchase.authors.join(', ') || 'Unknown Author',
-                        Publisher: purchase.publisher || 'Unknown Publisher',
-                        PublishedDate: purchase.publishedDate || 'Unknown Date',
-                        Description: purchase.description || 'No Description',
-                        PageCount: purchase.pageCount || 0,
-                        Categories: purchase.categories.join(', ') || 'N/A',
-                        Language: purchase.language || 'en',
-                        CoverImage: purchase.coverImage || '',
-                        PurchaseDate: new Date(purchase.purchaseDate).toLocaleDateString()
+                        userid: purchase.userid,
+                        googleId: purchase.googleId,
+                        industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
+                        title: purchase.title || 'Unknown Title',
+                        authors: purchase.authors.join(', ') || 'Unknown Author',
+                        publisher: purchase.publisher || 'Unknown Publisher',
+                        publishedDate: purchase.publishedDate || 'Unknown Date',
+                        description: purchase.description || 'No Description',
+                        categories: purchase.categories.join(', ') || 'N/A',
+                        language: purchase.language || 'en',
+                        coverImage: purchase.coverImage || '',
+                        purchaseDate: new Date(purchase.purchaseDate).toLocaleString(),
+                        bookLocation: purchase.bookLocation || 'N/A',
+                        locationId: purchase.locationId || 'N/A',
+                        availability: purchase.availability || 'N/A',
+                        copyId: purchase.copyId || 'N/A' // Added copyId
                     }));
 
-                    // Add a total count at the end of the CSV data
-                    const totalCount = [{
-                        TotalPurchasedBooks: document.getElementById('bookCount').textContent
-                    }];
-                    const totalCountRow = `Total Purchased Books,${totalCount[0].TotalPurchasedBooks}\n`;
+                    // Create CSV
                     const csv = Papa.unparse(csvData);
-
-                    const blob = new Blob([totalCountRow + csv], {
+                    const blob = new Blob([csv], {
                         type: 'text/csv;charset=utf-8;'
                     });
                     const link = document.createElement('a');

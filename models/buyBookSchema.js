@@ -36,7 +36,7 @@ const buyBookSchema = new mongoose.Schema({
         default: Date.now, // Automatically set the purchase date to the current date
     },
     copyId: { // Define copyId as a field
-        type: String,
+        type: [String],
     },
     bookLocation: { // Define bookLocation as a field
         type: String,

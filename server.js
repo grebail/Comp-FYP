@@ -817,6 +817,7 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
 
 
 
+
 // Create a new admin book
 app.post('/api/admin_books', authenticateToken, async(req, res) => {
     const { isbn, bookLocation, locationId, availability, noOfCopy } = req.body;
@@ -862,13 +863,14 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
             const existingBookBuy = await BookBuy.findOne({ industryIdentifier: [isbn] });
 
             if (existingBookBuy) {
-                // Update the existing entry in BookBuy
-                existingBookBuy.copyId = savedAdminBook._id; // Update copyId
+                // If the book already exists, add the new copyId to the copyId array
+                existingBookBuy.copyId.push(savedAdminBook._id);
                 existingBookBuy.bookLocation = bookLocation; // Update bookLocation
                 existingBookBuy.locationId = locationId; // Update locationId
                 existingBookBuy.availability = availability; // Update availability
-                // Update any other fields as needed
-                await existingBookBuy.save(); // Save the updated entry
+
+                // Save the updated BookBuy entry
+                await existingBookBuy.save();
             } else {
                 // Create a new corresponding entry in BookBuy
                 const newBookBuy = new BookBuy({
@@ -882,12 +884,12 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
                     description: bookInfo.description,
                     categories: bookInfo.categories || [],
                     coverImage: bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : null,
-                    copyId: savedAdminBook._id, // Include copyId
-                    bookLocation: bookLocation, // Include bookLocation
-                    locationId: locationId, // Include locationId
-                    availability: availability // Include availability
+                    copyId: [savedAdminBook._id], // Include copyId
+                    bookLocation: bookLocation,
+                    locationId: locationId,
+                    availability: availability
                 });
-                await newBookBuy.save(); // Save the book to the BookBuy collection
+                await newBookBuy.save(); // Save the new book to the BookBuy collection
             }
         }
 
@@ -910,7 +912,6 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
         res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
     }
 });
-
 // Get all admin books
 app.get('/api/admin_books', authenticateToken, async(req, res) => {
     try {
@@ -934,10 +935,13 @@ app.get('/api/admin_books', authenticateToken, async(req, res) => {
     }
 });
 
-// Update an admin book
+// Update a specific admin book copy
+// Update a specific admin book copy
 app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
     const copyId = req.params.copyId.trim().replace(/\s+/g, '');
     let objectId;
+
+    // Validate the copyId format
     try {
         objectId = new mongoose.Types.ObjectId(copyId);
     } catch (error) {
@@ -945,40 +949,49 @@ app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
         return res.status(400).json({ error: 'Invalid copyId format' });
     }
 
-    const { bookLocation, locationId, availability, noOfCopy } = req.body;
+    const { bookLocation, locationId, availability } = req.body;
 
     // Input validation
-    if (!bookLocation || !locationId || noOfCopy < 1) {
+    if (!bookLocation || !locationId || availability === undefined) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     try {
-        const updatedAdminBook = await AdminBook.findOneAndUpdate({ _id: objectId }, { bookLocation, locationId, availability, noOfCopy }, { new: true });
+        // Update the specific admin book copy
+        const updatedAdminBook = await AdminBook.findOneAndUpdate({ _id: objectId }, { bookLocation, locationId, availability }, { new: true });
 
         if (!updatedAdminBook) {
-            return res.status(404).json({ error: 'Admin book not found' });
+            return res.status(404).json({ error: 'Admin book copy not found' });
         }
 
-        // Update corresponding entry in BookBuy
-        const existingBookBuy = await BookBuy.findOne({ industryIdentifier: updatedAdminBook.industryIdentifier });
+        // Update the specific entry in BookBuy for this copy
+        const existingBookBuy = await BookBuy.findOne({ copyId: objectId });
+
         if (existingBookBuy) {
+            // Update the relevant fields for this specific copy
             existingBookBuy.bookLocation = bookLocation; // Update bookLocation
             existingBookBuy.locationId = locationId; // Update locationId
             existingBookBuy.availability = availability; // Update availability
-            await existingBookBuy.save(); // Save updated entry
+
+            await existingBookBuy.save(); // Save the updated entry
+        } else {
+            return res.status(404).json({ error: 'BookBuy entry for this copy not found' });
         }
 
+        // Send back the updated admin book
         res.json(updatedAdminBook);
     } catch (error) {
-        console.error('Error updating admin book:', error.message);
-        res.status(500).json({ error: 'Failed to update admin book' });
+        console.error('Error updating admin book copy:', error.message);
+        res.status(500).json({ error: 'Failed to update admin book copy' });
     }
 });
 
-// Delete an admin book
+// Delete an admin book copy
 app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
     const copyId = req.params.copyId.trim().replace(/\s+/g, '');
     let objectId;
+
+    // Validate the copyId format
     try {
         objectId = new mongoose.Types.ObjectId(copyId);
     } catch (error) {
@@ -987,18 +1000,30 @@ app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
     }
 
     try {
+        // Find the admin book copy to delete
         const deletedBook = await AdminBook.findOneAndDelete({ _id: objectId });
         if (!deletedBook) {
-            return res.status(404).json({ error: 'Book not found' });
+            return res.status(404).json({ error: 'Admin book copy not found' });
         }
 
-        // Delete corresponding entry in BookBuy
-        await BookBuy.findOneAndDelete({ industryIdentifier: deletedBook.industryIdentifier });
+        // Update the corresponding entry in BookBuy
+        const existingBookBuy = await BookBuy.findOne({ industryIdentifier: deletedBook.industryIdentifier });
+
+        if (existingBookBuy) {
+            // Remove the copyId from the copyId array
+            existingBookBuy.copyId = existingBookBuy.copyId.filter(id => id.toString() !== objectId.toString());
+            await existingBookBuy.save(); // Save the updated entry
+
+            // Optionally, if no copies remain, you may choose to delete the BookBuy entry
+            if (existingBookBuy.copyId.length === 0) {
+                await BookBuy.deleteOne({ industryIdentifier: deletedBook.industryIdentifier });
+            }
+        }
 
         res.sendStatus(204); // No Content
     } catch (error) {
-        console.error('Error deleting admin book:', error.message);
-        res.status(500).json({ error: 'Failed to delete admin book.' });
+        console.error('Error deleting admin book copy:', error.message);
+        res.status(500).json({ error: 'Failed to delete admin book copy.' });
     }
 });
 
@@ -1235,79 +1260,140 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
 
 
 // API endpoint to import books from CSV
-app.post('/api/importBooks', async(req, res) => {
-    console.log('Request body:', req.body);
-    const { books } = req.body;
+app.post('/api/importBooks', upload.single('file'), async(req, res) => {
+    const results = [];
+    const errors = [];
 
-    // Validate that the books array is present and is an array
-    if (!Array.isArray(books) || books.length === 0) {
-        return res.status(400).json({ error: 'Invalid book data provided.' });
+    // Validate the uploaded file
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded.' });
     }
 
-    try {
-        // Set a default user ID for testing
-        const userId = 'defaultUserId'; // Replace with a valid user ID if needed
-
-        // Prepare to hold the results of the insertion process
-        const savedPurchases = [];
-        const errors = [];
-
-        for (const book of books) {
-            const { googleId } = book;
-
-            // Validate required fields
-            if (!googleId) {
-                errors.push({ error: 'Missing googleId for a book.', book });
-                continue; // Skip this book and move to the next one
-            }
-
-            // Create a new purchase record using the book details
-            const purchase = new BookBuy({
-                userid: userId, // Use the default user ID
-                googleId: googleId,
-                industryIdentifier: book.industryIdentifier || [], // Use empty array if not provided
-                title: book.title || 'Unknown Title', // Default title if not provided
-                subtitle: book.subtitle || 'No Subtitle', // Default subtitle if not provided
-                authors: book.authors || ['Unknown Author'], // Default authors if not provided
-                publisher: book.publisher || 'Unknown Publisher', // Default publisher if not provided
-                publishedDate: book.publishedDate || 'Unknown Date', // Default date if not provided
-                description: book.description || 'No Description', // Default description if not provided
-                pageCount: book.pageCount || 0, // Default page count if not provided
-                categories: book.categories || [], // Use empty array if not provided
-                language: book.language || 'en', // Default language if not provided
-                coverImage: book.coverImage || '', // Default empty string if not provided
-                purchaseDate: new Date(), // Automatically set the purchase date
-                copyId: copyId, // Include copyId
-                bookLocation: bookLocation, // Include bookLocation
-                locationId: locationId, // Include locationId
-                availability: availability, // Include availability
-            });
-
-            // Save the purchase to the database
+    // Read CSV file and parse it
+    fs.createReadStream(req.file.path)
+        .pipe(csv())
+        .on('data', (data) => {
+            results.push(data);
+        })
+        .on('end', async() => {
             try {
-                const savedPurchase = await purchase.save();
-                savedPurchases.push(savedPurchase);
-            } catch (saveError) {
-                console.error('Error saving book:', saveError.message);
-                errors.push({ error: 'Failed to save book.', book, details: saveError.message });
+                const userId = 'defaultUserId'; // Replace with a valid user ID if needed
+
+                for (const book of results) {
+                    const { googleId, title, authors, publisher, publishedDate, description, categories, language, coverImage, bookLocation, locationId, availability, copyId } = book;
+
+                    // Validate required fields
+                    if (!title) {
+                        errors.push({ error: 'Missing title for a book.', book });
+                        continue; // Skip this book and move to the next one
+                    }
+
+                    // Create a new purchase record using the book details
+                    const purchase = new BookBuy({
+                        userid: userId,
+                        googleId, // No longer validating or requiring this
+                        industryIdentifier: book.industryIdentifier ? [book.industryIdentifier] : [],
+                        title: title || 'Unknown Title',
+                        authors: authors ? authors.split(',') : ['Unknown Author'], // Split authors by comma
+                        publisher: publisher || 'Unknown Publisher',
+                        publishedDate: publishedDate || 'Unknown Date',
+                        description: description || 'No Description',
+                        categories: categories ? categories.split(',') : [],
+                        language: language || 'en',
+                        coverImage: coverImage || '',
+                        purchaseDate: new Date(),
+                        copyId: copyId ? [copyId] : [], // Initialize as an array if not provided
+                        bookLocation,
+                        locationId,
+                        availability: availability === 'true' // Convert to boolean if needed
+                    });
+
+                    // Save the purchase to the database
+                    try {
+                        await purchase.save();
+                    } catch (saveError) {
+                        console.error('Error saving book:', saveError.message);
+                        errors.push({ error: 'Failed to save book.', book, details: saveError.message });
+                    }
+                }
+
+                // Clean up uploaded file
+                fs.unlinkSync(req.file.path);
+
+                // Send response with success and error messages
+                res.status(201).json({
+                    message: 'Books imported successfully!',
+                    errors: errors.length > 0 ? errors : undefined
+                });
+            } catch (error) {
+                console.error('Error importing books:', error.message);
+                res.status(500).json({ error: 'Failed to import books.' });
             }
+        });
+});
+
+
+
+// API endpoint to export all purchases to CSV
+// API endpoint to export all purchases to CSV
+app.get('/api/exportBooks', async(req, res) => {
+    try {
+        // Fetch all purchases from the database
+        const purchases = await BookBuy.find();
+
+        // Check if any purchases exist
+        if (!purchases.length) {
+            return res.status(404).json({ message: 'No purchases found.' });
         }
 
-        // Send response with success and error messages
-        res.status(201).json({
-            message: 'Books imported successfully!',
-            savedPurchases: savedPurchases,
-            errors: errors.length > 0 ? errors : undefined
-        });
+        // Prepare data for CSV
+        const csvData = purchases.map(purchase => ({
+            userId: purchase.userid,
+            googleId: purchase.googleId,
+            industryIdentifier: purchase.industryIdentifier ? purchase.industryIdentifier.join(', ') : '',
+            title: purchase.title,
+            authors: purchase.authors.join(', '), // Join authors if it's an array
+            publisher: purchase.publisher,
+            publishedDate: purchase.publishedDate,
+            description: purchase.description,
+            categories: purchase.categories.join(', '), // Join categories if it's an array
+            language: purchase.language,
+            coverImage: purchase.coverImage,
+            purchaseDate: new Date(purchase.purchaseDate).toLocaleDateString(), // Format date
+            bookLocation: purchase.bookLocation,
+            locationId: purchase.locationId,
+            availability: purchase.availability,
+            copyId: purchase.copyId ? purchase.copyId.join(', ') : ''
+        }));
+
+        // Prepare total count
+        const totalCount = purchases.length;
+
+        // Create a total count row
+        const totalCountRow = [{ 'Total Purchased Books': totalCount }];
+
+        // Combine total count with CSV data
+        const combinedData = totalCountRow.concat(csvData);
+
+        // Use json2csv to convert to CSV
+        const json2csvParser = new Parser();
+        const csv = json2csvParser.parse(combinedData);
+
+        // Log the CSV output for debugging
+        console.log(csv); // Check the output in the console
+
+        // Create a blob and send the CSV file
+        res.header('Content-Type', 'text/csv');
+        res.attachment('purchases.csv');
+        res.send(csv);
     } catch (error) {
-        console.error('Error importing books:', error.message);
-        res.status(500).json({ error: 'Failed to import books.' });
+        console.error('Error exporting books:', error);
+        return res.status(500).json({ error: 'Error exporting books' });
     }
 });
 // API endpoint to get all purchases
 app.get('/api/allPurchases', async(req, res) => {
     try {
-        // Find all purchases
         const purchases = await BookBuy.find();
 
         if (!purchases.length) {
@@ -1320,6 +1406,7 @@ app.get('/api/allPurchases', async(req, res) => {
         return res.status(500).json({ error: 'Error fetching all purchases' });
     }
 });
+
 // API endpoint to delete a purchase by googleId
 app.delete('/api/deletePurchase', async(req, res) => {
     const { googleId } = req.query;
@@ -1341,6 +1428,7 @@ app.delete('/api/deletePurchase', async(req, res) => {
         return res.status(500).json({ error: 'Failed to delete purchase.' });
     }
 });
+
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);
