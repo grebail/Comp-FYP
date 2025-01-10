@@ -276,13 +276,13 @@
                 const card = document.createElement('div');
                 card.className = 'book-card';
 
-                // Check for googleBookDetails
+                // Try to fetch details from Google Books API if googleBookDetails is not available
                 if (book.googleBookDetails && book.googleBookDetails.volumeInfo) {
                     const volumeInfo = book.googleBookDetails.volumeInfo;
                     const title = volumeInfo.title || 'N/A';
                     const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
                     const publishedDate = volumeInfo.publishedDate || 'N/A';
-                    const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg'; // Handle missing cover
+                    const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : book.coverImage || 'default-cover.jpg'; // Handle missing cover
                     const isbn = volumeInfo.industryIdentifiers ?
                         volumeInfo.industryIdentifiers.map(id => `${id.type}: ${id.identifier}`).join(', ') :
                         'N/A';
@@ -294,24 +294,24 @@
                         <div class="book-published">Published: ${publishedDate}</div>
                         <div class="book-isbn">ISBN: ${isbn}</div>
                     `;
-                } else { // Fallback to showing details from MongoDB
+                } else {
+                    // Fallback to showing details from MongoDB
                     const title = book.title || 'N/A';
                     const authors = book.authors ? book.authors.join(', ') : 'N/A';
                     const publishedDate = book.publishedDate || 'N/A';
-                    const coverImage = book.coverImage || 'default-cover.jpg'; // Handle missing cover
+                    const coverImage = book.coverImage || 'default-cover.jpg'; // Use coverImage from MongoDB
                     const isbn = book.industryIdentifier ? book.industryIdentifier.join(', ') : 'N/A';
 
                     card.innerHTML = `
-                    <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                    <div class="book-title">${title}</div>
-                    <div class="book-author">Author: ${authors}</div>
-                    <div class="book-published">Published: ${publishedDate}</div>
-                    <div class="book-isbn">ISBN: ${isbn}</div>
-                `;
+                        <img src="${coverImage}" alt="${title} cover" class="book-cover" />
+                        <div class="book-title">${title}</div>
+                        <div class="book-author">Author: ${authors}</div>
+                        <div class="book-published">Published: ${publishedDate}</div>
+                        <div class="book-isbn">ISBN: ${isbn}</div>
+                    `;
                 }
 
-
-                // Add action buttons regardless of whether details are available
+                // Add action buttons
                 card.innerHTML += `
                     <div class="action-buttons">
                         <button onclick="BorrowBook('${book.googleId}')">Borrow Book</button>

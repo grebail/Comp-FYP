@@ -26,7 +26,7 @@ const SECRET_KEY = 'your_secure_secret_key';
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: 'http://localhost:9875',
     credentials: true
 }));
 app.use(bodyParser.json());
@@ -1086,8 +1086,10 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
 
 // API endpoint to import books from CSV
 app.post('/api/importBooks', async(req, res) => {
+    console.log('Request body:', req.body);
     const { books } = req.body;
 
+    // Validate that the books array is present and is an array
     if (!Array.isArray(books) || books.length === 0) {
         return res.status(400).json({ error: 'Invalid book data provided.' });
     }
@@ -1111,12 +1113,12 @@ app.post('/api/importBooks', async(req, res) => {
 
             // Create a new purchase record using the book details
             const purchase = new BookBuy({
-                userid: userId,
+                userid: userId, // Use the default user ID
                 googleId: googleId,
                 industryIdentifier: book.industryIdentifier || [], // Use empty array if not provided
                 title: book.title || 'Unknown Title', // Default title if not provided
                 subtitle: book.subtitle || 'No Subtitle', // Default subtitle if not provided
-                authors: book.authors || 'Unknown Author', // Default authors if not provided
+                authors: book.authors || ['Unknown Author'], // Default authors if not provided
                 publisher: book.publisher || 'Unknown Publisher', // Default publisher if not provided
                 publishedDate: book.publishedDate || 'Unknown Date', // Default date if not provided
                 description: book.description || 'No Description', // Default description if not provided
@@ -1128,8 +1130,13 @@ app.post('/api/importBooks', async(req, res) => {
             });
 
             // Save the purchase to the database
-            const savedPurchase = await purchase.save();
-            savedPurchases.push(savedPurchase);
+            try {
+                const savedPurchase = await purchase.save();
+                savedPurchases.push(savedPurchase);
+            } catch (saveError) {
+                console.error('Error saving book:', saveError.message);
+                errors.push({ error: 'Failed to save book.', book, details: saveError.message });
+            }
         }
 
         // Send response with success and error messages
@@ -1139,7 +1146,7 @@ app.post('/api/importBooks', async(req, res) => {
             errors: errors.length > 0 ? errors : undefined
         });
     } catch (error) {
-        console.error('Error importing books:', error);
+        console.error('Error importing books:', error.message);
         res.status(500).json({ error: 'Failed to import books.' });
     }
 });
