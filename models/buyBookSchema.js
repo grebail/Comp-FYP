@@ -35,6 +35,19 @@ const buyBookSchema = new mongoose.Schema({
         type: Date,
         default: Date.now, // Automatically set the purchase date to the current date
     },
+    copyId: { // Define copyId as a field
+        type: String,
+    },
+    bookLocation: { // Define bookLocation as a field
+        type: String,
+    },
+    locationId: { // Define locationId as a field
+        type: String,
+    },
+    availability: { // Define availability as a field
+        type: Boolean,
+    },
+
 });
 
 // Create the model based on the schema

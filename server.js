@@ -818,7 +818,6 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
 
 
 // Create a new admin book
-// Create a new admin book
 app.post('/api/admin_books', authenticateToken, async(req, res) => {
     const { isbn, bookLocation, locationId, availability, noOfCopy } = req.body;
 
@@ -859,21 +858,37 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
                 adminBook: savedAdminBook
             });
 
-            // Create a corresponding entry in BookBuy
-            const newBookBuy = new BookBuy({
-                userid: req.user.id, // Assuming you have user information in the request
-                googleId: bookInfo.id,
-                industryIdentifier: [isbn],
-                title: bookInfo.title,
-                authors: bookInfo.authors || [],
-                publisher: bookInfo.publisher,
-                publishedDate: bookInfo.publishedDate,
-                description: bookInfo.description,
-                categories: bookInfo.categories || [],
-                coverImage: bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : null,
-                // Add any other fields you want to copy from bookInfo
-            });
-            await newBookBuy.save(); // Save the book to the BookBuy collection
+            // Check if a corresponding entry exists in BookBuy
+            const existingBookBuy = await BookBuy.findOne({ industryIdentifier: [isbn] });
+
+            if (existingBookBuy) {
+                // Update the existing entry in BookBuy
+                existingBookBuy.copyId = savedAdminBook._id; // Update copyId
+                existingBookBuy.bookLocation = bookLocation; // Update bookLocation
+                existingBookBuy.locationId = locationId; // Update locationId
+                existingBookBuy.availability = availability; // Update availability
+                // Update any other fields as needed
+                await existingBookBuy.save(); // Save the updated entry
+            } else {
+                // Create a new corresponding entry in BookBuy
+                const newBookBuy = new BookBuy({
+                    userid: req.user.id, // Assuming you have user information in the request
+                    googleId: bookInfo.id,
+                    industryIdentifier: [isbn],
+                    title: bookInfo.title,
+                    authors: bookInfo.authors || [],
+                    publisher: bookInfo.publisher,
+                    publishedDate: bookInfo.publishedDate,
+                    description: bookInfo.description,
+                    categories: bookInfo.categories || [],
+                    coverImage: bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : null,
+                    copyId: savedAdminBook._id, // Include copyId
+                    bookLocation: bookLocation, // Include bookLocation
+                    locationId: locationId, // Include locationId
+                    availability: availability // Include availability
+                });
+                await newBookBuy.save(); // Save the book to the BookBuy collection
+            }
         }
 
         res.status(201).json({
@@ -895,6 +910,7 @@ app.post('/api/admin_books', authenticateToken, async(req, res) => {
         res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
     }
 });
+
 // Get all admin books
 app.get('/api/admin_books', authenticateToken, async(req, res) => {
     try {
@@ -917,7 +933,6 @@ app.get('/api/admin_books', authenticateToken, async(req, res) => {
         res.status(500).json({ error: 'Failed to retrieve admin books.' });
     }
 });
-
 
 // Update an admin book
 app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
@@ -944,6 +959,15 @@ app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
             return res.status(404).json({ error: 'Admin book not found' });
         }
 
+        // Update corresponding entry in BookBuy
+        const existingBookBuy = await BookBuy.findOne({ industryIdentifier: updatedAdminBook.industryIdentifier });
+        if (existingBookBuy) {
+            existingBookBuy.bookLocation = bookLocation; // Update bookLocation
+            existingBookBuy.locationId = locationId; // Update locationId
+            existingBookBuy.availability = availability; // Update availability
+            await existingBookBuy.save(); // Save updated entry
+        }
+
         res.json(updatedAdminBook);
     } catch (error) {
         console.error('Error updating admin book:', error.message);
@@ -967,13 +991,16 @@ app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
         if (!deletedBook) {
             return res.status(404).json({ error: 'Book not found' });
         }
+
+        // Delete corresponding entry in BookBuy
+        await BookBuy.findOneAndDelete({ industryIdentifier: deletedBook.industryIdentifier });
+
         res.sendStatus(204); // No Content
     } catch (error) {
         console.error('Error deleting admin book:', error.message);
         res.status(500).json({ error: 'Failed to delete admin book.' });
     }
 });
-
 
 // Middleware to check if the user is an admin
 const checkAdminRole = (req, res, next) => {
@@ -1249,7 +1276,11 @@ app.post('/api/importBooks', async(req, res) => {
                 categories: book.categories || [], // Use empty array if not provided
                 language: book.language || 'en', // Default language if not provided
                 coverImage: book.coverImage || '', // Default empty string if not provided
-                purchaseDate: new Date() // Automatically set the purchase date
+                purchaseDate: new Date(), // Automatically set the purchase date
+                copyId: copyId, // Include copyId
+                bookLocation: bookLocation, // Include bookLocation
+                locationId: locationId, // Include locationId
+                availability: availability, // Include availability
             });
 
             // Save the purchase to the database
