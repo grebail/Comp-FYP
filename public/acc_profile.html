@@ -184,7 +184,7 @@
     </section>
 
     <div>
-        <center><a id="home-button" href="#" class="home-button">Back to Home</a></center><br>
+        <center><a id="home-link" href="#" class="home-button">Back to Home</a></center><br>
     </div>
 
 <footer>
@@ -203,7 +203,7 @@
         alert("Your changes have been saved.");
     }
 
-    document.getElementById('home-button').addEventListener('click', function() {
+    document.getElementById('home-link').addEventListener('click', function() {
         const userId = new URLSearchParams(window.location.search).get('userid');
         window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
     });
