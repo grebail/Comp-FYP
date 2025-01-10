@@ -194,13 +194,23 @@ app.get('/api/userBorrows', authenticateToken, async(req, res) => {
 });
 
 
+
+
+// Function to set time to midnight
+const setMidnight = (date) => {
+    const midnightDate = new Date(date);
+    midnightDate.setHours(0, 0, 0, 0); // Set hours, minutes, seconds, and milliseconds to 0
+    return midnightDate;
+};
+
 // API endpoint to borrow a book
+
 app.post('/api/userBorrows', authenticateToken, async(req, res) => {
-    const { googleId, userid } = req.body;
+    const { googleId, userid, isbn } = req.body;
 
     // Validate request body
-    if (!googleId || !userid) {
-        return res.status(400).json({ error: 'Missing googleId or userid.' });
+    if (!userid) {
+        return res.status(400).json({ error: 'Missing userid.' });
     }
 
     // Ensure userid matches the authenticated user
@@ -209,33 +219,67 @@ app.post('/api/userBorrows', authenticateToken, async(req, res) => {
     }
 
     try {
-        // Check if the user has already borrowed this book
-        const existingBorrow = await UserBorrow.findOne({ googleId, userid });
+        // Check if the user has borrowed this book
+        let existingBorrow = await UserBorrow.findOne({ googleId, userid, returned: false });
 
+        // If a record exists and it's not returned, prevent borrowing again
         if (existingBorrow) {
-            if (!existingBorrow.returned) {
-                return res.status(400).json({ error: 'You have already borrowed this book and it is not returned.' });
-            } else {
-                // If it has been returned, allow borrowing again
-                // Consider updating the existing record instead of creating a new one
-                existingBorrow.returned = false; // Update the returned status
-                existingBorrow.borrowDate = new Date(); // Update the borrow date
-                existingBorrow.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // Update due date
-                await existingBorrow.save(); // Save the updated borrow record
-                return res.status(200).json({
-                    message: 'Book borrowed successfully',
-                    borrowInfo: existingBorrow
-                });
-            }
+            return res.status(400).json({ error: 'You have already borrowed this book.' });
         }
 
-        // Proceed with borrowing the book if no existing record
+        // If no existing record, check if the book was previously borrowed and returned
+        existingBorrow = await UserBorrow.findOne({ googleId, userid, returned: true });
+
+        // If a returned record exists, allow borrowing again
+        if (existingBorrow) {
+            existingBorrow.returned = false; // Set to false when borrowing again
+            existingBorrow.borrowDate = setMidnight(new Date()); // Reset borrow date
+            existingBorrow.dueDate = setMidnight(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)); // Reset due date
+
+            await existingBorrow.save(); // Save the updated borrow record
+            return res.status(200).json({
+                message: 'Book borrowed successfully (previously returned)',
+                borrowInfo: existingBorrow
+            });
+        }
+
+        // No existing borrow records, proceed to borrow the book
+        if (!isbn) {
+            return res.status(400).json({ error: 'ISBN is required to borrow the book.' });
+        }
+
+        let book = await Book.findOne({ industryIdentifier: isbn });
+
+        if (!book) {
+            const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+            const items = response.data.items;
+
+            if (!items || items.length === 0) {
+                return res.status(404).json({ error: 'Book not found by ISBN.' });
+            }
+
+            const googleBook = items[0];
+            book = new Book({
+                googleId: googleBook.id,
+                industryIdentifier: isbn,
+                title: googleBook.volumeInfo.title,
+                // ... other fields
+            });
+
+            await book.save();
+        }
+
         const userBorrow = new UserBorrow({
             userid: userid,
-            googleId: googleId,
+            googleId: googleId || null,
+            title: book.title,
+            authors: book.authors || [],
+            publisher: book.publisher || 'N/A',
+            publishedDate: book.publishedDate || 'N/A',
+            industryIdentifier: [isbn],
             returned: false, // Set to false when borrowing
-            borrowDate: new Date(), // Set to the current date
-            dueDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) // Set due date to 14 days from now
+            borrowDate: setMidnight(new Date()),
+            dueDate: setMidnight(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000))
         });
 
         const savedBorrow = await userBorrow.save();
@@ -243,9 +287,10 @@ app.post('/api/userBorrows', authenticateToken, async(req, res) => {
             message: 'Book borrowed successfully',
             borrowInfo: savedBorrow
         });
+
     } catch (error) {
-        console.error('Error borrowing book:', error);
-        return res.status(500).json({ error: 'Error borrowing book' });
+        console.error('Error borrowing book:', error.message, error.stack);
+        return res.status(500).json({ error: error.message });
     }
 });
 
@@ -643,10 +688,42 @@ app.get('/api/books/isbn/:isbn', async(req, res) => {
     const { isbn } = req.params;
 
     try {
-        const book = await Book.findOne({ industryIdentifier: isbn });
+        let book = await Book.findOne({ industryIdentifier: isbn });
 
         if (!book) {
-            return res.status(404).json({ error: 'Book not found by ISBN' });
+            // Fetch from Google Books API if not found in database
+            const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+            const items = response.data.items;
+
+            if (!items || items.length === 0) {
+                return res.status(404).json({ error: 'Book not found by ISBN' });
+            }
+
+            const googleBook = items[0]; // Assuming the first result is the desired book
+
+            const newBook = new Book({
+                googleId: googleBook.id,
+                industryIdentifier: isbn,
+                title: googleBook.volumeInfo.title,
+                subtitle: googleBook.volumeInfo.subtitle || 'N/A',
+                authors: googleBook.volumeInfo.authors || [],
+                publisher: googleBook.volumeInfo.publisher || 'N/A',
+                publishedDate: googleBook.volumeInfo.publishedDate || 'N/A',
+                description: googleBook.volumeInfo.description || 'N/A',
+                pageCount: googleBook.volumeInfo.pageCount || 0,
+                categories: googleBook.volumeInfo.categories || [],
+                language: googleBook.volumeInfo.language || 'N/A',
+                coverImage: googleBook.volumeInfo.imageLinks ? googleBook.volumeInfo.imageLinks.thumbnail : '',
+                smallThumbnail: googleBook.volumeInfo.imageLinks ? googleBook.volumeInfo.imageLinks.smallThumbnail : '',
+                infoLink: googleBook.volumeInfo.infoLink || '',
+                saleInfo: googleBook.saleInfo || {},
+                accessInfo: googleBook.accessInfo || {},
+                searchInfo: googleBook.searchInfo || {},
+                previewLink: googleBook.volumeInfo.previewLink || '',
+            });
+
+            await newBook.save();
+            book = newBook; // Update book reference to the newly saved book
         }
 
         res.json(book);

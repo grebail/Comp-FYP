@@ -187,7 +187,6 @@
         <h1>Books Catalog</h1>
         <div class="nav-bar">
             <button onclick="viewHistory()">Borrow History</button>
-
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
@@ -314,8 +313,8 @@
                 // Add action buttons
                 card.innerHTML += `
                     <div class="action-buttons">
-                        <button onclick="BorrowBook('${book.googleId}')">Borrow Book</button>
-                        <button onclick="viewDetails('${book.googleId}')">View Details</button>
+                        <button onclick="BorrowBook('${book.googleId}', '${book.industryIdentifier}')">Borrow Book</button>
+                        <button onclick="viewDetails('${book.googleId}', '${book.industryIdentifier}')">View Details</button>
                     </div>
                 `;
 
@@ -357,7 +356,6 @@
                 return title.includes(query) || authors.includes(query);
             });
 
-
             // Reset start index and display filtered books
             currentStartIndex = 0; // Reset to the first page
             if (filteredBooks.length > 0) {
@@ -371,16 +369,16 @@
             hideLoader();
         }
 
-        function viewDetails(googleId) {
-            window.location.href = `book_details.html?googleId=${googleId}`;
+        function viewDetails(googleId, industryIdentifier) {
+            window.location.href = `book_details.html?googleId=${googleId}&&userid=${userId}&isbn=${industryIdentifier}`;
         }
 
-        function BorrowBook(googleId) {
-            window.location.href = `user_borrow.html?googleId=${googleId}&userid=${userId}`;
+        function BorrowBook(googleId, industryIdentifier) {
+            window.location.href = `user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${industryIdentifier}`;
         }
 
         function viewHistory() {
-            window.location.href = `user_borrow.html`; // Redirect to user borrow history
+            window.location.href = `user_borrow_history.html?userid=${userId}`; // Redirect to user borrow history
         }
 
         let searchTimeout;

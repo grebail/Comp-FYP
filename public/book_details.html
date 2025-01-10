@@ -75,15 +75,10 @@
         #qrCode {
             margin-top: 20px;
             width: 200px;
-            /* Width for the QR Code container */
             height: 200px;
-            /* Height for the QR Code container */
             border: 1px solid #ccc;
-            /* Optional border */
             background-color: white;
-            /* Ensure background is white */
             display: none;
-            /* Initially hidden */
         }
     </style>
 </head>
@@ -96,12 +91,9 @@
     <main id="bookDetails" class="book-details"></main>
 
     <button class="borrow-button" onclick="generateQRCode()">Generate QR Code</button>
-    <!-- New QR Code button -->
     <img id="qrCode" alt="QR Code" />
-    <!-- QR Code image -->
 
-    <button class="back-button" id="goBackButton">Back</button>
-    <!-- New Back button -->
+    <button class="back-button" id="goBackButton">Back To Catalog</button>
 
     <footer>
         <p>&copy; 2024 Smart Library. All rights reserved.</p>
@@ -111,52 +103,69 @@
         const urlParams = new URLSearchParams(window.location.search);
         const googleId = urlParams.get('googleId');
         const userId = urlParams.get('userid'); // Get user ID from URL
+        const isbn = urlParams.get('isbn'); // Get ISBN from URL
 
-        fetch(`/api/books/${googleId}`)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Book not found');
-                }
-                return response.json();
-            })
+        // Function to fetch book details
+        function fetchBookDetails(id, isIsbn = false) {
+            const endpoint = isIsbn ? `/api/books/isbn/${id}` : `/api/books/${id}`;
+            return fetch(endpoint)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Book not found');
+                    }
+                    return response.json();
+                });
+        }
+
+        // Attempt to fetch book by googleId, fallback to isbn if not found
+        fetchBookDetails(googleId)
             .then(book => {
-                const bookDetails = `
-                    <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
-                    <div><strong>Title:</strong> ${book.title}</div>
-                    <div><strong>Subtitle:</strong> ${book.subtitle || 'N/A'}</div>
-                    <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
-                    <div><strong>Publisher:</strong> ${book.publisher || 'N/A'}</div>
-                    <div><strong>Published Date:</strong> ${book.publishedDate}</div>
-                    <div><strong>ISBN:</strong> ${book.industryIdentifier}</div>
-                    <div><strong>Description:</strong> ${book.description || 'N/A'}</div>
-                    <div><strong>Page Count:</strong> ${book.pageCount || 'N/A'}</div>
-                    <div><strong>Categories:</strong> ${book.categories ? book.categories.join(', ') : 'N/A'}</div>
-                    <div><strong>Language:</strong> ${book.language || 'N/A'}</div>
-                    <div><strong>Info Link:</strong> <a href="${book.infoLink}" target="_blank">View More</a></div>
-                    <div><strong>Preview Link:</strong> <a href="${book.previewLink}" target="_blank">View Preview</a></div>
-                    <button class="borrow-button" onclick="borrowBook('${googleId}')">Borrow Book</button>
-                `;
-                document.getElementById('bookDetails').innerHTML = bookDetails;
+                displayBookDetails(book);
             })
-            .catch(error => {
-                document.getElementById('bookDetails').innerHTML = `<p>${error.message}</p>`;
+            .catch(() => {
+                // Try fetching by ISBN if googleId fails
+                fetchBookDetails(isbn, true)
+                    .then(book => {
+                        displayBookDetails(book);
+                    })
+                    .catch(error => {
+                        document.getElementById('bookDetails').innerHTML = `<p>${error.message}</p>`;
+                    });
             });
 
-        function borrowBook(googleId) {
+        function displayBookDetails(book) {
+            const bookDetails = `
+                <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
+                <div><strong>Title:</strong> ${book.title}</div>
+                <div><strong>Subtitle:</strong> ${book.subtitle || 'N/A'}</div>
+                <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
+                <div><strong>Publisher:</strong> ${book.publisher || 'N/A'}</div>
+                <div><strong>Published Date:</strong> ${book.publishedDate}</div>
+                <div><strong>ISBN:</strong> ${book.industryIdentifier}</div>
+                <div><strong>Description:</strong> ${book.description || 'N/A'}</div>
+                <div><strong>Page Count:</strong> ${book.pageCount || 'N/A'}</div>
+                <div><strong>Categories:</strong> ${book.categories ? book.categories.join(', ') : 'N/A'}</div>
+                <div><strong>Language:</strong> ${book.language || 'N/A'}</div>
+                <div><strong>Info Link:</strong> <a href="${book.infoLink}" target="_blank">View More</a></div>
+                <div><strong>Preview Link:</strong> <a href="${book.previewLink}" target="_blank">View Preview</a></div>
+                <button class="borrow-button" onclick="borrowBook('${googleId}', '${isbn}')">Borrow Book</button>
+            `;
+            document.getElementById('bookDetails').innerHTML = bookDetails;
+        }
+
+        function borrowBook(googleId, isbn) {
             if (!userId) {
                 alert('User ID is not defined. Please log in.');
                 return;
             }
-            window.location.href = `book_borrow.html?googleId=${googleId}&userid=${userId}`; // Redirect to borrow page
+            window.location.href = `user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${isbn}`; // Redirect to borrow page with ISBN
         }
 
         function generateQRCode() {
-            console.log('Generating QR code...'); // Confirm function execution
+            console.log('Generating QR code...');
 
-            // Construct the URL for the QR code using fetched googleId and userId
-            const qrCodeValue = `http://localhost:9875/book_borrow.html?googleId=${googleId}&userid=${userId}`;
+            const qrCodeValue = `http://localhost:9875/user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${isbn}`;
 
-            // Set the QR Code image source to an external API
             const qrCodeElement = document.getElementById('qrCode');
             qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
             qrCodeElement.style.display = 'block'; // Show the QR Code image
@@ -165,7 +174,7 @@
 
         // Event listener for Back button
         document.getElementById('goBackButton').addEventListener('click', () => {
-            window.location.href = `index.html?userid=${userId}`; // Redirect to index.html with userId
+            window.location.href = `user-books-catalog.html?userid=${userId}`; // Redirect to index.html with userId
         });
     </script>
 </body>
