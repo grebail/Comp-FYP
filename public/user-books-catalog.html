@@ -294,14 +294,22 @@
                         <div class="book-published">Published: ${publishedDate}</div>
                         <div class="book-isbn">ISBN: ${isbn}</div>
                     `;
-                } else {
-                    // Enhanced message for missing details
+                } else { // Fallback to showing details from MongoDB
+                    const title = book.title || 'N/A';
+                    const authors = book.authors ? book.authors.join(', ') : 'N/A';
+                    const publishedDate = book.publishedDate || 'N/A';
+                    const coverImage = book.coverImage || 'default-cover.jpg'; // Handle missing cover
+                    const isbn = book.industryIdentifier ? book.industryIdentifier.join(', ') : 'N/A';
+
                     card.innerHTML = `
-                        <div class="book-title">Details not available</div>
-                        <div class="book-author">Author information is not available.</div>
-                        <div class="book-published">Publication information is not available.</div>
-                    `;
+                    <img src="${coverImage}" alt="${title} cover" class="book-cover" />
+                    <div class="book-title">${title}</div>
+                    <div class="book-author">Author: ${authors}</div>
+                    <div class="book-published">Published: ${publishedDate}</div>
+                    <div class="book-isbn">ISBN: ${isbn}</div>
+                `;
                 }
+
 
                 // Add action buttons regardless of whether details are available
                 card.innerHTML += `
