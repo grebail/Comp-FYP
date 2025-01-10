@@ -8,6 +8,8 @@
     <link rel="stylesheet" href="styles.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
+        /* Your existing styles */
+        
         body {
             font-family: Arial, sans-serif;
             margin: 0;
@@ -102,6 +104,7 @@
                 <input type="number" id="noOfCopy" name="noOfCopy" min="1" required>
 
                 <button type="submit">Add Copy Here</button>
+                <button type="button" id="fetchLCCButton">Fetch LCC</button>
             </form>
         </section>
 
@@ -117,11 +120,9 @@
                         <th>Availability</th>
                         <th>No Of Copies</th>
                         <th>Title</th>
-                        <!-- New column for Title -->
                         <th>Author</th>
-                        <!-- New column for Author -->
                         <th>Published Date</th>
-                        <!-- New column for Published Date -->
+                        <th>Categories</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -153,11 +154,9 @@
                     'Authorization': `Bearer ${token}`
                 },
                 success: function(data) {
-                    console.log(data);
                     const tbody = $('#booksTable tbody');
                     tbody.empty();
 
-                    // Loop through each book and append to the table
                     data.forEach(adminBook => {
                         const isbn = (adminBook.industryIdentifier && adminBook.industryIdentifier.length > 0) ? adminBook.industryIdentifier[0] : 'N/A';
                         appendBookToTable({
@@ -167,9 +166,10 @@
                             locationId: adminBook.locationId,
                             availability: adminBook.availability,
                             noOfCopy: adminBook.noOfCopy,
-                            title: adminBook.title, // New field for Title
-                            author: adminBook.author, // New field for Author
-                            publishedDate: adminBook.publishedDate ? new Date(adminBook.publishedDate).toLocaleDateString() : 'N/A' // Format the date
+                            title: adminBook.title,
+                            author: adminBook.author,
+                            publishedDate: adminBook.publishedDate ? new Date(adminBook.publishedDate).toLocaleDateString() : 'N/A',
+                            categories: adminBook.categories.join(', ') // Join categories for display
                         });
                     });
                 },
@@ -194,9 +194,10 @@
                     <td><input type="text" class="location-id-input" value="${bookData.locationId || ''}" /></td>
                     <td><input type="checkbox" class="availability-input" ${bookData.availability ? 'checked' : ''} /></td>
                     <td><input type="number" class="copies-input" value="${bookData.noOfCopy || 1}" min="1" required disabled></td>
-                    <td>${bookData.title || 'N/A'}</td> <!-- Display Title -->
-                    <td>${bookData.author || 'N/A'}</td> <!-- Display Author -->
-                    <td>${bookData.publishedDate || 'N/A'}</td> <!-- Display Published Date -->
+                    <td>${bookData.title || 'N/A'}</td>
+                    <td>${bookData.author || 'N/A'}</td>
+                    <td>${bookData.publishedDate || 'N/A'}</td>
+                    <td>${bookData.categories || 'N/A'}</td> <!-- Display categories -->
                     <td>
                         <button class="details-button" data-isbn="${bookData.isbn}">Details</button>
                         <button class="edit-button" data-copyid="${bookData.copyId}">Update</button>
@@ -273,9 +274,10 @@
                                 locationId: book.locationId,
                                 availability: book.availability,
                                 noOfCopy: book.noOfCopy,
-                                title: book.title, // Include title in response
-                                author: book.author, // Include author in response
-                                publishedDate: book.publishedDate ? new Date(book.publishedDate).toLocaleDateString() : 'N/A' // Format the date
+                                title: book.title,
+                                author: book.author,
+                                publishedDate: book.publishedDate ? new Date(book.publishedDate).toLocaleDateString() : 'N/A',
+                                categories: book.categories.join(', ') // Display categories
                             });
                         });
                         $('#addBookForm')[0].reset();
@@ -286,6 +288,30 @@
                     }
                 });
             });
+
+            $('#fetchLCCButton').on('click', function() {
+                const title = $('#addBookForm #isbn').val();
+                const author = $('#addBookForm #author').val(); // Ensure you capture the correct author input
+                const publishedDate = $('#addBookForm #publishedDate').val(); // Ensure you capture the correct published date input
+
+                fetchLCCNumber(title, author, publishedDate);
+            });
+
+            function fetchLCCNumber(title, author, publishedDate) {
+                // Example API call to get LCC number based on title, author, and published date
+                $.ajax({
+                    url: `/api/lcc_number?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&publishedDate=${encodeURIComponent(publishedDate)}`,
+                    method: 'GET',
+                    success: function(data) {
+                        $('#locationId').val(data.lccNumber); // Update locationId input with fetched LCC number
+                        alert('LCC Number fetched successfully!');
+                    },
+                    error: function(error) {
+                        console.error('Error fetching LCC number:', error);
+                        alert('Error fetching LCC number: ' + error.responseText);
+                    }
+                });
+            }
 
             $(document).on('click', '.edit-button', function() {
                 const copyId = $(this).data('copyid');

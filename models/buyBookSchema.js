@@ -9,7 +9,7 @@ const buyBookSchema = new mongoose.Schema({
     },
     googleId: {
         type: String,
-        required: true,
+
     },
     industryIdentifier: {
         type: [String],
