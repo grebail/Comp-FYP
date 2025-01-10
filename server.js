@@ -816,29 +816,39 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
 });
 
 
-
-app.post('/api/admin_books/', authenticateToken, async(req, res) => {
-    const { googleId, bookLocation, locationId, availability, noOfCopy } = req.body;
+// Add a new admin book
+app.post('/api/admin_books', authenticateToken, async(req, res) => {
+    const { isbn, bookLocation, locationId, availability, noOfCopy } = req.body;
 
     // Input validation
-    if (!googleId || !bookLocation || !locationId || isNaN(noOfCopy) || noOfCopy < 1) {
+    if (!isbn || !bookLocation || !locationId || isNaN(noOfCopy) || noOfCopy < 1) {
         return res.status(400).json({ error: 'Missing required fields' });
     }
 
     try {
-        const book = await Book.findOne({ googleId });
-        if (!book) {
-            return res.status(404).json({ error: 'Book not found' });
+        // Fetch book details from Google Books API
+        const googleBooksResponse = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+        const bookData = googleBooksResponse.data;
+
+        if (bookData.totalItems === 0) {
+            return res.status(404).json({ error: 'Book not found in Google Books API' });
         }
 
+        const bookInfo = bookData.items[0].volumeInfo;
+
+        // Create the new AdminBook entries
         const adminBooks = [];
         for (let i = 0; i < noOfCopy; i++) {
             const newAdminBook = new AdminBook({
-                googleId,
+                industryIdentifier: [isbn],
+                googleId: bookInfo.id,
                 bookLocation,
                 locationId,
                 availability,
-                noOfCopy: 1
+                noOfCopy: 1,
+                title: bookInfo.title, // New field for title
+                author: (bookInfo.authors && bookInfo.authors.length > 0) ? bookInfo.authors.join(', ') : 'Unknown', // New field for author
+                publishedDate: bookInfo.publishedDate ? new Date(bookInfo.publishedDate) : null // New field for published date
             });
             const savedAdminBook = await newAdminBook.save();
             adminBooks.push({
@@ -849,12 +859,15 @@ app.post('/api/admin_books/', authenticateToken, async(req, res) => {
 
         res.status(201).json({
             adminBooks: adminBooks.map(book => ({
-                googleId: book.adminBook.googleId,
+                industryIdentifier: book.adminBook.industryIdentifier,
                 copyId: book.copyId,
                 bookLocation: book.adminBook.bookLocation,
                 locationId: book.adminBook.locationId,
                 availability: book.adminBook.availability,
                 noOfCopy: book.adminBook.noOfCopy,
+                title: book.adminBook.title, // Include title in response
+                author: book.adminBook.author, // Include author in response
+                publishedDate: book.adminBook.publishedDate // Include published date in response
             }))
         });
     } catch (error) {
@@ -862,35 +875,34 @@ app.post('/api/admin_books/', authenticateToken, async(req, res) => {
         res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
     }
 });
+// Get all admin books
 
-// API endpoint to get all admin books
 app.get('/api/admin_books', authenticateToken, async(req, res) => {
     try {
         const adminBooks = await AdminBook.find();
         res.status(200).json(adminBooks.map(book => ({
+            industryIdentifier: book.industryIdentifier,
             googleId: book.googleId,
-            copyId: book._id, // Use the ObjectId as copyId
+            copyId: book._id,
             bookLocation: book.bookLocation,
             locationId: book.locationId,
             availability: book.availability,
             noOfCopy: book.noOfCopy,
+            title: book.title, // Include title in response
+            author: book.author, // Include author in response
+            publishedDate: book.publishedDate // Include published date in response
         })));
     } catch (error) {
         console.error('Error retrieving admin books:', error);
         res.status(500).json({ error: 'Failed to retrieve admin books.' });
     }
 });
+// Update an admin book
 app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const copyId = req.params.copyId.trim().replace(/\s+/g, ''); // Clean copyId
-    console.log('Received copyId:', copyId);
-    console.log('Length of copyId:', copyId.length); // Check length
-    console.log('Type of copyId:', typeof copyId); // Check type
-
-    // Convert copyId to mongoose ObjectId
+    const copyId = req.params.copyId.trim().replace(/\s+/g, '');
     let objectId;
     try {
         objectId = new mongoose.Types.ObjectId(copyId);
-        console.log('Converted to ObjectId:', objectId); // Log converted ObjectId
     } catch (error) {
         console.error('Error converting copyId to ObjectId:', error.message);
         return res.status(400).json({ error: 'Invalid copyId format' });
@@ -917,12 +929,9 @@ app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
     }
 });
 
-// API endpoint to delete an admin book
+// Delete an admin book
 app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const copyId = req.params.copyId.trim().replace(/\s+/g, ''); // Clean copyId
-    console.log('Received copyId:', copyId);
-
-    // Convert copyId to mongoose ObjectId
+    const copyId = req.params.copyId.trim().replace(/\s+/g, '');
     let objectId;
     try {
         objectId = new mongoose.Types.ObjectId(copyId);
@@ -943,6 +952,7 @@ app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
     }
 });
 
+
 // Middleware to check if the user is an admin
 const checkAdminRole = (req, res, next) => {
     // Log the user role to the console
@@ -955,16 +965,30 @@ const checkAdminRole = (req, res, next) => {
 };
 
 // Route to serve the book administration page
-app.get('/book_admin.html', authenticateToken, checkAdminRole, (req, res) => {
-    // If the user is an admin, send the book administration page
-    res.sendFile(path.join(__dirname, 'public', 'book_admin.html'));
+app.get('/book_admin.html', authenticateToken, async(req, res) => {
+    try {
+        // Fetch the user role from the database
+        const user = await User.findById(req.user.id).select('role');
+
+        // Check if the user's role is 'librarian'
+        if (user.role !== 'librarian') {
+            return res.status(403).json({ message: 'Forbidden: You do not have access to this page.' });
+        }
+
+        // If the user is a librarian, send the book administration page
+        res.sendFile(path.join(__dirname, 'public', 'book_admin.html'));
+    } catch (error) {
+        console.error('Error fetching user role:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 });
 
+// Route to get user role
 app.get('/api/user-role', async(req, res) => {
     try {
         // Extract token from headers
         const authHeader = req.headers['authorization']; // Get the Authorization header
-        const token = authHeader && authHeader.split(' ')[1]
+        const token = authHeader && authHeader.split(' ')[1];
         if (!token) {
             return res.status(401).json({ message: 'No token provided' });
         }

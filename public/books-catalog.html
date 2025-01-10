@@ -189,6 +189,9 @@
         <div class="nav-bar">
             <button onclick="viewHistory(userId)">Purchase History</button>
             <button onclick="ImportBook()">Import Book</button>
+            <button onclick="Admin_Book()">Book inventory</button>
+
+
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
@@ -340,7 +343,11 @@
         }
 
         function ImportBook() {
-            window.location.href = `http://localhost:9875/importBook.html`;
+            window.location.href = `http://localhost:9875/importBook.html?userid=${userId}`;
+        }
+
+        function Admin_Book() {
+            window.location.href = `http://localhost:9875/book_admin.html?userid=${userId}`;
         }
 
         function debouncedSearch() {
