@@ -187,7 +187,7 @@
         <h1>Books Catalog</h1>
         <div class="nav-bar">
             <button onclick="viewHistory()">Borrow History</button>
-            <button onclick="viewFavorites()">Favorites List</button>
+
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
@@ -276,12 +276,13 @@
                 const card = document.createElement('div');
                 card.className = 'book-card';
 
+                // Check for googleBookDetails
                 if (book.googleBookDetails && book.googleBookDetails.volumeInfo) {
                     const volumeInfo = book.googleBookDetails.volumeInfo;
                     const title = volumeInfo.title || 'N/A';
                     const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
                     const publishedDate = volumeInfo.publishedDate || 'N/A';
-                    const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : '';
+                    const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg'; // Handle missing cover
                     const isbn = volumeInfo.industryIdentifiers ?
                         volumeInfo.industryIdentifiers.map(id => `${id.type}: ${id.identifier}`).join(', ') :
                         'N/A';
@@ -294,9 +295,11 @@
                         <div class="book-isbn">ISBN: ${isbn}</div>
                     `;
                 } else {
-                    console.warn('Missing googleBookDetails or volumeInfo for book:', book);
+                    // Enhanced message for missing details
                     card.innerHTML = `
                         <div class="book-title">Details not available</div>
+                        <div class="book-author">Author information is not available.</div>
+                        <div class="book-published">Publication information is not available.</div>
                     `;
                 }
 

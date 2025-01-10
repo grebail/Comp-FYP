@@ -1026,38 +1026,46 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
 
         // Fetch additional details from Google Books API
         const bookDetailsPromises = purchases.map(async(purchase) => {
-            // Check if industryIdentifier exists and is not empty
-            if (!purchase.industryIdentifier || purchase.industryIdentifier.length === 0) {
+            // Check if googleId exists
+            if (!purchase.googleId) {
                 return {
                     ...purchase.toObject(),
-                    googleBookDetails: null, // Set googleBookDetails to null if identifier is missing
+                    googleBookDetails: null, // Set googleBookDetails to null if googleId is missing
                 };
             }
 
-            const isbn = purchase.industryIdentifier[0]; // Get the first identifier
-            const isbnResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`);
-            const isbnData = await isbnResponse.json();
+            // Attempt to fetch details by googleId
+            const googleIdResponse = await fetch(`https://www.googleapis.com/books/v1/volumes/${purchase.googleId}?key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+            const googleIdData = await googleIdResponse.json();
 
-            // Check if the response is okay and contains valid items
-            if (isbnResponse.ok && isbnData.totalItems > 0) {
+            if (googleIdResponse.ok) {
                 return {
                     ...purchase.toObject(),
-                    googleBookDetails: isbnData.items[0], // Use the first item
+                    googleBookDetails: googleIdData, // Use the data from googleId
                 };
             } else {
-                console.warn(`ISBN not found for ${isbn}. Attempting to fetch by googleId: ${purchase.googleId}`);
+                console.warn(`Failed to fetch details for googleId: ${purchase.googleId}. Attempting to fetch by ISBN.`);
 
-                // Fallback to fetch by googleId
-                const googleIdResponse = await fetch(`https://www.googleapis.com/books/v1/volumes/${purchase.googleId}`);
-                const googleIdData = await googleIdResponse.json();
-
-                if (googleIdResponse.ok) {
+                // Fallback to fetch by ISBN if googleId fetch fails
+                if (!purchase.industryIdentifier || purchase.industryIdentifier.length === 0) {
                     return {
                         ...purchase.toObject(),
-                        googleBookDetails: googleIdData, // Use the data from googleId
+                        googleBookDetails: null, // Set to null if identifier is missing
+                    };
+                }
+
+                const isbn = purchase.industryIdentifier[0]; // Get the first identifier
+                const isbnResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+                const isbnData = await isbnResponse.json();
+
+                // Check if the response is okay and contains valid items
+                if (isbnResponse.ok && isbnData.totalItems > 0) {
+                    return {
+                        ...purchase.toObject(),
+                        googleBookDetails: isbnData.items[0], // Use the first item
                     };
                 } else {
-                    console.error(`Failed to fetch details for googleId: ${purchase.googleId}`);
+                    console.error(`ISBN not found for ${isbn}.`);
                     return {
                         ...purchase.toObject(),
                         googleBookDetails: null, // Set to null if both attempts fail
