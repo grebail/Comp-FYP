@@ -161,7 +161,7 @@
                         const isbn = (adminBook.industryIdentifier && adminBook.industryIdentifier.length > 0) ? adminBook.industryIdentifier[0] : 'N/A';
                         appendBookToTable({
                             isbn: isbn,
-                            copyId: adminBook.copyId,
+                            copyId: adminBook._id || 'N/A', // Ensure this is populated correctly
                             bookLocation: adminBook.bookLocation,
                             locationId: adminBook.locationId,
                             availability: adminBook.availability,
@@ -197,7 +197,7 @@
                     <td>${bookData.title || 'N/A'}</td>
                     <td>${bookData.author || 'N/A'}</td>
                     <td>${bookData.publishedDate || 'N/A'}</td>
-                    <td>${bookData.categories || 'N/A'}</td> <!-- Display categories -->
+                    <td>${bookData.categories || 'N/A'}</td>
                     <td>
                         <button class="details-button" data-isbn="${bookData.isbn}">Details</button>
                         <button class="edit-button" data-copyid="${bookData.copyId}">Update</button>
@@ -269,7 +269,7 @@
                         response.adminBooks.forEach(book => {
                             appendBookToTable({
                                 isbn: book.industryIdentifier[0],
-                                copyId: book.copyId,
+                                copyId: book._id || 'N/A', // Ensure this is populated correctly
                                 bookLocation: book.bookLocation,
                                 locationId: book.locationId,
                                 availability: book.availability,
@@ -298,7 +298,6 @@
             });
 
             function fetchLCCNumber(title, author, publishedDate) {
-                // Example API call to get LCC number based on title, author, and published date
                 $.ajax({
                     url: `/api/lcc_number?title=${encodeURIComponent(title)}&author=${encodeURIComponent(author)}&publishedDate=${encodeURIComponent(publishedDate)}`,
                     method: 'GET',
