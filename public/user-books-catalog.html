@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book Catalog</title>
+
     <style>
         /* Existing CSS styles */
         
@@ -180,6 +181,7 @@
             margin: 20px;
         }
     </style>
+
 </head>
 
 <body>
@@ -275,6 +277,8 @@
                 const card = document.createElement('div');
                 card.className = 'book-card';
 
+                const totalCopies = book.copies ? book.copies.length : 0; // Get number of copies
+
                 // Try to fetch details from Google Books API if googleBookDetails is not available
                 if (book.googleBookDetails && book.googleBookDetails.volumeInfo) {
                     const volumeInfo = book.googleBookDetails.volumeInfo;
@@ -292,6 +296,7 @@
                         <div class="book-author">Author: ${authors}</div>
                         <div class="book-published">Published: ${publishedDate}</div>
                         <div class="book-isbn">ISBN: ${isbn}</div>
+                        <div class="book-copies">Total Copies: ${totalCopies}</div> <!-- Display total copies -->
                     `;
                 } else {
                     // Fallback to showing details from MongoDB
@@ -307,6 +312,7 @@
                         <div class="book-author">Author: ${authors}</div>
                         <div class="book-published">Published: ${publishedDate}</div>
                         <div class="book-isbn">ISBN: ${isbn}</div>
+                        <div class="book-copies">Total Copies: ${totalCopies}</div> <!-- Display total copies -->
                     `;
                 }
 
