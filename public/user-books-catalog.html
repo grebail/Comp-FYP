@@ -221,6 +221,7 @@
         const booksPerPage = 5;
         let allBooks = [];
         const userId = new URLSearchParams(window.location.search).get('userid');
+        const apiKey = 'AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A'; // Your API key
 
         async function loadBooks() {
             showLoader();
@@ -263,7 +264,16 @@
             document.getElementById('loader').style.display = 'none';
         }
 
-        function displayBooks(startIndex) {
+        async function fetchBookDetails(isbn) {
+            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=${apiKey}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch book details from Google Books API');
+            }
+            const data = await response.json();
+            return data.items ? data.items[0] : null; // Return the first item if available
+        }
+
+        async function displayBooks(startIndex) {
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
 
@@ -273,46 +283,53 @@
                 return;
             }
 
-            booksToShow.forEach(book => {
+            for (const book of booksToShow) {
                 const card = document.createElement('div');
                 card.className = 'book-card';
 
                 const totalCopies = book.copies ? book.copies.length : 0; // Get number of copies
 
-                // Try to fetch details from Google Books API if googleBookDetails is not available
-                if (book.googleBookDetails && book.googleBookDetails.volumeInfo) {
-                    const volumeInfo = book.googleBookDetails.volumeInfo;
-                    const title = volumeInfo.title || 'N/A';
-                    const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
-                    const publishedDate = volumeInfo.publishedDate || 'N/A';
-                    const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : book.coverImage || 'default-cover.jpg'; // Handle missing cover
-                    const isbn = volumeInfo.industryIdentifiers ?
-                        volumeInfo.industryIdentifiers.map(id => `${id.type}: ${id.identifier}`).join(', ') :
-                        'N/A';
+                const isbn = book.industryIdentifier ? book.industryIdentifier[0] : null; // Get the first ISBN
 
-                    card.innerHTML = `
-                        <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                        <div class="book-title">${title}</div>
-                        <div class="book-author">Author: ${authors}</div>
-                        <div class="book-published">Published: ${publishedDate}</div>
-                        <div class="book-isbn">ISBN: ${isbn}</div>
-                        <div class="book-copies">Total Copies: ${totalCopies}</div> <!-- Display total copies -->
-                    `;
+                if (isbn) {
+                    try {
+                        const bookDetails = await fetchBookDetails(isbn);
+                        if (bookDetails) {
+                            const volumeInfo = bookDetails.volumeInfo;
+                            const title = volumeInfo.title || 'N/A';
+                            const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
+                            const publishedDate = volumeInfo.publishedDate || 'N/A';
+                            const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg';
+
+                            card.innerHTML = `
+                                <img src="${coverImage}" alt="${title} cover" class="book-cover" />
+                                <div class="book-title">${title}</div>
+                                <div class="book-author">Author: ${authors}</div>
+                                <div class="book-published">Published: ${publishedDate}</div>
+                                <div class="book-isbn">ISBN: ${isbn}</div>
+                                <div class="book-copies">Total Copies: ${totalCopies}</div>
+                            `;
+                        } else {
+                            card.innerHTML = `<p>No details found for ISBN: ${isbn}</p>`;
+                        }
+                    } catch (error) {
+                        console.error(error);
+                        card.innerHTML = `<p>Error fetching details for ISBN: ${isbn}</p>`;
+                    }
                 } else {
                     // Fallback to showing details from MongoDB
                     const title = book.title || 'N/A';
                     const authors = book.authors ? book.authors.join(', ') : 'N/A';
                     const publishedDate = book.publishedDate || 'N/A';
-                    const coverImage = book.coverImage || 'default-cover.jpg'; // Use coverImage from MongoDB
-                    const isbn = book.industryIdentifier ? book.industryIdentifier.join(', ') : 'N/A';
+                    const coverImage = book.coverImage || 'default-cover.jpg';
 
                     card.innerHTML = `
                         <img src="${coverImage}" alt="${title} cover" class="book-cover" />
                         <div class="book-title">${title}</div>
                         <div class="book-author">Author: ${authors}</div>
                         <div class="book-published">Published: ${publishedDate}</div>
-                        <div class="book-isbn">ISBN: ${isbn}</div>
-                        <div class="book-copies">Total Copies: ${totalCopies}</div> <!-- Display total copies -->
+                        <div class="book-isbn">ISBN: ${isbn || 'N/A'}</div>
+                        <div class="book-copies">Total Copies: ${totalCopies}</div>
                     `;
                 }
 
@@ -325,7 +342,7 @@
                 `;
 
                 catalog.appendChild(card);
-            });
+            }
         }
 
         function nextBooks() {
@@ -365,6 +382,7 @@
             // Reset start index and display filtered books
             currentStartIndex = 0; // Reset to the first page
             if (filteredBooks.length > 0) {
+                allBooks = filteredBooks; // Update the allBooks to filtered ones
                 displayBooks(currentStartIndex);
             } else {
                 // Show a message if no books are found

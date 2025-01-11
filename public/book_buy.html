@@ -60,9 +60,7 @@
 <body>
 
     <h1>Bought Book History</h1>
-    <div id="bookDetails" class="book-details">
-        <!-- Book details will be displayed here -->
-    </div>
+    <div id="bookDetails" class="book-details"></div>
     <div id="errorMessage" class="error-message"></div>
     <div id="successMessage" class="success-message"></div>
 
@@ -127,18 +125,14 @@
                     },
                     body: JSON.stringify({
                         googleId,
-                        userid,
+                        userid // Ensure userid is included in the request body
                     })
                 });
 
-                // Log the response status for debugging
                 console.log('Response Status:', response.status);
-
-                // Get the response body and parse it
                 const responseBody = await response.json();
-                console.log('Response Body:', responseBody); // Log the parsed response body
+                console.log('Response Body:', responseBody);
 
-                // Check if the response is not OK
                 if (!response.ok) {
                     displayError(responseBody.error || 'Failed to purchase the book.');
                     return;
@@ -152,15 +146,12 @@
             }
         }
 
-        // Function to display error messages
         function displayError(message) {
             document.getElementById('errorMessage').innerHTML = message;
             document.getElementById('successMessage').innerHTML = ''; // Clear success message
         }
 
-        // Function to display success messages
         function displaySuccess(purchaseInfo) {
-            console.log('Purchase Info:', purchaseInfo); // Log purchase info to see its structure
             const successMessageHTML = `
                 <h2>Successfully Purchased!</h2>
                 <p><strong>Purchase ID:</strong> ${purchaseInfo._id}</p>
@@ -179,7 +170,7 @@
 
         // Event listener for Purchase History button
         document.getElementById('purchaseHistoryButton').addEventListener('click', () => {
-            window.location.href = `purchase_history.html?userid=${userid}`;
+            window.location.href = `purchase_history.html?userid=${userid}`; // Ensure userid is passed
         });
 
         // Start fetching book details when the page loads

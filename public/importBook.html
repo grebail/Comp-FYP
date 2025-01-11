@@ -223,22 +223,38 @@
             tableBody.innerHTML = ''; // Clear previous entries
 
             purchases.forEach(purchase => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${purchase.googleId || 'N/A'}</td>
-                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-                    <td>${purchase.title || 'Unknown Title'}</td>
-                    <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-                    <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-                    <td><button class="delete-button" onclick="deleteBook('${purchase.googleId}')">Delete</button></td>
-                `;
-                tableBody.appendChild(row);
+                if (purchase.copies && purchase.copies.length > 0) {
+                    purchase.copies.forEach(copy => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${purchase.googleId || 'N/A'}</td>
+                            <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+                            <td>${purchase.title || 'Unknown Title'}</td>
+                            <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                            <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+                            <td><button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete</button></td>
+                        `;
+                        tableBody.appendChild(row);
+                    });
+                } else {
+                    // Display the purchase even if there are no copies
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${purchase.googleId || 'N/A'}</td>
+                        <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+                        <td>${purchase.title || 'Unknown Title'}</td>
+                        <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                        <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+                        <td><button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete</button></td>
+                    `;
+                    tableBody.appendChild(row);
+                }
             });
         }
 
-        async function deleteBook(googleId) {
+        async function deleteBook(id) {
             try {
-                const response = await fetch(`/api/deletePurchase?googleId=${googleId}`, {
+                const response = await fetch(`/api/deletePurchase/${id}`, {
                     method: 'DELETE'
                 });
 
@@ -266,24 +282,44 @@
                     return response.json();
                 })
                 .then(purchases => {
-                    const csvData = purchases.map(purchase => ({
-                        userid: purchase.userid,
-                        googleId: purchase.googleId,
-                        industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
-                        title: purchase.title || 'Unknown Title',
-                        authors: purchase.authors.join(', ') || 'Unknown Author',
-                        publisher: purchase.publisher || 'Unknown Publisher',
-                        publishedDate: purchase.publishedDate || 'Unknown Date',
-                        description: purchase.description || 'No Description',
-                        categories: purchase.categories.join(', ') || 'N/A',
-                        language: purchase.language || 'en',
-                        coverImage: purchase.coverImage || '',
-                        purchaseDate: new Date(purchase.purchaseDate).toLocaleString(),
-                        bookLocation: purchase.bookLocation || 'N/A',
-                        locationId: purchase.locationId || 'N/A',
-                        availability: purchase.availability || 'N/A',
-                        copyId: purchase.copyId || 'N/A' // Added copyId
-                    }));
+                    const csvData = purchases.flatMap(purchase =>
+                        (purchase.copies && purchase.copies.length > 0 ?
+                            purchase.copies.map(copy => ({
+                                userid: purchase.userid,
+                                googleId: purchase.googleId,
+                                industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
+                                title: purchase.title || 'Unknown Title',
+                                authors: purchase.authors.join(', ') || 'Unknown Author',
+                                publisher: purchase.publisher || 'Unknown Publisher',
+                                publishedDate: purchase.publishedDate || 'Unknown Date',
+                                description: purchase.description || 'No Description',
+                                categories: purchase.categories.join(', ') || 'N/A',
+                                language: purchase.language || 'en',
+                                coverImage: purchase.coverImage || '',
+                                purchaseDate: new Date(purchase.purchaseDate).toLocaleString(),
+                                copyId: copy.copyId || 'N/A',
+                                bookLocation: copy.bookLocation || 'N/A',
+                                locationId: copy.locationId || 'N/A',
+                                availability: copy.availability || 'N/A'
+                            })) : [{
+                                userid: purchase.userid,
+                                googleId: purchase.googleId,
+                                industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
+                                title: purchase.title || 'Unknown Title',
+                                authors: purchase.authors.join(', ') || 'Unknown Author',
+                                publisher: purchase.publisher || 'Unknown Publisher',
+                                publishedDate: purchase.publishedDate || 'Unknown Date',
+                                description: purchase.description || 'No Description',
+                                categories: purchase.categories.join(', ') || 'N/A',
+                                language: purchase.language || 'en',
+                                coverImage: purchase.coverImage || '',
+                                purchaseDate: new Date(purchase.purchaseDate).toLocaleString(),
+                                copyId: 'N/A',
+                                bookLocation: 'N/A',
+                                locationId: 'N/A',
+                                availability: 'N/A'
+                            }]
+                        ));
 
                     // Create CSV
                     const csv = Papa.unparse(csvData);

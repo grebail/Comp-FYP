@@ -88,7 +88,6 @@
 </head>
 
 <body>
-
     <header>
         <h1>Purchase History</h1>
     </header>
@@ -125,6 +124,7 @@
                 }
 
                 const history = await response.json();
+                console.log('Purchase History:', history); // Debugging
                 displayBooks(history);
             } catch (error) {
                 displayError('An error occurred while fetching purchase history.');
@@ -132,8 +132,15 @@
         }
 
         // Function to fetch book details by googleId
+        // Function to fetch book details by googleId
         async function fetchBookDetails(googleId) {
+            if (!googleId) {
+                throw new Error('Google ID is undefined');
+            }
+
             const token = localStorage.getItem('token');
+            console.log('Fetching book details for Google ID:', googleId); // Debugging log
+
             const response = await fetch(`/api/books/${googleId}`, {
                 method: 'GET',
                 headers: {
@@ -142,7 +149,9 @@
             });
 
             if (!response.ok) {
-                throw new Error('Failed to fetch book details.');
+                const errorText = await response.text(); // Get the response text
+                console.error('Error fetching book details:', response.status, errorText); // Log error details
+                throw new Error('Failed to fetch book details: ' + errorText);
             }
 
             return await response.json();
@@ -173,26 +182,45 @@
         }
 
         // Function to display purchased books
+        // Function to display purchased books
         async function displayBooks(history) {
             if (history.length === 0) {
                 document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
                 return;
             }
 
-            const bookPromises = history.map(item => fetchBookDetails(item.googleId));
-            const books = await Promise.all(bookPromises);
+            const bookPromises = history.map(async(item) => {
+                const googleId = item.googleId;
+                if (!googleId) {
+                    console.warn('Skipping undefined Google ID for item:', item);
+                    return null; // Skip if googleId is undefined
+                }
 
-            const historyHTML = books.map(book => `
-            <div class="book-item">
-                <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title} cover" class="book-cover" />
-                <div class="book-details">
-                    <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
-                    <strong>Purchase Date:</strong> ${new Date(history.find(h => h.googleId === book.googleId).purchaseDate).toLocaleDateString()} <br>
-                    <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
-                </div>
-                <button class="delete-button" onclick="deleteBook('${book.googleId}')">Delete</button>
+                try {
+                    const bookDetails = await fetchBookDetails(googleId);
+                    return bookDetails; // Return the book details if successful
+                } catch (error) {
+                    console.error('Error fetching book details for Google ID:', googleId, error);
+                    return null; // Return null if there's an error (like a 404)
+                }
+            });
+
+            // Wait for all book promises to resolve and filter out null values
+            const books = await Promise.all(bookPromises);
+            const validBooks = books.filter(book => book !== null); // Keep only valid book details
+
+            // Construct HTML for valid books
+            const historyHTML = validBooks.map(book => `
+        <div class="book-item">
+            <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
+            <div class="book-details">
+                <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
+                <strong>Purchase Date:</strong> ${new Date(history.find(h => h.googleId === book.googleId).purchaseDate).toLocaleDateString()} <br>
+                <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
             </div>
-        `).join('');
+            <button class="delete-button" onclick="deleteBook('${book.googleId}')">Delete</button>
+        </div>
+    `).join('');
 
             document.getElementById('historyContent').innerHTML = historyHTML;
         }
@@ -204,12 +232,12 @@
 
         // Event listener for Back home button
         document.getElementById('BackHomeButton').addEventListener('click', () => {
-            window.location.href = `index_logined.html?userid=${userid}`; // Redirect to index.html with userId
+            window.location.href = `index_logined.html?userid=${userid}`;
         });
 
         // Event listener for Back catalog button
         document.getElementById('BackCatalogButton').addEventListener('click', () => {
-            window.location.href = `books-catalog.html?userid=${userid}`; // Redirect to books-catalog.html with userId
+            window.location.href = `books-catalog.html?userid=${userid}`;
         });
 
         // Start fetching purchase history when the page loads
