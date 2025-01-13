@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Book Catalog</title>
+
     <style>
         /* Existing CSS styles */
         
@@ -180,6 +181,7 @@
             margin: 20px;
         }
     </style>
+
 </head>
 
 <body>
@@ -263,25 +265,12 @@
         }
 
         async function fetchBookDetails(query) {
-            let apiUrl;
-            if (query.startsWith('isbn:')) {
-                apiUrl = `https://www.googleapis.com/books/v1/volumes?q=${query}&key=${apiKey}`;
-            } else {
-                apiUrl = `https://www.googleapis.com/books/v1/volumes/${query}?key=${apiKey}`;
+            const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${query}&key=${apiKey}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch book details from Google Books API');
             }
-
-            try {
-                const response = await fetch(apiUrl);
-                if (!response.ok) {
-                    console.error(`Error fetching book details: ${response.status} - ${response.statusText}`);
-                    return null; // Return null for any errors
-                }
-                const data = await response.json();
-                return data;
-            } catch (error) {
-                console.error('Network error or other issue:', error);
-                return null; // Return null for any errors
-            }
+            const data = await response.json();
+            return data.items ? data.items[0] : null; // Return the first item if available
         }
 
         async function displayBooks(startIndex) {
@@ -302,78 +291,49 @@
                 const isbn = book.industryIdentifier ? book.industryIdentifier[0] : null; // Get the first ISBN
                 const googleId = book.googleId; // Get Google ID
 
-                let bookDetails = null;
-
-                // Fetch book details using ISBN
+                // Attempt to fetch book details using ISBN and Google ID
                 try {
+                    let bookDetails = null;
                     if (isbn) {
                         bookDetails = await fetchBookDetails(`isbn:${isbn}`);
-                        if (bookDetails && bookDetails.items && bookDetails.items.length > 0) {
-                            const volumeInfo = bookDetails.items[0].volumeInfo; // Accessing the first item
-                            if (volumeInfo) {
-                                const title = volumeInfo.title || 'N/A';
-                                const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
-                                const publishedDate = volumeInfo.publishedDate || 'N/A';
-                                const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg';
-
-                                card.innerHTML = `
-                                    <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                                    <div class="book-title">${title}</div>
-                                    <div class="book-author">Author: ${authors}</div>
-                                    <div class="book-published">Published: ${publishedDate}</div>
-                                    <div class="book-isbn">ISBN: ${isbn || 'N/A'}</div>
-                                    <div class="book-copies">Total Copies: ${totalCopies}</div>
-                                    <div class="action-buttons">
-                                        <button onclick="BorrowBook('${googleId}', '${isbn}')">Borrow Book</button>
-                                        <button onclick="viewDetails('${googleId}', '${isbn}')">View Details</button>
-                                    </div>
-                                `;
-                                catalog.appendChild(card);
-                                continue; // Exit the loop early if ISBN details were found
-                            }
-                        } else {
-                            console.warn(`No volume info found for ISBN: ${isbn}`);
-                        }
                     }
 
-                    // Fetch book details using Google ID
-                    if (googleId) {
-                        bookDetails = await fetchBookDetails(googleId);
-                        if (bookDetails && bookDetails.volumeInfo) {
-                            const volumeInfo = bookDetails.volumeInfo; // Accessing volumeInfo directly
-                            const title = volumeInfo.title || 'N/A';
-                            const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
-                            const publishedDate = volumeInfo.publishedDate || 'N/A';
-                            const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg';
-
-                            card.innerHTML = `
-                                <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                                <div class="book-title">${title}</div>
-                                <div class="book-author">Author: ${authors}</div>
-                                <div class="book-published">Published: ${publishedDate}</div>
-                                <div class="book-isbn">ISBN: ${isbn || 'N/A'}</div>
-                                <div class="book-copies">Total Copies: ${totalCopies}</div>
-                                <div class="action-buttons">
-                                    <button onclick="BorrowBook('${googleId || isbn}', '${isbn}')">Borrow Book</button>
-                                    <button onclick="viewDetails('${googleId || isbn}', '${isbn}')">View Details</button>
-                                </div>
-                            `;
-                            catalog.appendChild(card);
-                            continue; // Exit the loop early if Google ID details were found
-                        } else {
-                            console.warn(`No volume info found for Google ID: ${googleId}`);
-                        }
+                    if (!bookDetails && googleId) {
+                        bookDetails = await fetchBookDetails(`id:${googleId}`);
                     }
 
-                    // If both fetches failed or returned undefined volumeInfo
-                    card.innerHTML = `<p>No details found for ISBN: ${isbn || 'N/A'} and Google ID: ${googleId || 'N/A'}</p>`;
-                    catalog.appendChild(card);
+                    if (bookDetails) {
+                        const volumeInfo = bookDetails.volumeInfo;
+                        const title = volumeInfo.title || 'N/A';
+                        const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
+                        const publishedDate = volumeInfo.publishedDate || 'N/A';
+                        const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg';
 
+                        card.innerHTML = `
+                            <img src="${coverImage}" alt="${title} cover" class="book-cover" />
+                            <div class="book-title">${title}</div>
+                            <div class="book-author">Author: ${authors}</div>
+                            <div class="book-published">Published: ${publishedDate}</div>
+                            <div class="book-isbn">ISBN: ${isbn || 'N/A'}</div>
+                            <div class="book-copies">Total Copies: ${totalCopies}</div>
+                        `;
+                    } else {
+                        card.innerHTML = `<p>No details found for ISBN or Google ID: ${isbn || googleId}</p>`;
+                    }
                 } catch (error) {
-                    console.error('Error processing book:', error);
-                    card.innerHTML = `<p>Error processing book with ISBN: ${isbn || 'N/A'} and Google ID: ${googleId || 'N/A'}. Please try again later.</p>`;
-                    catalog.appendChild(card);
+                    console.error('Error fetching book details:', error);
+                    card.innerHTML = `<p>Error fetching details for ISBN: ${isbn} or Google ID: ${googleId}</p>`;
                 }
+
+                // Add action buttons
+                card.innerHTML += `
+                    <div class="action-buttons">
+                        <button onclick="BorrowBook('${googleId}', '${isbn}')">Borrow Book</button>
+                        <button onclick="viewDetails('${googleId}', '${isbn}')">View Details</button>
+                    </div>
+                `;
+
+                catalog.appendChild(card);
             }
         }
 
@@ -425,7 +385,7 @@
         }
 
         function BorrowBook(googleId, industryIdentifier) {
-            window.location.href = `user_borrow.html?googleId=${googleId || ''}&userid=${userId}&isbn=${industryIdentifier}`;
+            window.location.href = `user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${industryIdentifier}`;
         }
 
         function viewHistory() {

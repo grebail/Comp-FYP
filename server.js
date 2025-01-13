@@ -11,7 +11,11 @@ const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 const multer = require('multer');
 const xlsx = require('xlsx');
+
+const fs = require('fs');
+const csv = require('csv-parser');
 require('dotenv').config();
+
 
 const Book = require('./models/bookSchema');
 const User = require('./models/userSchema');
@@ -49,9 +53,7 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB connected'))
     .catch(err => console.error('MongoDB connection error:', err));
 
-// Configure multer for file uploads
-const storage = multer.memoryStorage();
-const upload = multer({ storage: storage });
+
 
 // Assuming you have your Book model defined
 const countBooks = async() => {
@@ -68,67 +70,7 @@ countBooks();
 
 
 
-// Excel import route for users
-app.post('/import-excel-users', upload.single('file'), async(req, res) => {
-    if (!req.file) {
-        return res.status(400).send('No file uploaded.');
-    }
 
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-
-    const usersToCreate = data.map(async(user) => {
-        if (!user.username || !user.password) {
-            throw new Error('Username and password are required.');
-        }
-
-        const hashedPassword = await bcrypt.hash(user.password, 10);
-        return {
-            username: user.username,
-            password: hashedPassword,
-            role: user.role || 'user' // Default role if not provided
-        };
-    });
-
-    try {
-        const users = await User.insertMany(await Promise.all(usersToCreate));
-        res.status(201).json(users);
-    } catch (error) {
-        res.status(500).send('Error importing users: ' + error.message);
-    }
-});
-
-// Excel import route for books
-app.post('/import-excel-books', upload.single('file'), async(req, res) => {
-    if (!req.file) {
-        return res.status(400).send('No file uploaded.');
-    }
-
-    const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const data = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName]);
-
-    const booksToCreate = data.map((book) => {
-        if (!book.title || !book.author || !book.year || !book.isbn) {
-            throw new Error('Title, author, year, and ISBN are required.');
-        }
-
-        return {
-            title: book.title,
-            author: book.author,
-            year: book.year,
-            isbn: book.isbn
-        };
-    });
-
-    try {
-        const books = await Book.insertMany(booksToCreate);
-        res.status(201).json(books);
-    } catch (error) {
-        res.status(500).send('Error importing books: ' + error.message);
-    }
-});
 // middleware of token
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers['authorization'];
@@ -1263,6 +1205,10 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
 
 
 // API endpoint to import books from CSV
+const upload = multer({ dest: 'uploads/' }); // Temporary file storage
+
+
+// API endpoint to import books from CSV
 app.post('/api/importBooks', upload.single('file'), async(req, res) => {
     const results = [];
     const errors = [];
@@ -1271,7 +1217,7 @@ app.post('/api/importBooks', upload.single('file'), async(req, res) => {
     if (req.file) {
         // Read CSV file and parse it
         fs.createReadStream(req.file.path)
-            .pipe(csv())
+            .pipe(csv({ separator: ',' })) // Adjust for comma-separated values
             .on('data', (data) => {
                 results.push(data);
             })
@@ -1279,6 +1225,10 @@ app.post('/api/importBooks', upload.single('file'), async(req, res) => {
                 await processBooks(results, errors);
                 fs.unlinkSync(req.file.path); // Clean up uploaded file
                 sendResponse(res, errors);
+            })
+            .on('error', (error) => {
+                console.error('Error parsing CSV:', error);
+                return res.status(400).json({ error: 'Error parsing CSV file.' });
             });
     } else if (req.body.books) {
         // Handle JSON input
@@ -1314,20 +1264,30 @@ async function processBooks(books, errors) {
             continue;
         }
 
+        // Validate publishedDate
+        if (!isValidDate(publishedDate)) {
+            errors.push({ error: 'Invalid published date for a book.', book });
+            continue;
+        }
+
         // Prepare copies array from CSV or JSON data
-        const copiesArray = copies ? copies.split(';').map(copy => {
-            const [copyId, bookLocation, locationId, availability] = copy.split(',');
+        const copiesArray = (copies || '').split(';').map(copy => {
+            const details = copy.split(',');
+            if (details.length !== 4) {
+                errors.push({ error: 'Invalid copies format.', book });
+                return null; // Skip this copy
+            }
             return {
-                copyId,
-                bookLocation,
-                locationId,
-                availability: availability === 'true',
+                copyId: details[0],
+                bookLocation: details[1],
+                locationId: details[2],
+                availability: details[3] === 'true',
             };
-        }) : [];
+        }).filter(copy => copy !== null); // Remove null entries
 
         // Create a new purchase record using the book details
         const purchase = new BookBuy({
-            userid: userId,
+            userId,
             googleId,
             industryIdentifier: book.industryIdentifier ? [book.industryIdentifier] : [],
             title,
@@ -1353,12 +1313,18 @@ async function processBooks(books, errors) {
     }
 }
 
+function isValidDate(dateString) {
+    const date = new Date(dateString);
+    return !isNaN(date.getTime()); // Check if date is valid
+}
+
 function sendResponse(res, errors) {
     res.status(201).json({
         message: 'Books imported successfully!',
         errors: errors.length > 0 ? errors : undefined
     });
 }
+
 // API endpoint to export all purchases to CSV
 app.get('/api/exportBooks', async(req, res) => {
     try {
@@ -1373,7 +1339,7 @@ app.get('/api/exportBooks', async(req, res) => {
         // Prepare data for CSV
         const csvData = purchases.flatMap(purchase =>
             purchase.copies.map(copy => ({
-                userId: purchase.userid,
+                userId: purchase.userId,
                 googleId: purchase.googleId,
                 industryIdentifier: purchase.industryIdentifier.join(', '),
                 title: purchase.title,
@@ -1405,6 +1371,7 @@ app.get('/api/exportBooks', async(req, res) => {
         return res.status(500).json({ error: 'Error exporting books' });
     }
 });
+
 // API endpoint to get all purchases
 app.get('/api/allPurchases', async(req, res) => {
     try {
@@ -1415,13 +1382,12 @@ app.get('/api/allPurchases', async(req, res) => {
         }
 
         return res.status(200).json(purchases);
+        console.log('Fetched purchases:', purchases); // Log the fetched data
     } catch (error) {
         console.error('Error fetching all purchases:', error);
         return res.status(500).json({ error: 'Error fetching all purchases' });
     }
 });
-
-
 
 // API endpoint to delete a purchase by ObjectId
 app.delete('/api/deletePurchase/:id', async(req, res) => {
@@ -1445,7 +1411,6 @@ app.delete('/api/deletePurchase/:id', async(req, res) => {
         return res.status(500).json({ error: 'Failed to delete purchase.' });
     }
 });
-
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);

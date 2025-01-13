@@ -133,7 +133,7 @@
     </table>
 
     <script>
-        document.getElementById('uploadButton').addEventListener('click', function() {
+        document.getElementById('uploadButton').addEventListener('click', async function() {
             const fileInput = document.getElementById('csvFile');
             const file = fileInput.files[0];
 
@@ -142,10 +142,11 @@
                 return;
             }
 
+            // Use PapaParse to parse the CSV file
             Papa.parse(file, {
                 header: true,
                 complete: async(results) => {
-                    await uploadBooks(results.data);
+                    await uploadBooks(results.data, file);
                 },
                 error: (error) => {
                     displayError('Error parsing CSV: ' + error.message);
@@ -153,25 +154,14 @@
             });
         });
 
-        document.getElementById('exportButton').addEventListener('click', function() {
-            exportToCSV();
-        });
-
-        async function uploadBooks(books) {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                displayError('No token found. Please log in.');
-                return;
-            }
+        async function uploadBooks(books, file) {
+            const formData = new FormData();
+            formData.append('file', file); // Append the CSV file
 
             try {
                 const response = await fetch('/api/importBooks', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(books)
+                    body: formData // Use FormData to send the file
                 });
 
                 if (!response.ok) {
@@ -181,6 +171,7 @@
                 }
 
                 const result = await response.json();
+                console.log(result);
                 displaySuccess(result.message || 'Books imported successfully!');
                 fetchAllPurchases(); // Fetch all purchases after import
             } catch (error) {
@@ -223,32 +214,16 @@
             tableBody.innerHTML = ''; // Clear previous entries
 
             purchases.forEach(purchase => {
-                if (purchase.copies && purchase.copies.length > 0) {
-                    purchase.copies.forEach(copy => {
-                        const row = document.createElement('tr');
-                        row.innerHTML = `
-                            <td>${purchase.googleId || 'N/A'}</td>
-                            <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-                            <td>${purchase.title || 'Unknown Title'}</td>
-                            <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-                            <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-                            <td><button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete</button></td>
-                        `;
-                        tableBody.appendChild(row);
-                    });
-                } else {
-                    // Display the purchase even if there are no copies
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${purchase.googleId || 'N/A'}</td>
-                        <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-                        <td>${purchase.title || 'Unknown Title'}</td>
-                        <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-                        <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-                        <td><button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete</button></td>
-                    `;
-                    tableBody.appendChild(row);
-                }
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${purchase.googleId || 'N/A'}</td>
+                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+                    <td>${purchase.title || 'Unknown Title'}</td>
+                    <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                    <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+                    <td><button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete</button></td>
+                `;
+                tableBody.appendChild(row);
             });
         }
 
@@ -271,6 +246,8 @@
             }
         }
 
+        document.getElementById('exportButton').addEventListener('click', exportToCSV);
+
         function exportToCSV() {
             fetch('/api/allPurchases', {
                     method: 'GET'
@@ -285,7 +262,7 @@
                     const csvData = purchases.flatMap(purchase =>
                         (purchase.copies && purchase.copies.length > 0 ?
                             purchase.copies.map(copy => ({
-                                userid: purchase.userid,
+                                userid: purchase.userId,
                                 googleId: purchase.googleId,
                                 industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
                                 title: purchase.title || 'Unknown Title',
@@ -302,7 +279,7 @@
                                 locationId: copy.locationId || 'N/A',
                                 availability: copy.availability || 'N/A'
                             })) : [{
-                                userid: purchase.userid,
+                                userid: purchase.userId,
                                 googleId: purchase.googleId,
                                 industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
                                 title: purchase.title || 'Unknown Title',
