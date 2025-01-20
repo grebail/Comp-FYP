@@ -146,9 +146,8 @@ const setMidnight = (date) => {
 };
 
 // API endpoint to borrow a book
-
-app.post('/api/userBorrows', authenticateToken, async(req, res) => {
-    const { googleId, userid, isbn } = req.body;
+app.post('/api/userBorrows', authenticateToken, async (req, res) => {
+    const { userid, isbn } = req.body;
 
     // Validate request body
     if (!userid) {
@@ -161,30 +160,36 @@ app.post('/api/userBorrows', authenticateToken, async(req, res) => {
     }
 
     try {
-        // Check if the user has borrowed this book
-        let existingBorrow = await UserBorrow.findOne({ googleId, userid, returned: false });
-
+        // Check if the user has borrowed this book using isbn
+        let existingBorrow = await UserBorrow.findOne({
+            userid,
+            returned: false,
+            industryIdentifier: { $in: [isbn] } // Check if isbn is in the industryIdentifier array
+        });
         // If a record exists and it's not returned, prevent borrowing again
         if (existingBorrow) {
             return res.status(400).json({ error: 'You have already borrowed this book.' });
         }
 
         // If no existing record, check if the book was previously borrowed and returned
-        existingBorrow = await UserBorrow.findOne({ googleId, userid, returned: true });
+        existingBorrow = await UserBorrow.findOne({
+            userid,
+            industryIdentifier: { $in: [isbn] },
+            returned: true
+        });
 
-        // If a returned record exists, allow borrowing again
-        if (existingBorrow) {
+         // If a returned record exists, allow borrowing again
+         if (existingBorrow) {
             existingBorrow.returned = false; // Set to false when borrowing again
-            existingBorrow.borrowDate = setMidnight(new Date()); // Reset borrow date
-            existingBorrow.dueDate = setMidnight(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)); // Reset due date
+            existingBorrow.borrowDate = setMidnight(new Date());
+            existingBorrow.dueDate = setMidnight(new Date(Date.now() + 14 * 24 * 60 * 60 * 1000));
 
-            await existingBorrow.save(); // Save the updated borrow record
+            await existingBorrow.save();
             return res.status(200).json({
                 message: 'Book borrowed successfully (previously returned)',
                 borrowInfo: existingBorrow
             });
         }
-
         // No existing borrow records, proceed to borrow the book
         if (!isbn) {
             return res.status(400).json({ error: 'ISBN is required to borrow the book.' });
@@ -213,7 +218,7 @@ app.post('/api/userBorrows', authenticateToken, async(req, res) => {
 
         const userBorrow = new UserBorrow({
             userid: userid,
-            googleId: googleId || null,
+            googleId: null, // Remove googleId as it's not used
             title: book.title,
             authors: book.authors || [],
             publisher: book.publisher || 'N/A',

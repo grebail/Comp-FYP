@@ -4,9 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>Borrow Book</title>
-
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -15,11 +13,11 @@
             background-color: #f4f4f4;
             color: #333;
         }
-        
+
         h1 {
             color: #1565c0;
         }
-        
+
         .book-details {
             background: white;
             padding: 20px;
@@ -27,22 +25,22 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-top: 20px;
         }
-        
+
         .error-message {
             color: red;
             margin-top: 10px;
         }
-        
+
         .success-message {
             color: green;
             margin-top: 10px;
         }
-        
+
         .book-cover {
             max-width: 200px;
             margin-bottom: 10px;
         }
-        
+
         button {
             margin-top: 20px;
             padding: 10px 15px;
@@ -52,7 +50,7 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        
+
         button:hover {
             background-color: #0d47a1;
         }
@@ -72,32 +70,19 @@
 
     <script>
         const params = new URLSearchParams(window.location.search);
-        const googleId = params.get('googleId');
         const isbn = params.get('isbn'); // Get ISBN from URL parameters
         const userId = params.get('userid');
 
         // Function to fetch book details
         async function fetchBookDetails() {
             try {
-                let response;
-
-                // Attempt to fetch book by googleId if available
-                if (googleId) {
-                    response = await fetch(`/api/books/${googleId}`);
-                    if (!response.ok) {
-                        console.warn('Book not found by Google ID. Attempting to fetch by ISBN...');
-                    }
+                if (!isbn) {
+                    throw new Error('No ISBN provided.');
                 }
 
-                // If googleId is not available or if it failed, try fetching by ISBN
-                if (!response || !response.ok) {
-                    if (!isbn) {
-                        throw new Error('No Google ID or ISBN provided.');
-                    }
-                    response = await fetch(`/api/books/isbn/${isbn}`);
-                    if (!response.ok) {
-                        throw new Error('Book not found by ISBN.');
-                    }
+                const response = await fetch(`/api/books/isbn/${isbn}`);
+                if (!response.ok) {
+                    throw new Error('Book not found by ISBN.');
                 }
 
                 const book = await response.json();
@@ -119,7 +104,7 @@
                 <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
                 <div><strong>Publisher:</strong> ${book.publisher}</div>
                 <div><strong>Published Date:</strong> ${book.publishedDate}</div>
-                <div><strong>ISBN:</strong> ${isbn || 'N/A'}</div>
+                <div><strong>ISBN:</strong> ${isbn}</div>
             `;
             document.getElementById('bookDetails').innerHTML = bookDetailsHTML;
         }
@@ -140,17 +125,10 @@
             // Prepare the request body
             const borrowData = {
                 userid: userId,
-                googleId: googleId || null, // Use googleId if available
-                isbn: isbn, // Include the ISBN from the URL
-                title: book.title,
-                authors: book.authors,
-                publisher: book.publisher,
-                publishedDate: book.publishedDate,
-                industryIdentifier: [isbn] // Include the ISBN as an array
+                isbn: isbn // Use only the ISBN
             };
 
             try {
-                const identifier = googleId || isbn; // Use the available identifier
                 const response = await fetch('/api/userBorrows', {
                     method: 'POST',
                     headers: {
@@ -185,7 +163,6 @@
                 <h2>Successfully Borrowed!</h2>
                 <p><strong>Borrow ID:</strong> ${borrowInfo._id}</p>
                 <p><strong>User ID:</strong> ${borrowInfo.userid}</p>
-                <p><strong>Google ID:</strong> ${borrowInfo.googleId || 'N/A'}</p>
                 <p><strong>ISBN:</strong> ${borrowInfo.industryIdentifier.join(', ') || 'N/A'}</p>
                 <p><strong>Borrow Date:</strong> ${new Date(borrowInfo.borrowDate).toLocaleDateString()}</p>
                 <p><strong>Due Date:</strong> ${new Date(borrowInfo.dueDate).toLocaleDateString()}</p>
