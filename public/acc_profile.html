@@ -144,7 +144,7 @@
             <input type="text" id="name" name="name" value="" required>
 
             <label for="library-card"><strong>Library Card #:</strong></label>
-            <input type="text" id="library-card" name="library-card" value="123456" readonly>
+            <input type="text" id="library-card" name="library-card" value="" required>
 
             <label for="email"><strong>Email:</strong></label>
             <input type="email" id="email" name="email" value="" required>
@@ -193,22 +193,26 @@
 <script>
     async function fetchUserDetails() {
         const userId = new URLSearchParams(window.location.search).get('userid'); // Get userId from URL
+        console.log('User ID:', userId); // Log the user ID
+    
         const token = localStorage.getItem('token'); // Retrieve the token from local storage
-        
+    
         try {
-            const response = await fetch(`/api/userDetails?userid=${userId}`, {
+            const userResponse = await fetch(`/api/userDetails?userid=${userId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 },
             });
     
-            if (!response.ok) {
+            if (!userResponse.ok) {
                 throw new Error('Failed to fetch user details');
             }
     
-            const userDetails = await response.json();
-            populateUserDetails(userDetails);
+            const userDetails = await userResponse.json();
+            console.log('Fetched User Details:', userDetails); // Log the fetched user details
+
+            populateUserDetails(userDetails); // Populate the input fields
         } catch (error) {
             console.error('Error fetching user details:', error);
             alert('Error fetching user details. Please try again.');
@@ -216,10 +220,10 @@
     }
 
     function populateUserDetails(userDetails) {
-        document.getElementById('name').value = userDetails.name;
-        document.getElementById('email').value = userDetails.email;
-        document.getElementById('phone').value = userDetails.phone;
-        document.getElementById('library-card').value = userDetails.libraryCard;
+        document.getElementById('name').value = userDetails.userDetails.name || ''; 
+        document.getElementById('email').value = userDetails.userDetails.email || '';
+        document.getElementById('phone').value = userDetails.userDetails.phone || '';
+        document.getElementById('library-card').value = userDetails.userDetails.libraryCard || '';
     }
 
     async function saveChanges(event) {
@@ -263,7 +267,7 @@
     async function fetchCurrentLoans() {
         const userId = new URLSearchParams(window.location.search).get('userid');
         const token = localStorage.getItem('token');
-    
+        
         try {
             const response = await fetch(`/api/userBorrowsDetails?userid=${userId}`, {
                 method: 'GET',
@@ -283,7 +287,6 @@
             alert('Error fetching current loans. Please try again.');
         }
     }
-
     function displayCurrentLoans(loans) {
         const loansList = document.querySelector('.borrowing-info ul');
         loansList.innerHTML = '';

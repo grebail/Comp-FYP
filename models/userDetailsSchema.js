@@ -6,6 +6,7 @@ const userDetailsSchema = new mongoose.Schema({
     email: { type: String, required: true },
     phone: { type: String, required: true },
     libraryCard: { type: String, required: true, unique: true }, // Add library card as required
+    currentLoans: [{ type: mongoose.Schema.Types.ObjectId, ref: 'UserBorrow' }] // Array to store current loans
 });
 
 const UserDetails = mongoose.model('UserDetails', userDetailsSchema, 'userDetails'); // Create the UserDetails model
