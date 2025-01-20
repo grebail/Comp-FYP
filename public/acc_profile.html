@@ -16,7 +16,6 @@
             background-color: #e8f5e9; /* Light green background */
         }
 
-        /* Header */
         header {
             background: linear-gradient(to right, #55ba59, #27732b);
             color: #fff;
@@ -50,7 +49,6 @@
             font-size: 16px;
         }
 
-        /* Input Styles */
         input[type="text"],
         input[type="email"],
         input[type="tel"] {
@@ -68,7 +66,6 @@
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
         }
 
-        /* Button Styles */
         .save-button {
             background-color: #1e88e5; /* Blue background */
             color: #fff;
@@ -116,7 +113,6 @@
             background-color: #45a049; /* Darker green on hover */
         }
 
-        /* Footer */
         footer {
             background: linear-gradient(to left, #55ba59, #27732b);
             color: #fff;
@@ -141,16 +137,16 @@
     <div class="user-info">
         <form id="user-info-form">
             <label for="name"><strong>Name:</strong></label>
-            <input type="text" id="name" name="name" value="" required>
+            <input type="text" id="name" name="name" required>
 
             <label for="library-card"><strong>Library Card #:</strong></label>
-            <input type="text" id="library-card" name="library-card" value="" required>
+            <input type="text" id="library-card" name="library-card" required>
 
             <label for="email"><strong>Email:</strong></label>
-            <input type="email" id="email" name="email" value="" required>
+            <input type="email" id="email" name="email" required>
 
             <label for="phone"><strong>Phone:</strong></label>
-            <input type="tel" id="phone" name="phone" value="" required>
+            <input type="tel" id="phone" name="phone" required>
 
             <button type="submit" class="save-button" onclick="saveChanges(event)">Save Changes</button>
         </form>
@@ -193,8 +189,6 @@
 <script>
     async function fetchUserDetails() {
         const userId = new URLSearchParams(window.location.search).get('userid'); // Get userId from URL
-        console.log('User ID:', userId); // Log the user ID
-    
         const token = localStorage.getItem('token'); // Retrieve the token from local storage
     
         try {
@@ -220,10 +214,15 @@
     }
 
     function populateUserDetails(userDetails) {
-        document.getElementById('name').value = userDetails.userDetails.name || ''; 
-        document.getElementById('email').value = userDetails.userDetails.email || '';
-        document.getElementById('phone').value = userDetails.userDetails.phone || '';
-        document.getElementById('library-card').value = userDetails.userDetails.libraryCard || '';
+        if (!userDetails) {
+            console.error('User details are not available.');
+            return;
+        }
+        
+        document.getElementById('name').value = userDetails.name || ''; 
+        document.getElementById('email').value = userDetails.email || '';
+        document.getElementById('phone').value = userDetails.phone || '';
+        document.getElementById('library-card').value = userDetails.libraryCard || '';
     }
 
     async function saveChanges(event) {
@@ -287,11 +286,12 @@
             alert('Error fetching current loans. Please try again.');
         }
     }
+
     function displayCurrentLoans(loans) {
         const loansList = document.querySelector('.borrowing-info ul');
         loansList.innerHTML = '';
     
-        if (loans.length === 0) {
+        if (!loans || loans.length === 0) {
             loansList.innerHTML = '<li>No current loans.</li>';
             return;
         }
@@ -301,7 +301,8 @@
             const dueDate = new Date(borrow.dueDate);
             const formattedDueDate = `${dueDate.getUTCFullYear()}/${dueDate.getUTCMonth() + 1}/${dueDate.getUTCDate()}`;
     
-            listItem.textContent = `"${borrow.title}" - ${borrow.authors.join(', ')} | Due: ${formattedDueDate}`;
+            const authors = borrow.authors || []; // Ensure authors is defined
+            listItem.textContent = `"${borrow.title}" - ${authors.join(', ')} | Due: ${formattedDueDate}`;
     
             const renewLink = document.createElement('a');
             renewLink.href = '#';

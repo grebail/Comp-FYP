@@ -1410,16 +1410,17 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
     }
 
     try {
-        // Check if the user details already exist for this userId
+        // Find the user details by userId
         let userDetails = await UserDetails.findOne({ userId });
 
         if (userDetails) {
-            // If user details exist, update them
+            // If user details exist, update only the specified fields
             userDetails.name = name;
             userDetails.email = email;
             userDetails.phone = phone;
             userDetails.libraryCard = libraryCard;
-            await userDetails.save();
+            await userDetails.save(); // Save updated details
+            
             return res.status(200).json({ message: 'User details updated successfully.' });
         } else {
             // If user details do not exist, create a new record
@@ -1430,7 +1431,8 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
                 phone,
                 libraryCard,
             });
-            await userDetails.save();
+            await userDetails.save(); // Save new details
+            
             return res.status(201).json({ message: 'User details saved successfully.' });
         }
     } catch (error) {
@@ -1438,6 +1440,7 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
+//get userDetails
 app.get('/api/userDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query; // Get the userId from query
 
@@ -1446,25 +1449,20 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
     }
 
     try {
-        const userDetails = await UserDetails.findOne({ userId: userid }); // Ensure the field matches your DB schema
+        const userDetails = await UserDetails.findOne({ userId: userid }).populate('currentLoans.borrowId'); // Populate currentLoans if needed
 
         if (!userDetails) {
             return res.status(404).json({ error: 'User details not found.' });
         }
 
-        const currentLoans = await UserBorrow.find({ userid: userid });
-
-        const response = {
-            userDetails: userDetails,
-            currentLoans: currentLoans
-        };
-
-        return res.status(200).json(response);
+        return res.status(200).json(userDetails);
     } catch (error) {
         console.error('Error fetching user details:', error.message);
         return res.status(500).json({ error: error.message });
     }
 });
+
+
 // API endpoint to get loan details for a specific user
 app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query;

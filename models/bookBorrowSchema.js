@@ -96,5 +96,5 @@ const bookBorrowSchema = new mongoose.Schema({
 });
 
 // Create the model based on the schema
-const UserBorrow = mongoose.model('UserBorrow ', bookBorrowSchema, 'userBorrows');
+const UserBorrow = mongoose.model('UserBorrow', bookBorrowSchema, 'userBorrows');
 module.exports = UserBorrow;
