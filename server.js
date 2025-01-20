@@ -15,7 +15,11 @@ const xlsx = require('xlsx');
 const fs = require('fs');
 const csv = require('csv-parser');
 require('dotenv').config();
+
+const base64url = require('base64-url');
 const nodemailer = require('nodemailer');
+const { google } = require('googleapis');
+const OAuth2 = google.auth.OAuth2;
 
 const Book = require('./models/bookSchema');
 const User = require('./models/userSchema');
@@ -54,7 +58,130 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB connected'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+// Create OAuth2 client with hard-coded credentials
+const oauth2Client = new OAuth2(
+    '196205826526-a5i6cv0vp224tndtobsbep676cn537hm.apps.googleusercontent.com',       // Replace with your Client ID
+    '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',   // Replace with your Client Secret
+    'https://developers.google.com/oauthplayground'
+);
+const scopes = [
+    'https://www.googleapis.com/auth/gmail.send',
+    'https://www.googleapis.com/auth/gmail.readonly',
+     // Scope for sending email
 
+    // Add other scopes as needed
+];
+const authUrl = oauth2Client.generateAuthUrl({
+    access_type: 'offline',
+    scope: scopes, // Include the defined scopes
+});
+
+console.log('Authorize this app by visiting this url:', authUrl);
+// Set the refresh token
+oauth2Client.setCredentials({
+    refresh_token: '1//04t2NpS9k9vy_CgYIARAAGAQSNwF-L9Ir5SWysiyTCHoK6ZKYzFdnBI4Onm4-hpR0y_MdtNIZEVZePQE-sHPZpRbsUoT4ld7_hMk' // Replace with your Refresh Token
+});
+app.post('/send-email', async (req, res) => {
+    try {
+        // Fetch user details from the database (you can modify the query as needed)
+        const userDetails = await UserDetails.findOne(); // Fetch the first user for demonstration
+
+        if (!userDetails) {
+            return res.status(404).send('No user found.');
+        }
+
+        const fromAddress = 'abbichiu@gmail.com'; // Sender email
+        const toAddress = userDetails.email;       // Recipient email from the user details
+
+        if (!toAddress) {
+            return res.status(400).send('Recipient address is required.');
+        }
+
+        // Compose the email including the current loans
+        let loanDetailsText = 'Current Loans:\n\n';
+        
+        userDetails.currentLoans.forEach((loan, index) => {
+            loanDetailsText += `Loan ${index + 1}:\n`;
+            loanDetailsText += `Title: ${loan.details.title}\n`;
+            loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
+            loanDetailsText += `Borrow Date: ${loan.details.borrowDate}\n`;
+            loanDetailsText += `Due Date: ${loan.details.dueDate}\n`;
+            loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
+            loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
+        });
+
+        const email = `From: ${fromAddress}
+To: ${toAddress}
+Subject: Your Current Loan Details
+
+Hello ${userDetails.name},
+
+Here are your current loan details:
+
+${loanDetailsText}
+
+Best regards,
+Library Team`;
+
+        console.log('Email:', email);
+
+        // Encode the email in Base64 URL format
+        const encodedEmail = base64url.encode(email);
+  
+        // Prepare the request body
+        const requestBody = {
+            raw: encodedEmail,
+        };
+        console.log('Request Body:', requestBody);
+
+        // Get access token
+        const accessToken = await getAccessToken(); // Ensure this function gets your access token
+        console.log('Access Token:', accessToken);
+
+        // Send the email using the Gmail API
+        const response = await axios.post('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', requestBody, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        res.status(200).send(`Email sent successfully! Message ID: ${response.data.id}`);
+    } catch (error) {
+        console.error('Error details:', error.response ? error.response.data : error.message);
+        res.status(500).send('Error sending email');
+    }
+});
+
+  app.get('/get-email/:id', async (req, res) => {
+    const messageId = req.params.id;
+
+    try {
+        const accessToken = await oauth2Client.getAccessToken();
+        
+        const response = await axios.get(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`, {
+            headers: {
+                Authorization: `Bearer ${accessToken.token}`,
+                'Content-Type': 'application/json',
+            },
+        });
+
+        res.status(200).json(response.data);
+    } catch (error) {
+        console.error('Error fetching email details:', error.response ? error.response.data : error.message);
+        res.status(500).send('Error fetching email details');
+    }
+});
+// Function to get a new access token
+async function getAccessToken() {
+    try {
+        const { token } = await oauth2Client.getAccessToken();
+        return token;
+    } catch (error) {
+        console.error('Error refreshing access token:', error);
+        throw error;
+    }
+}
 
 // Assuming you have your Book model defined
 const countBooks = async() => {
@@ -1404,26 +1531,44 @@ app.delete('/api/deletePurchase/:id', async(req, res) => {
 app.post('/api/userDetails', authenticateToken, async (req, res) => {
     const { userId, name, email, phone, libraryCard } = req.body;
 
-    // Validate request body
     if (!userId || !name || !email || !phone || !libraryCard) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
     try {
-        // Find the user details by userId
         let userDetails = await UserDetails.findOne({ userId });
 
         if (userDetails) {
-            // If user details exist, update only the specified fields
+            // Update user details
             userDetails.name = name;
             userDetails.email = email;
             userDetails.phone = phone;
             userDetails.libraryCard = libraryCard;
-            await userDetails.save(); // Save updated details
-            
+
+            // Optionally, if you want to update currentLoans from UserBorrow
+            const borrows = await UserBorrow.find({ userid: userId, returned: false });
+            userDetails.currentLoans = borrows.map(borrow => ({
+                borrowId: borrow._id,
+                details: {
+                    title: borrow.title,
+                    authors: borrow.authors,
+                    availability: borrow.availability,
+                    borrowDate: borrow.borrowDate,
+                    dueDate: borrow.dueDate,
+                    comments: borrow.comments,
+                    copyId: borrow.copyId,
+                    googleId: borrow.googleId,
+                    industryIdentifier: borrow.industryIdentifier,
+                    publishedDate: borrow.publishedDate,
+                    publisher: borrow.publisher,
+                    returned: borrow.returned
+                }
+            }));
+
+            await userDetails.save();
             return res.status(200).json({ message: 'User details updated successfully.' });
         } else {
-            // If user details do not exist, create a new record
+            // Create new user details
             userDetails = new UserDetails({
                 userId,
                 name,
@@ -1431,8 +1576,8 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
                 phone,
                 libraryCard,
             });
-            await userDetails.save(); // Save new details
-            
+
+            await userDetails.save();
             return res.status(201).json({ message: 'User details saved successfully.' });
         }
     } catch (error) {
@@ -1440,16 +1585,18 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
-//get userDetails
+
+// Get userDetails
 app.get('/api/userDetails', authenticateToken, async (req, res) => {
-    const { userid } = req.query; // Get the userId from query
+    const { userid } = req.query;
 
     if (!userid) {
         return res.status(400).json({ error: 'User ID is required.' });
     }
 
     try {
-        const userDetails = await UserDetails.findOne({ userId: userid }).populate('currentLoans.borrowId'); // Populate currentLoans if needed
+        const userDetails = await UserDetails.findOne({ userId: userid })
+            .populate('currentLoans.borrowId'); // Populate details from UserBorrow
 
         if (!userDetails) {
             return res.status(404).json({ error: 'User details not found.' });
@@ -1461,8 +1608,6 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
-
-
 // API endpoint to get loan details for a specific user
 app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query;
@@ -1474,13 +1619,6 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     try {
         // Fetch only the books that are currently borrowed (not returned)
         const borrows = await UserBorrow.find({ userid: userid, returned: false });
-
-        // Update the UserDetails currentLoans array
-        await UserDetails.findOneAndUpdate(
-            { userId: userid },
-            { currentLoans: borrows.map(borrow => borrow._id) }, // Update currentLoans with the borrow IDs
-            { new: true } // Return the updated document
-        );
 
         // Map the borrows to include additional details
         const detailedBorrows = borrows.map(borrow => ({
@@ -1504,6 +1642,82 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     } catch (error) {
         console.error('Error fetching borrow history:', error);
         res.status(500).json({ error: 'Failed to fetch borrow history.' });
+    }
+});
+
+// Function to send an email using the Gmail API
+async function sendEmail(accessToken, userEmail, recipientEmail, subject, message) {
+
+    // Construct the email in plain text format
+    const email = [
+        `From: abbichiu@gmail.com`, // Fixed sender email
+        `To: ${recipientEmail}`,
+        `Subject: ${subject}`,
+        '',
+        message,
+    ].join('\n');
+
+
+    // Encode the email in base64url format
+    const base64EncodedEmail = Buffer.from(email).toString('base64url');
+
+    // Configure the request to the Gmail API
+    const requestConfig = {
+        method: 'POST',
+        url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
+        headers: {
+            Authorization: `Bearer ${accessToken}`, // Use the received access token
+            'Content-Type': 'application/json',
+        },
+        data: {
+            raw: base64EncodedEmail, // Email body in base64url format
+        },
+    };
+
+    // Send the email using Axios
+    try {
+        const response = await axios(requestConfig);
+        console.log(`Email sent: ${response.data}`);
+    } catch (error) {
+        console.error('Error sending email:', error.response ? error.response.data : error.message);
+    }
+}
+
+// Function to send loan reminder emails
+async function sendLoanReminders() {
+    try {
+        const users = await UserDetails.find(); // Fetch all user details
+
+        for (const user of users) {
+            if (user.currentLoans && user.currentLoans.length > 0) {
+                const loanDetails = user.currentLoans.map(loan => {
+                    return `Title: ${loan.details.title}, Due Date: ${loan.details.dueDate}`;
+                }).join('\n');
+
+                // Get a new access token (implement this according to your OAuth2 setup)
+                const accessToken = await getAccessToken();
+
+                // Send the email with loan details
+                await sendEmail(
+                    accessToken, // Access token
+                    user.email, // Recipient's email
+                    'Loan Reminder', // Email subject
+                    `Dear ${user.name},\n\nYou have the following current loans:\n${loanDetails}\n\nPlease make sure to return them by the due date.\n\nThank you!`
+                );
+            }
+        }
+    } catch (error) {
+        console.error('Error sending loan reminders:', error.message);
+    }
+}
+
+// Endpoint to trigger sending reminders
+app.get('/send-reminders', async (req, res) => {
+    try {
+        await sendLoanReminders();
+        res.send('Loan reminders sent successfully!');
+    } catch (error) {
+        res.status(500).send('Error sending reminders: ' + error.message);
     }
 });
 // Start server and create default admin
