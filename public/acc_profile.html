@@ -88,7 +88,8 @@
         .renew-button {
             background-color: transparent;
             color: #4caf50;
-            padding: 10px 15px;
+            padding: 5px 10px; /* Smaller padding */
+            font-size: 14px; /* Smaller font size */
             text-decoration: none;
             border: 2px solid #4caf50;
             border-radius: 5px;
@@ -103,9 +104,6 @@
         .home-button {
             text-align: center;
             margin: 20px 0;
-        }
-
-        .home-button {
             background-color: #55ba59; /* Green background */
             color: white;
             padding: 10px 20px;
@@ -114,7 +112,7 @@
             transition: background-color 0.3s;
         }
 
-        .home-button :hover {
+        .home-button:hover {
             background-color: #45a049; /* Darker green on hover */
         }
 
@@ -137,80 +135,197 @@
     <h1>My Account</h1>
 </header>
 
-    <section class="profile-overview">
-        <h2>Profile Overview</h2>
+<section class="profile-overview">
+    <h2>Profile Overview</h2>
 
-        <div class="user-info">
-            <form id="user-info-form">
-                <label for="name"><strong>Name:</strong></label>
-                <input type="text" id="name" name="name" value="" required>
+    <div class="user-info">
+        <form id="user-info-form">
+            <label for="name"><strong>Name:</strong></label>
+            <input type="text" id="name" name="name" value="" required>
 
-                <label for="library-card"><strong>Library Card #:</strong></label>
-                <input type="text" id="library-card" name="library-card" value="123456" readonly>
+            <label for="library-card"><strong>Library Card #:</strong></label>
+            <input type="text" id="library-card" name="library-card" value="123456" readonly>
 
-                <label for="email"><strong>Email:</strong></label>
-                <input type="email" id="email" name="email" value="" required>
+            <label for="email"><strong>Email:</strong></label>
+            <input type="email" id="email" name="email" value="" required>
 
-                <label for="phone"><strong>Phone:</strong></label>
-                <input type="tel" id="phone" name="phone" value="" required>
+            <label for="phone"><strong>Phone:</strong></label>
+            <input type="tel" id="phone" name="phone" value="" required>
 
-                <button type="submit" class="save-button" onclick="saveChanges(event)">Save Changes</button>
-            </form>
-        </div>
-
-        <div class="account-status">
-            <br>
-            <p><strong>Account Expiration:</strong> 12/31/2025</p>
-            <p><strong>Due Fees:</strong> $0.00</p>
-        </div>
-    </section>
-
-    <section class="borrowing-info">
-        <h2>Current Loans</h2>
-        <ul>
-            <li>"The books" - Author | Due: 01/15/2024 <a id="history-link" href="#" class="renew-button">Renew</a></li>
-        </ul>
-        <br><h2>Holds</h2>
-        <ul>
-            <li>"books for holded" - Author</li>
-        </ul>
-    </section>
-
-    <section class="recommendations">
-        <h2>Recommendations</h2>
-        <ul>
-            <li>"the Book" - Author </li>
-        </ul>
-    </section>
-
-    <div>
-        <center><a id="home-link" href="#" class="home-button">Back to Home</a></center><br>
+            <button type="submit" class="save-button" onclick="saveChanges(event)">Save Changes</button>
+        </form>
     </div>
+
+    <div class="account-status">
+        <br>
+        <p><strong>Account Expiration:</strong> 12/31/2025</p>
+        <p><strong>Due Fees:</strong> $0.00</p>
+    </div>
+</section>
+
+<section class="borrowing-info">
+    <h2>Current Loans</h2>
+    <ul>
+        <!-- Current loans will be dynamically populated here -->
+    </ul>
+    <br>
+    <h2>Holds</h2>
+    <ul>
+        <li>"books for holded" - Author</li>
+    </ul>
+</section>
+
+<section class="recommendations">
+    <h2>Recommendations</h2>
+    <ul>
+        <li>"the Book" - Author </li>
+    </ul>
+</section>
+
+<div>
+    <center><a id="home-link" href="#" class="home-button">Back to Home</a></center><br>
+</div>
 
 <footer>
     <p>&copy; 2024 Smart Library. All rights reserved.</p>
 </footer>
 
 <script>
-    function saveChanges(event) {
-        event.preventDefault(); // Prevent the default form submission
+    async function fetchUserDetails() {
+        const userId = new URLSearchParams(window.location.search).get('userid'); // Get userId from URL
+        const token = localStorage.getItem('token'); // Retrieve the token from local storage
+        
+        try {
+            const response = await fetch(`/api/userDetails?userid=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to fetch user details');
+            }
+    
+            const userDetails = await response.json();
+            populateUserDetails(userDetails);
+        } catch (error) {
+            console.error('Error fetching user details:', error);
+            alert('Error fetching user details. Please try again.');
+        }
+    }
 
-        // Get the values from the input fields
+    function populateUserDetails(userDetails) {
+        document.getElementById('name').value = userDetails.name;
+        document.getElementById('email').value = userDetails.email;
+        document.getElementById('phone').value = userDetails.phone;
+        document.getElementById('library-card').value = userDetails.libraryCard;
+    }
+
+    async function saveChanges(event) {
+        event.preventDefault(); // Prevent the default form submission
+    
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
-
-        alert("Your changes have been saved.");
+        const libraryCard = document.getElementById('library-card').value;
+    
+        const userId = new URLSearchParams(window.location.search).get('userid');
+        const token = localStorage.getItem('token');
+    
+        try {
+            const response = await fetch('/api/userDetails', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`,
+                },
+                body: JSON.stringify({
+                    userId,
+                    name,
+                    email,
+                    phone,
+                    libraryCard,
+                }),
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to save user details');
+            }
+    
+            alert("Your changes have been saved.");
+        } catch (error) {
+            console.error('Error saving user details:', error);
+            alert('Error saving user details. Please try again.');
+        }
     }
 
-    document.getElementById('home-link').addEventListener('click', function() {
+    async function fetchCurrentLoans() {
         const userId = new URLSearchParams(window.location.search).get('userid');
-        window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
-    });
+        const token = localStorage.getItem('token');
+    
+        try {
+            const response = await fetch(`/api/userBorrowsDetails?userid=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to fetch current loans');
+            }
+    
+            const loans = await response.json();
+            displayCurrentLoans(loans);
+        } catch (error) {
+            console.error('Error fetching current loans:', error);
+            alert('Error fetching current loans. Please try again.');
+        }
+    }
 
-    document.getElementById('history-link').addEventListener('click', function() {
-        const userId = new URLSearchParams(window.location.search).get('userid');
-        window.location.href = `user_borrow_history.html?userid=${userId}`; // Redirect to books catalog with user ID
+    function displayCurrentLoans(loans) {
+        const loansList = document.querySelector('.borrowing-info ul');
+        loansList.innerHTML = '';
+    
+        if (loans.length === 0) {
+            loansList.innerHTML = '<li>No current loans.</li>';
+            return;
+        }
+    
+        loans.forEach(borrow => {
+            const listItem = document.createElement('li');
+            const dueDate = new Date(borrow.dueDate);
+            const formattedDueDate = `${dueDate.getUTCFullYear()}/${dueDate.getUTCMonth() + 1}/${dueDate.getUTCDate()}`;
+    
+            listItem.textContent = `"${borrow.title}" - ${borrow.authors.join(', ')} | Due: ${formattedDueDate}`;
+    
+            const renewLink = document.createElement('a');
+            renewLink.href = '#';
+            renewLink.className = 'renew-button';
+            renewLink.textContent = 'Renew';
+            renewLink.onclick = function() {
+                renewLoan(borrow._id);
+            };
+    
+            listItem.appendChild(renewLink);
+            loansList.appendChild(listItem);
+        });
+    }
+
+    async function renewLoan(borrowId) {
+        alert(`Renewing loan for ID: ${borrowId}`);
+        // Implement actual renewal logic here
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
+        });
+
+        fetchUserDetails(); // Fetch user details when the page loads
+        fetchCurrentLoans(); // Call to fetch current loans when the page loads
     });
 </script>
 

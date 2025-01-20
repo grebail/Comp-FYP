@@ -23,6 +23,7 @@ const UserBorrow = require('./models/bookBorrowSchema');
 const Comment = require('./models/commentSchema');
 const AdminBook = require('./models/adminBookSchema');
 const BookBuy = require('./models/buyBookSchema');
+const UserDetails = require('./models/userDetailsSchema');
 
 const app = express();
 const PORT = process.env.PORT || 9875
@@ -242,26 +243,7 @@ app.post('/api/userBorrows', authenticateToken, async (req, res) => {
 });
 
 
-// API endpoint to check borrowing status
-app.get('/api/userBorrows/check', authenticateToken, async(req, res) => {
-    const { googleId, userid } = req.query;
 
-    if (!googleId || !userid || userid !== req.user.id) {
-        return res.status(400).json({ error: 'Invalid request.' });
-    }
-
-    try {
-        const existingBorrow = await UserBorrow.findOne({ googleId, userid });
-        if (existingBorrow) {
-            return res.status(200).json({ borrowed: true, returned: existingBorrow.returned });
-        }
-
-        return res.status(200).json({ borrowed: false });
-    } catch (error) {
-        console.error('Error checking borrow status:', error);
-        return res.status(500).json({ error: 'Error checking borrow status' });
-    }
-});
 
 // API endpoint to update borrow status (return a book)
 app.put('/api/userBorrows/:id', authenticateToken, async(req, res) => {
@@ -1416,6 +1398,84 @@ app.delete('/api/deletePurchase/:id', async(req, res) => {
         return res.status(500).json({ error: 'Failed to delete purchase.' });
     }
 });
+
+// API endpoint to get user details
+
+app.get('/api/userDetails', authenticateToken, async (req, res) => {
+    const { userid } = req.query; // Make sure it matches 'userId' in your request
+
+    if (!userid) {
+        return res.status(400).json({ error: 'User ID is required.' });
+    }
+
+    try {
+        const userDetails = await UserDetails.findOne({ userId: userid });
+        if (!userDetails) {
+            return res.status(404).json({ error: 'User details not found.' });
+        }
+        return res.status(200).json(userDetails);
+    } catch (error) {
+        console.error('Error fetching user details:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+});
+// API endpoint to save user details
+app.post('/api/userDetails', authenticateToken, async (req, res) => {
+    const { userId, name, email, phone, libraryCard } = req.body;
+
+    // Validate request body
+    if (!userId || !name || !email || !phone || !libraryCard) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    try {
+        // Check if the user details already exist for this userId
+        let userDetails = await UserDetails.findOne({ userId });
+
+        if (userDetails) {
+            // If user details exist, update them
+            userDetails.name = name;
+            userDetails.email = email;
+            userDetails.phone = phone;
+            userDetails.libraryCard = libraryCard;
+            await userDetails.save();
+            return res.status(200).json({ message: 'User details updated successfully.' });
+        } else {
+            // If user details do not exist, create a new record
+            userDetails = new UserDetails({
+                userId,
+                name,
+                email,
+                phone,
+                libraryCard,
+            });
+            await userDetails.save();
+            return res.status(201).json({ message: 'User details saved successfully.' });
+        }
+    } catch (error) {
+        console.error('Error saving user details:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+});
+// API endpoint to get loan details for a specific user
+app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
+    const { userid } = req.query;
+
+    // Check if the user has permission to access their borrow history
+    if (!userid || userid !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to view this borrow history.' });
+    }
+
+    try {
+        // Fetch only the books that are currently borrowed (not returned)
+        const borrows = await UserBorrow.find({ userid: userid, returned: false });
+        res.json(borrows);
+    } catch (error) {
+        console.error('Error fetching borrow history:', error);
+        res.status(500).json({ error: 'Failed to fetch borrow history.' });
+    }
+});
+
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);
