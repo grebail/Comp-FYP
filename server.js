@@ -36,7 +36,7 @@ const SECRET_KEY = 'your_secure_secret_key';
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:9875',
+    origin: '*',
     credentials: true
 }));
 app.use(bodyParser.json());
@@ -569,7 +569,7 @@ app.post('/users', async(req, res) => {
 passport.use(new GoogleStrategy({
     clientID: '196205826526-a5i6cv0vp224tndtobsbep676cn537hm.apps.googleusercontent.com',
     clientSecret: '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',
-    callbackURL: "http://localhost:9875/auth/google/callback",
+    callbackURL: "https://comp-fyp.onrender.com/auth/google/callback",
     passReqToCallback: true
 }, async(request, accessToken, refreshToken, profile, done) => {
     try {
