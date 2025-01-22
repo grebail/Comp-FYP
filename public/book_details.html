@@ -13,7 +13,7 @@
             background-color: #f4f4f4;
             color: #333;
         }
-        
+
         header {
             background: linear-gradient(to right, #1565c0, #1e88e5);
             color: #fff;
@@ -21,20 +21,20 @@
             text-align: center;
             border-bottom: 5px solid #388e3c;
         }
-        
+
         .book-cover {
             max-width: 200px;
             height: auto;
             margin-bottom: 15px;
         }
-        
+
         .book-details {
             background-color: white;
             padding: 15px;
             border-radius: 5px;
             box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
         }
-        
+
         .borrow-button {
             display: block;
             margin-top: 20px;
@@ -47,11 +47,11 @@
             text-decoration: none;
             color: black;
         }
-        
+
         .borrow-button:hover {
             background-color: #e6b800;
         }
-        
+
         .back-button {
             margin-top: 20px;
             padding: 10px;
@@ -61,17 +61,17 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        
+
         .back-button:hover {
             background-color: #0d47a1;
         }
-        
+
         footer {
             margin-top: 20px;
             text-align: center;
             clear: both;
         }
-        
+
         #qrCode {
             margin-top: 20px;
             width: 200px;
@@ -111,7 +111,7 @@
             return fetch(endpoint)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Book not found');
+                        throw new Error(`Error ${response.status}: Book not found.`);
                     }
                     return response.json();
                 });
@@ -123,7 +123,7 @@
                 displayBookDetails(book);
             })
             .catch(() => {
-                // Try fetching by ISBN if googleId fails
+                // Skip the error and try fetching by ISBN if googleId fails
                 fetchBookDetails(isbn, true)
                     .then(book => {
                         displayBookDetails(book);

@@ -829,22 +829,42 @@ app.get('/api/books', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to get book details by googleId
-app.get('/api/books/:googleId', async(req, res) => {
+// API endpoint to get book details by googleId
+app.get('/api/books/:googleId', async (req, res) => {
     const { googleId } = req.params;
+    console.log('Received googleId:', googleId);
 
     try {
+        // First, check if the book exists in the local database
         const book = await Book.findOne({ googleId });
-
-        if (!book) {
-            return res.status(404).json({ error: 'Book not found' });
+        
+        if (book) {
+            // If the book is found in the database, return it
+            return res.json(book);
         }
 
-        res.json(book);
+        // If the book is not found in the database, fetch from Google Books API
+        const googleBooksApiUrl = `https://www.googleapis.com/books/v1/volumes/${googleId}?key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`;
+        console.log('Fetching from URL:', googleBooksApiUrl);
+        const response = await axios.get(googleBooksApiUrl);
+        
+        if (!response.data || !response.data.volumeInfo) {
+            return res.status(404).json({ error: 'Book not found in Google Books API response' });
+        }
+
+        // Optionally, you can save the fetched book to your database here
+        // const newBook = new Book(response.data.volumeInfo);
+        // await newBook.save();
+
+        // Return the book details from Google Books API
+        res.json(response.data.volumeInfo);
     } catch (error) {
-        console.error('Error fetching book details:', error);
+        console.error('Error fetching book details:', error.message);
         res.status(500).json({ error: 'Error fetching book details' });
     }
 });
+
+
 // API endpoint to get book details by ISBN
 app.get('/api/books/isbn/:isbn', async(req, res) => {
     const { isbn } = req.params;
