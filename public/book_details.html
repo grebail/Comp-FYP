@@ -164,7 +164,7 @@
         function generateQRCode() {
             console.log('Generating QR code...');
 
-            const qrCodeValue = `http://localhost:9875/user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${isbn}`;
+            const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${isbn}`;
 
             const qrCodeElement = document.getElementById('qrCode');
             qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;

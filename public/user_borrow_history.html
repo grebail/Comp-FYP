@@ -321,7 +321,7 @@
             const token = localStorage.getItem('token');
 
             try {
-                const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
+                const response = await fetch(`https://comp-fyp.onrender.com/api/userBorrows/${borrowId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -347,7 +347,7 @@
             const token = localStorage.getItem('token');
 
             try {
-                const response = await fetch(`http://localhost:9875/api/userBorrows/${borrowId}`, {
+                const response = await fetch(`https://comp-fyp.onrender.com/api/userBorrows/${borrowId}`, {
                     method: 'PUT',
                     headers: {
                         'Content-Type': 'application/json',
@@ -444,7 +444,7 @@
 
             const token = localStorage.getItem('token');
             let method = 'POST';
-            let url = `http://localhost:9875/api/comments`;
+            let url = `https://comp-fyp.onrender.com/api/comments`;
             let body = JSON.stringify({ bookId: currentBookId, rating: rating, comment: comment });
 
             if (currentCommentId) {
