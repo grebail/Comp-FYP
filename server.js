@@ -535,7 +535,7 @@ app.post('/login', async(req, res) => {
 
 
         const redirectUrl = user.role === 'admin' ? '/admin.html' :
-            user.role === 'librarian' ? `http://localhost:9875/index_logined.html?userid=${user._id}` : `http://localhost:9875/index_userlogined.html?userid=${user._id}`;
+            user.role === 'librarian' ? `https://comp-fyp.onrender.com/index_logined.html?userid=${user._id}` : `https://comp-fyp.onrender.com/index_userlogined.html?userid=${user._id}`;
         return res.json({ token, redirect: redirectUrl });
     } catch (error) {
         console.error('Login error:', error);
