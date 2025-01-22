@@ -611,7 +611,7 @@ app.get('/auth/google/callback',
     (req, res) => {
         const token = jwt.sign({ id: req.user._id, role: req.user.role }, SECRET_KEY, { expiresIn: '1h' });
         // Redirect directly to index.html with the user ID as a query parameter
-        res.redirect(`http://localhost:9875/index_logined.html?userid=${req.user._id}`);
+        res.redirect(`https://comp-fyp.onrender.com/index_logined.html?userid=${req.user._id}`);
     }
 );
 
