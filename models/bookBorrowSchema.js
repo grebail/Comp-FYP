@@ -18,7 +18,6 @@ const bookBorrowSchema = new mongoose.Schema({
     },
     googleId: {
         type: String,
-        required: true,
     },
     title: {
         type: String,
