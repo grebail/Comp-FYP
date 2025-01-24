@@ -172,6 +172,7 @@ Library Team`;
 
 // Scheduled task to send reminder emails
 cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
+    console.log('Cron job started at:', new Date());
     try {
         const today = new Date();
         const threeDaysFromNow = new Date(today);
@@ -192,7 +193,7 @@ cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
         console.error('Error sending scheduled emails:', error.message);
     }
 });
-
+console.log('Cron job finished at:', new Date());
 // Send email route
 app.post('/send-email', async (req, res) => {
     try {
