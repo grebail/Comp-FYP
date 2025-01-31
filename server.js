@@ -16,6 +16,7 @@ const fs = require('fs');
 const csv = require('csv-parser');
 require('dotenv').config();
 
+const cron = require('node-cron');
 const base64url = require('base64-url');
 const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
@@ -77,10 +78,117 @@ const authUrl = oauth2Client.generateAuthUrl({
 });
 
 console.log('Authorize this app by visiting this url:', authUrl);
-// Set the refresh token
-oauth2Client.setCredentials({
-    refresh_token: '1//04t2NpS9k9vy_CgYIARAAGAQSNwF-L9Ir5SWysiyTCHoK6ZKYzFdnBI4Onm4-hpR0y_MdtNIZEVZePQE-sHPZpRbsUoT4ld7_hMk' // Replace with your Refresh Token
+// Function to set refresh token and get access token
+async function getAccessToken() {
+    // Replace with logic to fetch and set the refresh token
+    oauth2Client.setCredentials({
+        refresh_token: '1//04t2NpS9k9vy_CgYIARAAGAQSNwF-L9Ir5SWysiyTCHoK6ZKYzFdnBI4Onm4-hpR0y_MdtNIZEVZePQE-sHPZpRbsUoT4ld7_hMk' // Replace with your Refresh Token
+    });
+
+    // Get access token
+    try {
+        const { token } = await oauth2Client.getAccessToken();
+        if (!token) {
+            throw new Error('Failed to obtain access token.');
+        }
+        return token;
+    } catch (error) {
+        console.error('Error getting access token:', error);
+        throw error; // Re-throw to handle it upstream
+    }
+}
+
+// Function to send email
+async function sendEmail(userDetails) {
+    try {
+        const fromAddress = 'abbichiu@gmail.com'; // Sender email
+        const toAddress = userDetails.email;       // Recipient email from the user details
+
+        if (!toAddress) {
+            throw new Error('Recipient address is required.');
+        }
+
+        // Compose the email including the current loans
+        let loanDetailsText = 'Current Loans:\n\n';
+        
+        userDetails.currentLoans.forEach((loan, index) => {
+            loanDetailsText += `Loan ${index + 1}:\n`;
+            loanDetailsText += `Title: ${loan.details.title}\n`;
+            loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
+            loanDetailsText += `Borrow Date: ${loan.details.borrowDate}\n`;
+            loanDetailsText += `Due Date: ${loan.details.dueDate}\n`;
+            loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
+            loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
+        });
+
+        const email = `From: ${fromAddress}
+To: ${toAddress}
+Subject: Your Current Loan Details
+
+Hello ${userDetails.name},
+
+Here are your current loan details:
+
+${loanDetailsText}
+
+Best regards,
+Library Team`;
+
+        console.log('Email:', email);
+
+        // Encode the email in Base64 URL format
+        const encodedEmail = base64url.encode(email);
+  
+        // Prepare the request body
+        const requestBody = {
+            raw: encodedEmail,
+        };
+        console.log('Request Body:', requestBody);
+
+        // Get access token
+        const accessToken = await getAccessToken(); // Ensure this function gets your access token
+        console.log('Access Token:', accessToken);
+
+        // Send the email using the Gmail API
+        const response = await axios.post('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', requestBody, {
+            headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+            },
+        });
+       // Log success message
+        console.log(`Email sent successfully to ${toAddress}. Message ID: ${response.data.id}`);
+        return response.data.id; // Return the message ID
+    } catch (error) {
+        console.error('Error details:', error.response ? error.response.data : error.message);
+        throw new Error('Error sending email');
+    }
+}
+
+// Scheduled task to send reminder emails
+cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
+    try {
+        const today = new Date();
+        const threeDaysFromNow = new Date(today);
+        threeDaysFromNow.setDate(today.getDate() + 3);
+
+        // Fetch users with loans due in the next 3 days
+        const usersWithLoans = await UserDetails.find({
+            'currentLoans.details.dueDate': {
+                $gte: today,
+                $lt: threeDaysFromNow
+            }
+        });
+
+        for (const user of usersWithLoans) {
+            await sendEmail(user);
+        }
+    } catch (error) {
+        console.error('Error sending scheduled emails:', error.message);
+    }
 });
+
+//send email
 app.post('/send-email', async (req, res) => {
     try {
         // Fetch user details from the database (you can modify the query as needed)
@@ -153,6 +261,7 @@ Library Team`;
     }
 });
 
+//get email by id
   app.get('/get-email/:id', async (req, res) => {
     const messageId = req.params.id;
 
@@ -172,16 +281,7 @@ Library Team`;
         res.status(500).send('Error fetching email details');
     }
 });
-// Function to get a new access token
-async function getAccessToken() {
-    try {
-        const { token } = await oauth2Client.getAccessToken();
-        return token;
-    } catch (error) {
-        console.error('Error refreshing access token:', error);
-        throw error;
-    }
-}
+
 
 // Assuming you have your Book model defined
 const countBooks = async() => {
@@ -1645,81 +1745,10 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     }
 });
 
-// Function to send an email using the Gmail API
-async function sendEmail(accessToken, userEmail, recipientEmail, subject, message) {
-
-    // Construct the email in plain text format
-    const email = [
-        `From: abbichiu@gmail.com`, // Fixed sender email
-        `To: ${recipientEmail}`,
-        `Subject: ${subject}`,
-        '',
-        message,
-    ].join('\n');
 
 
-    // Encode the email in base64url format
-    const base64EncodedEmail = Buffer.from(email).toString('base64url');
 
-    // Configure the request to the Gmail API
-    const requestConfig = {
-        method: 'POST',
-        url: 'https://gmail.googleapis.com/gmail/v1/users/me/messages/send',
-        headers: {
-            Authorization: `Bearer ${accessToken}`, // Use the received access token
-            'Content-Type': 'application/json',
-        },
-        data: {
-            raw: base64EncodedEmail, // Email body in base64url format
-        },
-    };
 
-    // Send the email using Axios
-    try {
-        const response = await axios(requestConfig);
-        console.log(`Email sent: ${response.data}`);
-    } catch (error) {
-        console.error('Error sending email:', error.response ? error.response.data : error.message);
-    }
-}
-
-// Function to send loan reminder emails
-async function sendLoanReminders() {
-    try {
-        const users = await UserDetails.find(); // Fetch all user details
-
-        for (const user of users) {
-            if (user.currentLoans && user.currentLoans.length > 0) {
-                const loanDetails = user.currentLoans.map(loan => {
-                    return `Title: ${loan.details.title}, Due Date: ${loan.details.dueDate}`;
-                }).join('\n');
-
-                // Get a new access token (implement this according to your OAuth2 setup)
-                const accessToken = await getAccessToken();
-
-                // Send the email with loan details
-                await sendEmail(
-                    accessToken, // Access token
-                    user.email, // Recipient's email
-                    'Loan Reminder', // Email subject
-                    `Dear ${user.name},\n\nYou have the following current loans:\n${loanDetails}\n\nPlease make sure to return them by the due date.\n\nThank you!`
-                );
-            }
-        }
-    } catch (error) {
-        console.error('Error sending loan reminders:', error.message);
-    }
-}
-
-// Endpoint to trigger sending reminders
-app.get('/send-reminders', async (req, res) => {
-    try {
-        await sendLoanReminders();
-        res.send('Loan reminders sent successfully!');
-    } catch (error) {
-        res.status(500).send('Error sending reminders: ' + error.message);
-    }
-});
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);
