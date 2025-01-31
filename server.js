@@ -97,6 +97,10 @@ async function getAccessToken() {
         throw error; // Re-throw to handle it upstream
     }
 }
+// Function to format date in UTC
+function formatDateToUTC(date) {
+    return new Date(date).toUTCString(); // Converts date to UTC string format
+}
 
 // Function to send email
 async function sendEmail(userDetails) {
@@ -115,8 +119,8 @@ async function sendEmail(userDetails) {
             loanDetailsText += `Loan ${index + 1}:\n`;
             loanDetailsText += `Title: ${loan.details.title}\n`;
             loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
-            loanDetailsText += `Borrow Date: ${loan.details.borrowDate}\n`;
-            loanDetailsText += `Due Date: ${loan.details.dueDate}\n`;
+            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.details.borrowDate)}\n`; // Convert to UTC
+            loanDetailsText += `Due Date: ${formatDateToUTC(loan.details.dueDate)}\n`;     // Convert to UTC
             loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
             loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
         });
@@ -156,7 +160,8 @@ Library Team`;
                 'Content-Type': 'application/json',
             },
         });
-       // Log success message
+
+        // Log success message
         console.log(`Email sent successfully to ${toAddress}. Message ID: ${response.data.id}`);
         return response.data.id; // Return the message ID
     } catch (error) {
@@ -170,13 +175,13 @@ cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
     try {
         const today = new Date();
         const threeDaysFromNow = new Date(today);
-        threeDaysFromNow.setDate(today.getDate() + 3);
+        threeDaysFromNow.setUTCDate(today.getUTCDate() + 3); // Use UTC dates
 
         // Fetch users with loans due in the next 3 days
         const usersWithLoans = await UserDetails.find({
             'currentLoans.details.dueDate': {
-                $gte: today,
-                $lt: threeDaysFromNow
+                $gte: today.toISOString(), // Use ISO string for comparison
+                $lt: threeDaysFromNow.toISOString(),
             }
         });
 
@@ -188,7 +193,7 @@ cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
     }
 });
 
-//send email
+// Send email route
 app.post('/send-email', async (req, res) => {
     try {
         // Fetch user details from the database (you can modify the query as needed)
@@ -212,8 +217,8 @@ app.post('/send-email', async (req, res) => {
             loanDetailsText += `Loan ${index + 1}:\n`;
             loanDetailsText += `Title: ${loan.details.title}\n`;
             loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
-            loanDetailsText += `Borrow Date: ${loan.details.borrowDate}\n`;
-            loanDetailsText += `Due Date: ${loan.details.dueDate}\n`;
+            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.details.borrowDate)}\n`; // Convert to UTC
+            loanDetailsText += `Due Date: ${formatDateToUTC(loan.details.dueDate)}\n`; // Convert to UTC
             loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
             loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
         });
@@ -260,6 +265,7 @@ Library Team`;
         res.status(500).send('Error sending email');
     }
 });
+
 
 //get email by id
   app.get('/get-email/:id', async (req, res) => {
