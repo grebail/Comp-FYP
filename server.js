@@ -610,6 +610,7 @@ app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'em
 app.get('/auth/google/callback',
     passport.authenticate('google', { failureRedirect: '/login' }),
     (req, res) => {
+        console.log('Authenticated user:', req.user); // Add this line
         const token = jwt.sign({ id: req.user._id, role: req.user.role }, SECRET_KEY, { expiresIn: '1h' });
         // Redirect directly to index.html with the user ID as a query parameter
         res.redirect(`https://comp-fyp.onrender.com/index_logined.html?userid=${req.user._id}`);
