@@ -63,7 +63,8 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
 
 
 // Set the SendGrid API Key (replace with your actual API key)
-sgMail.setApiKey('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');
+email_apikey='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'
+sgMail.setApiKey = email_apikey;
 
 
 // Create OAuth2 client with hard-coded credentials
