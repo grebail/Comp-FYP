@@ -59,6 +59,8 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .then(() => console.log('MongoDB connected'))
     .catch(err => console.error('MongoDB connection error:', err));
 
+
+
 // Create OAuth2 client with hard-coded credentials
 const oauth2Client = new OAuth2(
     '196205826526-a5i6cv0vp224tndtobsbep676cn537hm.apps.googleusercontent.com',       // Replace with your Client ID
@@ -1774,7 +1776,10 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
 });
 
 
-
+// Route to serve the Google verification file
+app.get('/google56342aab9c608962.html', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'google56342aab9c608962.html'));
+});
 
 
 // Start server and create default admin
