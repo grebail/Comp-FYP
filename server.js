@@ -1781,6 +1781,11 @@ app.get('/google56342aab9c608962.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'google56342aab9c608962.html'));
 });
 
+// Route to redirect to the Privacy Policy URL
+app.get('/privacy-policy', (req, res) => {
+    res.redirect('https://www.privacypolicies.com/live/6aa4161f-bbe8-407c-aefe-24659a864dc3');
+});
+
 
 // Start server and create default admin
 app.listen(PORT, async() => {
