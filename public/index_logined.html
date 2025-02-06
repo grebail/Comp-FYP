@@ -312,53 +312,77 @@
     </footer>
 
     <script>
-        // Check if user is logged in
-        window.onload = function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = 'login.html'; // Redirect to login if not logged in
-            }
-        };
+       // Check if the user is logged in
+window.onload = async function () {
+    const token = localStorage.getItem('token');
+    const userId = new URLSearchParams(window.location.search).get('userid');
 
-        // Logout Button
-        document.getElementById('logout-button').addEventListener('click', function(event) {
-            event.preventDefault(); // Prevent default link behavior
-            localStorage.removeItem('token'); // Remove the token from local storage
-            window.location.href = 'login.html'; // Redirect to login page
+    if (!token || !userId) {
+        console.error('Token or user ID is missing. Redirecting to login...');
+        window.location.href = 'login.html'; // Redirect to login if not logged in
+        return;
+    }
+
+    // Optional: Validate the token by sending a request to the server
+    try {
+        const response = await fetch('https://comp-fyp.onrender.com/api/validate-token', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`
+            }
         });
 
-        // Slide container
-        const slides = document.querySelectorAll('.slide');
-        var currentIndex = 0;
-
-        // Function to show the current slide
-        function showSlide(index) {
-            slides.forEach((slide, i) => {
-                slide.classList.remove('active'); // Hide all slides
-                if (i === index) {
-                    slide.classList.add('active'); // Show the current slide
-                }
-            });
+        if (!response.ok) {
+            console.error('Invalid token. Redirecting to login...');
+            localStorage.removeItem('token'); // Remove invalid token
+            window.location.href = 'login.html'; // Redirect to login
         }
+    } catch (error) {
+        console.error('Error validating token:', error);
+        window.location.href = 'login.html'; // Redirect on error
+    }
+};
 
-        // Function to change the slide automatically
-        function nextSlide() {
-            currentIndex += 1; // Move to the next index
-            if (currentIndex >= slides.length) { // Return to the first index
-                currentIndex = 0;
-            }
-            showSlide(currentIndex); // Show the current slide
+// Logout Button
+document.getElementById('logout-button').addEventListener('click', function (event) {
+    event.preventDefault(); // Prevent default link behavior
+    localStorage.removeItem('token'); // Remove the token from localStorage
+    window.location.href = 'login.html'; // Redirect to login page
+});
+
+// Slide container
+const slides = document.querySelectorAll('.slide');
+var currentIndex = 0;
+
+// Function to show the current slide
+function showSlide(index) {
+    slides.forEach((slide, i) => {
+        slide.classList.remove('active'); // Hide all slides
+        if (i === index) {
+            slide.classList.add('active'); // Show the current slide
         }
+    });
+}
 
-        // Initialize the slideshow
-        showSlide(currentIndex); // Show the first slide
-        setInterval(nextSlide, 3000); // Change slide every 3 seconds
+// Function to change the slide automatically
+function nextSlide() {
+    currentIndex += 1; // Move to the next index
+    if (currentIndex >= slides.length) { // Return to the first index
+        currentIndex = 0;
+    }
+    showSlide(currentIndex); // Show the current slide
+}
 
-        // Books link redirect
-        document.getElementById('books-link').addEventListener('click', function() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `books-catalog.html?userid=${userId}`; // Redirect to books catalog with user ID
-        });
+// Initialize the slideshow
+showSlide(currentIndex); // Show the first slide
+setInterval(nextSlide, 3000); // Change slide every 3 seconds
+
+// Books link redirect
+document.getElementById('books-link').addEventListener('click', function () {
+    const userId = new URLSearchParams(window.location.search).get('userid');
+    window.location.href = `books-catalog.html?userid=${userId}`; // Redirect to books catalog with user ID
+});
     </script>
 
 </html>

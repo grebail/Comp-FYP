@@ -315,22 +315,46 @@
         <p>&copy 2024 Smart Library. All rights reserved.</p>
     </footer>
 
-    <script>
-        // Check if user is logged in
-        window.onload = function() {
-            const token = localStorage.getItem('token');
-            if (!token) {
-                window.location.href = 'login.html'; // Redirect to login if not logged in
+ 
+ <script>
+    
+    window.onload = function () {
+        // Extract token and userid from the query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        const userId = urlParams.get('userid');
+    
+        if (token) {
+            // Save the token to localStorage for future requests
+            localStorage.setItem('token', token);
+            console.log('Token saved to localStorage:', token);
+        } else {
+            // Use the token from localStorage if available
+            const storedToken = localStorage.getItem('token');
+            if (!storedToken) {
+                console.error('No token found in URL or localStorage. Redirecting to login...');
+                window.location.href = 'login.html'; // Redirect to login if no token is found
+                return; // Stop further execution
+            } else {
+                console.log('Token found in localStorage:', storedToken);
             }
-        };
-
+        }
+    
+        // Log the userId for debugging purposes
+        if (userId) {
+            console.log('User ID:', userId);
+        } else {
+            console.error('No user ID found in URL.');
+        }
+    };
+    
         // Logout Button
-        document.getElementById('logout-button').addEventListener('click', function(event) {
+        document.getElementById('logout-button').addEventListener('click', function (event) {
             event.preventDefault(); // Prevent default link behavior
             localStorage.removeItem('token'); // Remove the token from local storage
             window.location.href = 'login.html'; // Redirect to login page
         });
-
+   
         // Slide container
         const slides = document.querySelectorAll('.slide');
         var currentIndex = 0;
@@ -368,6 +392,6 @@
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to books catalog with user ID
         });
+    
     </script>
-
 </html>

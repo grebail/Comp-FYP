@@ -49,8 +49,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use(session({
     secret: 'your_session_secret',
     resave: false,
-    saveUninitialized: true,
-    cookie: { secure: true }
+    saveUninitialized: false,
+    cookie: { secure: false }
 }));
 
 app.use(passport.initialize());
@@ -63,7 +63,11 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .catch(err => console.error('MongoDB connection error:', err));
 
 
-
+app.use(session({
+        secret: 'your_secret_key',
+        resave: false,
+        saveUninitialized: false
+    }));
 
 
 // Create OAuth2 client with hard-coded credentials
@@ -488,55 +492,88 @@ app.post('/users', async(req, res) => {
 });
 
 // Passport configuration for Google
+
 passport.use(new GoogleStrategy({
     clientID: '196205826526-a5i6cv0vp224tndtobsbep676cn537hm.apps.googleusercontent.com',
     clientSecret: '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',
-    callbackURL: "https://comp-fyp.onrender.com/auth/google/callback",
+    callbackURL: 'https://comp-fyp.onrender.com/auth/google/callback',
     passReqToCallback: true
-}, async(request, accessToken, refreshToken, profile, done) => {
+}, async (request, accessToken, refreshToken, profile, done) => {
     try {
-        let existingUser = await User.findOne({ googleId: profile.id });
-        if (existingUser) {
-            return done(null, existingUser); // Pass the user directly
+        // Check if the user already exists
+       
+            console.log('Google profile:', profile);
+    
+            let user = await User.findOne({ googleId: profile.id });
+            if (user) {
+                console.log('Existing user:', user);
+                return done(null, user);
+            }
+    
+            user = new User({
+                username: profile.displayName,
+                googleId: profile.id,
+                role: 'user'
+            });
+            await user.save();
+            console.log('New user created:', user);
+            return done(null, user);
+        } catch (err) {
+            console.error('Error in GoogleStrategy:', err);
+            return done(err, null);
         }
-        const newUser = new User({
-            username: profile.displayName,
-            googleId: profile.id,
-            role: 'user'
-        });
-        await newUser.save();
-        console.log(`User created via Google: ${newUser.username}`);
-        return done(null, newUser);
-    } catch (error) {
-        return done(error, null);
-    }
+    
 }));
-
+// Serialize User
 passport.serializeUser((user, done) => {
-    done(null, user._id); // Serialize the user ID
+    console.log('Serializing user:', user);
+    done(null, user.id || user._id);
 });
 
-passport.deserializeUser(async(id, done) => {
+// Deserialize User
+passport.deserializeUser(async (id, done) => {
+    console.log('Deserializing user with ID:', id);
     try {
         const user = await User.findById(id);
+        console.log('Deserialized user:', user);
         done(null, user);
-    } catch (error) {
-        done(error, null);
+    } catch (err) {
+        console.error('Error in deserializeUser:', err);
+        done(err, null);
     }
 });
 
-// Google auth routes
-app.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
 
-app.get('/auth/google/callback',
+// Google auth routes
+app.get('/auth/google', (req, res, next) => {
+    console.log('Initiating Google authentication...');
+    next();
+}, passport.authenticate('google', { scope: ['profile', 'email'] }));
+
+app.get('/auth/google/callback', 
     passport.authenticate('google', { failureRedirect: '/login' }),
     (req, res) => {
-        console.log('Authenticated user:', req.user); // Add this line
+        console.log('Google authentication successful. req.user:', req.user);
+
+        if (!req.user) {
+            console.error('Authentication successful, but req.user is undefined. Redirecting to /login.');
+            return res.redirect('/login');
+        }
+
+        // Generate JWT token
         const token = jwt.sign({ id: req.user._id, role: req.user.role }, SECRET_KEY, { expiresIn: '1h' });
-        // Redirect directly to index.html with the user ID as a query parameter
-        res.redirect(`https://comp-fyp.onrender.com/index_logined.html?userid=${req.user._id}`);
+        console.log('Generated JWT token:', token);
+
+        // Determine redirect URL
+        const redirectUrl = req.user.role === 'admin' ? '/admin.html' :
+            req.user.role === 'librarian' ? `https://comp-fyp.onrender.com/index_logined.html?userid=${req.user._id}&token=${token}` :
+            `https://comp-fyp.onrender.com/index_userlogined.html?userid=${req.user._id}&token=${token}`;
+
+        console.log(`Redirecting user with role "${req.user.role}" to: ${redirectUrl}`);
+        res.redirect(redirectUrl);
     }
 );
+
 
 // User Management (admin only)
 app.get('/users', authenticateToken, async(req, res) => {
@@ -1402,6 +1439,10 @@ app.post('/api/importBooks', upload.single('file'), async(req, res) => {
         return res.status(400).json({ error: 'No valid input provided. Please upload a file or provide JSON.' });
     }
 });
+
+function newFunction() {
+    return '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';
+}
 
 async function processBooks(books, errors) {
     const userId = 'defaultUserId'; // Replace with a valid user ID if needed
