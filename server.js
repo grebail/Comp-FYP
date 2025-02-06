@@ -63,7 +63,7 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .catch(err => console.error('MongoDB connection error:', err));
 
 
-// Set the SendGrid API Key (replace with your actual API key)
+
 
 
 console.log('SendGrid API Key:', process.env.SENDGRID_API_KEY);
