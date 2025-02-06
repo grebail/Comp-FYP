@@ -17,6 +17,7 @@ const csv = require('csv-parser');
 require('dotenv').config();
 
 const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const cron = require('node-cron');
 const base64url = require('base64-url');
@@ -63,8 +64,11 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
 
 
 // Set the SendGrid API Key (replace with your actual API key)
-email_apikey='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'
-sgMail.setApiKey = email_apikey;
+
+
+console.log('SendGrid API Key:', process.env.SENDGRID_API_KEY);
+
+
 
 
 // Create OAuth2 client with hard-coded credentials
