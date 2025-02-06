@@ -16,6 +16,8 @@ const fs = require('fs');
 const csv = require('csv-parser');
 require('dotenv').config();
 
+const sgMail = require('@sendgrid/mail');
+
 const cron = require('node-cron');
 const base64url = require('base64-url');
 const nodemailer = require('nodemailer');
@@ -60,6 +62,9 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
     .catch(err => console.error('MongoDB connection error:', err));
 
 
+// Set the SendGrid API Key (replace with your actual API key)
+sgMail.setApiKey('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');
+
 
 // Create OAuth2 client with hard-coded credentials
 const oauth2Client = new OAuth2(
@@ -99,16 +104,16 @@ async function getAccessToken() {
         throw error; // Re-throw to handle it upstream
     }
 }
-// Function to format date in UTC
+// Utility function to format date in UTC
 function formatDateToUTC(date) {
     return new Date(date).toUTCString(); // Converts date to UTC string format
 }
 
-// Function to send email
+// Function to send email using SendGrid
 async function sendEmail(userDetails) {
     try {
         const fromAddress = 'abbichiu@gmail.com'; // Sender email
-        const toAddress = userDetails.email;       // Recipient email from the user details
+        const toAddress = userDetails.email;     // Recipient email from user details
 
         if (!toAddress) {
             throw new Error('Recipient address is required.');
@@ -116,7 +121,6 @@ async function sendEmail(userDetails) {
 
         // Compose the email including the current loans
         let loanDetailsText = 'Current Loans:\n\n';
-        
         userDetails.currentLoans.forEach((loan, index) => {
             loanDetailsText += `Loan ${index + 1}:\n`;
             loanDetailsText += `Title: ${loan.details.title}\n`;
@@ -127,10 +131,7 @@ async function sendEmail(userDetails) {
             loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
         });
 
-        const email = `From: ${fromAddress}
-To: ${toAddress}
-Subject: Your Current Loan Details
-
+        const emailContent = `
 Hello ${userDetails.name},
 
 Here are your current loan details:
@@ -140,34 +141,22 @@ ${loanDetailsText}
 Best regards,
 Library Team`;
 
-        console.log('Email:', email);
-
-        // Encode the email in Base64 URL format
-        const encodedEmail = base64url.encode(email);
-  
-        // Prepare the request body
-        const requestBody = {
-            raw: encodedEmail,
+        // Create the email object for SendGrid
+        const msg = {
+            to: toAddress, // Recipient email
+            from: fromAddress, // Sender email
+            subject: 'Loan Due Reminder: Your Current Loan Details',
+            text: emailContent, // Plain text body
+            html: `<pre>${emailContent}</pre>`, // HTML body (optional for better formatting)
         };
-        console.log('Request Body:', requestBody);
 
-        // Get access token
-        const accessToken = await getAccessToken(); // Ensure this function gets your access token
-        console.log('Access Token:', accessToken);
+        // Send email using SendGrid
+        const response = await sgMail.send(msg);
 
-        // Send the email using the Gmail API
-        const response = await axios.post('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', requestBody, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        // Log success message
-        console.log(`Email sent successfully to ${toAddress}. Message ID: ${response.data.id}`);
-        return response.data.id; // Return the message ID
+        console.log(`Email sent successfully to ${toAddress}. Response:`, response);
+        return response;
     } catch (error) {
-        console.error('Error details:', error.response ? error.response.data : error.message);
+        console.error('Error sending email:', error.response ? error.response.body : error.message);
         throw new Error('Error sending email');
     }
 }
@@ -185,8 +174,13 @@ cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
             'currentLoans.details.dueDate': {
                 $gte: today.toISOString(), // Use ISO string for comparison
                 $lt: threeDaysFromNow.toISOString(),
-            }
+            },
         });
+
+        if (usersWithLoans.length === 0) {
+            console.log('No users with loans due in the next 3 days.');
+            return;
+        }
 
         for (const user of usersWithLoans) {
             await sendEmail(user);
@@ -194,103 +188,28 @@ cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
     } catch (error) {
         console.error('Error sending scheduled emails:', error.message);
     }
+    console.log('Cron job finished at:', new Date());
 });
-console.log('Cron job finished at:', new Date());
-// Send email route
+
+// Route to manually send an email
 app.post('/send-email', async (req, res) => {
     try {
-        // Fetch user details from the database (you can modify the query as needed)
+        // Fetch user details from the database (modify query as needed)
         const userDetails = await UserDetails.findOne(); // Fetch the first user for demonstration
 
         if (!userDetails) {
             return res.status(404).send('No user found.');
         }
 
-        const fromAddress = 'abbichiu@gmail.com'; // Sender email
-        const toAddress = userDetails.email;       // Recipient email from the user details
+        // Send email
+        await sendEmail(userDetails);
 
-        if (!toAddress) {
-            return res.status(400).send('Recipient address is required.');
-        }
-
-        // Compose the email including the current loans
-        let loanDetailsText = 'Current Loans:\n\n';
-        
-        userDetails.currentLoans.forEach((loan, index) => {
-            loanDetailsText += `Loan ${index + 1}:\n`;
-            loanDetailsText += `Title: ${loan.details.title}\n`;
-            loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
-            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.details.borrowDate)}\n`; // Convert to UTC
-            loanDetailsText += `Due Date: ${formatDateToUTC(loan.details.dueDate)}\n`; // Convert to UTC
-            loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
-            loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
-        });
-
-        const email = `From: ${fromAddress}
-To: ${toAddress}
-Subject: Your Current Loan Details
-
-Hello ${userDetails.name},
-
-Here are your current loan details:
-
-${loanDetailsText}
-
-Best regards,
-Library Team`;
-
-        console.log('Email:', email);
-
-        // Encode the email in Base64 URL format
-        const encodedEmail = base64url.encode(email);
-  
-        // Prepare the request body
-        const requestBody = {
-            raw: encodedEmail,
-        };
-        console.log('Request Body:', requestBody);
-
-        // Get access token
-        const accessToken = await getAccessToken(); // Ensure this function gets your access token
-        console.log('Access Token:', accessToken);
-
-        // Send the email using the Gmail API
-        const response = await axios.post('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', requestBody, {
-            headers: {
-                Authorization: `Bearer ${accessToken}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        res.status(200).send(`Email sent successfully! Message ID: ${response.data.id}`);
+        res.status(200).send('Email sent successfully!');
     } catch (error) {
-        console.error('Error details:', error.response ? error.response.data : error.message);
+        console.error('Error sending email:', error.message);
         res.status(500).send('Error sending email');
     }
 });
-
-
-//get email by id
-  app.get('/get-email/:id', async (req, res) => {
-    const messageId = req.params.id;
-
-    try {
-        const accessToken = await oauth2Client.getAccessToken();
-        
-        const response = await axios.get(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}`, {
-            headers: {
-                Authorization: `Bearer ${accessToken.token}`,
-                'Content-Type': 'application/json',
-            },
-        });
-
-        res.status(200).json(response.data);
-    } catch (error) {
-        console.error('Error fetching email details:', error.response ? error.response.data : error.message);
-        res.status(500).send('Error fetching email details');
-    }
-});
-
 
 // Assuming you have your Book model defined
 const countBooks = async() => {
@@ -1790,6 +1709,73 @@ app.get('/privacy-policy', (req, res) => {
 app.get('/terms-and-conditions', (req, res) => {
     res.redirect('https://www.privacypolicies.com/live/1108d4cd-d6e3-4ea0-b9b9-6cfb7aa2df1a');
 });
+
+// Utility function to format date to UTC
+function formatDateToUTC(date) {
+    return new Date(date).toUTCString(); // Converts date to a UTC string
+}
+
+// New route: POST /send-sendgrid-email
+app.post('/send-sendgrid-email', async (req, res) => {
+    try {
+        // Fetch user details from the database (you can modify the query as needed)
+        const userDetails = await UserDetails.findOne(); // Fetch the first user for demonstration
+
+        if (!userDetails) {
+            return res.status(404).send('No user found.');
+        }
+
+        const fromAddress = 'abbichiu@gmail.com'; // Sender email
+        const toAddress = userDetails.email; // Recipient email from the user details
+
+        if (!toAddress) {
+            return res.status(400).send('Recipient address is required.');
+        }
+
+        // Compose the email including the current loans
+        let loanDetailsText = 'Current Loans:\n\n';
+        userDetails.currentLoans.forEach((loan, index) => {
+            loanDetailsText += `Loan ${index + 1}:\n`;
+            loanDetailsText += `Title: ${loan.details.title}\n`;
+            loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
+            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.details.borrowDate)}\n`; // Convert to UTC
+            loanDetailsText += `Due Date: ${formatDateToUTC(loan.details.dueDate)}\n`; // Convert to UTC
+            loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
+            loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
+        });
+
+        const emailContent = `
+Hello ${userDetails.name},
+
+Here are your current loan details:
+
+${loanDetailsText}
+
+Best regards,
+Library Team`;
+
+        // Create the email object for SendGrid
+        const msg = {
+            to: toAddress, // Recipient email
+            from: fromAddress, // Sender email
+            subject: 'Your Current Loan Details',
+            text: emailContent, // Plain text body
+            html: `<pre>${emailContent}</pre>`, // HTML body (optional for better formatting)
+        };
+
+        // Send the email using SendGrid
+        const response = await sgMail.send(msg);
+
+        // Log success message and return response
+        console.log(`Email sent successfully to ${toAddress}. Response:`, response);
+        res.status(200).send(`Email sent successfully! Response: ${JSON.stringify(response)}`);
+    } catch (error) {
+        // Log error details
+        console.error('Error sending email:', error.response ? error.response.body : error.message);
+        res.status(500).send('Error sending email');
+    }
+});
+
 
 // Start server and create default admin
 app.listen(PORT, async() => {
