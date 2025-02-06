@@ -66,11 +66,6 @@ mongoose.connect(mongoURI, { useNewUrlParser: true, useUnifiedTopology: true })
 
 
 
-console.log('SendGrid API Key:', process.env.SENDGRID_API_KEY);
-
-
-
-
 // Create OAuth2 client with hard-coded credentials
 const oauth2Client = new OAuth2(
     '196205826526-a5i6cv0vp224tndtobsbep676cn537hm.apps.googleusercontent.com',       // Replace with your Client ID
