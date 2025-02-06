@@ -1786,6 +1786,10 @@ app.get('/privacy-policy', (req, res) => {
     res.redirect('https://www.privacypolicies.com/live/6aa4161f-bbe8-407c-aefe-24659a864dc3');
 });
 
+// Route to redirect to the Terms and Conditions URL
+app.get('/terms-and-conditions', (req, res) => {
+    res.redirect('https://www.privacypolicies.com/live/1108d4cd-d6e3-4ea0-b9b9-6cfb7aa2df1a');
+});
 
 // Start server and create default admin
 app.listen(PORT, async() => {
