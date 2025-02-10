@@ -441,6 +441,10 @@
             window.location.href = `user_borrow_history.html?userid=${userId}`;
         }
 
+        function viewAccount() {
+            window.location.href = `acc_profile.html?userid=${userId}`;
+        }
+
         let searchTimeout;
 
         function debouncedSearch() {
@@ -449,7 +453,7 @@
         }
 
         document.getElementById('homeButton').addEventListener('click', () => {
-            window.location.href = `index_userlogined.html`;
+            window.location.href = `index_userlogined.html?userid=${userid}`;
         });
 
         window.onload = loadBooks; // Load books when the page is loaded
