@@ -198,7 +198,7 @@
             <button onclick="viewHistory()">Borrow History</button>
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
-            <button class="return-button" id="homeButton">Home</button>
+            <button onclick="backHome()">Home</button>
         </div>
     </header>
 
@@ -452,7 +452,7 @@
             searchTimeout = setTimeout(searchBooks, 300);
         }
 
-        document.getElementById('homeButton').addEventListener('click', () => {
+        function backHome {
             window.location.href = `index_userlogined.html?userid=${userid}`;
         });
 
