@@ -1830,34 +1830,42 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
     }
 });
 // API endpoint to get loan details for a specific user
+// API endpoint to get loan details for a specific user
 app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query;
 
+    // Validate the user ID and permissions
     if (!userid || userid !== req.user.id) {
         return res.status(403).json({ error: 'You do not have permission to view this borrow history.' });
     }
 
     try {
-        // Fetch only the books that are currently borrowed (not returned)
-        const borrows = await UserBorrow.find({ userid: userid, returned: false });
+        // Fetch all borrow records for the user where copies have not been returned
+        const borrows = await UserBorrow.find({ 
+            userid: userid, 
+            "copies.returned": false // Filter for copies that are not returned
+        });
 
-        // Map the borrows to include additional details
-        const detailedBorrows = borrows.map(borrow => ({
-            _id: borrow._id,
-            title: borrow.title,
-            authors: borrow.authors,
-            availability: borrow.availability,
-            borrowDate: borrow.borrowDate,
-            dueDate: borrow.dueDate,
-            comments: borrow.comments,
-            copyId: borrow.copyId,
-            googleId: borrow.googleId,
-            industryIdentifier: borrow.industryIdentifier,
-            publishedDate: borrow.publishedDate,
-            publisher: borrow.publisher,
-            returned: borrow.returned,
-            userid: borrow.userid,
-        }));
+        // Map the borrow records to include relevant details
+        const detailedBorrows = borrows.flatMap(borrow => {
+            return borrow.copies
+                .filter(copy => !copy.returned) // Only include copies that are not returned
+                .map(copy => ({
+                    _id: borrow._id,
+                    title: borrow.title,
+                    authors: borrow.authors,
+                    copyId: copy.copyId,
+                    bookLocation: copy.bookLocation || 'Unknown',
+                    locationId: copy.locationId || 'Unknown',
+                    borrowedDate: copy.borrowedDate,
+                    dueDate: copy.dueDate,
+                    returned: copy.returned,
+                    industryIdentifier: borrow.industryIdentifier,
+                    publishedDate: borrow.publishedDate,
+                    publisher: borrow.publisher,
+                    userid: borrow.userid,
+                }));
+        });
 
         res.json(detailedBorrows);
     } catch (error) {
@@ -1865,7 +1873,6 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch borrow history.' });
     }
 });
-
 
 // Route to serve the Google verification file
 app.get('/google56342aab9c608962.html', (req, res) => {
