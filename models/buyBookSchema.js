@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
+
 // Define the schema for book purchases
 const buyBookSchema = new mongoose.Schema({
     userid: {
         type: String,
-
     },
     googleId: {
         type: String,
@@ -31,23 +31,24 @@ const buyBookSchema = new mongoose.Schema({
         type: Date,
         default: Date.now, // Automatically set the purchase date to the current date
     },
-    copies: [{ // Change copyId to an array of objects
+    copies: [{ // Array of objects to store details about each copy
         copyId: {
             type: String, // Unique identifier for each copy
-
         },
         bookLocation: {
-            type: String,
-
+            type: String, // Location of the book's copy
         },
         locationId: {
-            type: String,
-
+            type: String, // Identifier for the specific location within the library or storage
         },
         availability: {
-            type: Boolean,
-
-        }
+            type: Boolean, // Indicates whether the copy is available
+            default: true, // Default to true (available)
+        },
+        returned: {
+            type: Boolean, // Indicates whether the copy has been returned
+            default: null, // Default to null for purchases (not applicable unless explicitly set)
+        },
     }],
 });
 

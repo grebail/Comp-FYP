@@ -312,37 +312,36 @@
     </footer>
 
     <script>
-       // Check if the user is logged in
-window.onload = async function () {
-    const token = localStorage.getItem('token');
-    const userId = new URLSearchParams(window.location.search).get('userid');
-
-    if (!token || !userId) {
-        console.error('Token or user ID is missing. Redirecting to login...');
-        window.location.href = 'login.html'; // Redirect to login if not logged in
-        return;
-    }
-
-    // Optional: Validate the token by sending a request to the server
-    try {
-        const response = await fetch('https://comp-fyp.onrender.com/api/validate-token', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`
+       
+        window.onload = function () {
+            // Extract token and userid from the query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const userId = urlParams.get('userid');
+        
+            if (token) {
+                // Save the token to localStorage for future requests
+                localStorage.setItem('token', token);
+                console.log('Token saved to localStorage:', token);
+            } else {
+                // Use the token from localStorage if available
+                const storedToken = localStorage.getItem('token');
+                if (!storedToken) {
+                    console.error('No token found in URL or localStorage. Redirecting to login...');
+                    window.location.href = 'login.html'; // Redirect to login if no token is found
+                    return; // Stop further execution
+                } else {
+                    console.log('Token found in localStorage:', storedToken);
+                }
             }
-        });
-
-        if (!response.ok) {
-            console.error('Invalid token. Redirecting to login...');
-            localStorage.removeItem('token'); // Remove invalid token
-            window.location.href = 'login.html'; // Redirect to login
-        }
-    } catch (error) {
-        console.error('Error validating token:', error);
-        window.location.href = 'login.html'; // Redirect on error
-    }
-};
+        
+            // Log the userId for debugging purposes
+            if (userId) {
+                console.log('User ID:', userId);
+            } else {
+                console.error('No user ID found in URL.');
+            }
+        };
 
 // Logout Button
 document.getElementById('logout-button').addEventListener('click', function (event) {

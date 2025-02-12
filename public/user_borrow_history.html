@@ -13,7 +13,7 @@
             background-color: #eef2f3;
             color: #333;
         }
-        
+
         header {
             background: linear-gradient(to right, #1e88e5, #1565c0);
             color: #fff;
@@ -23,12 +23,12 @@
             border-radius: 8px;
             box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
         }
-        
+
         h1 {
             margin: 0;
             font-size: 2.5em;
         }
-        
+
         .book-item {
             background-color: #ffffff;
             padding: 15px;
@@ -36,64 +36,79 @@
             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             margin: 15px 0;
             display: flex;
-            align-items: center;
+            flex-wrap: wrap;
+            align-items: flex-start;
         }
-        
+
         .book-cover {
-            max-width: 100px;
+            max-width: 120px;
             height: auto;
             margin-right: 20px;
             border-radius: 5px;
             box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
         }
-        
+
         .book-details {
             flex-grow: 1;
         }
-        
-        .return-button,
-        .comment-button,
-        .borrow-again-button {
+
+        .copy-details {
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .action-button {
             background-color: #ff5722;
             color: white;
             border: none;
             border-radius: 5px;
-            padding: 10px;
+            padding: 8px;
             cursor: pointer;
+            margin-right: 10px;
             transition: background-color 0.3s;
-            margin-top: 10px;
         }
-        
-        .return-button:hover,
-        .comment-button:hover,
-        .borrow-again-button:hover {
+
+        .action-button:hover {
             background-color: #e64a19;
         }
-        
+
+        .comment-button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+
+        .comment-button:hover {
+            background-color: #388e3c;
+        }
+
         .error-message {
             color: red;
             margin: 20px 0;
         }
-        
-        .go-back-button1,
-        .go-back-button2 {
+
+        .go-back-button {
             background-color: #388e3c;
             color: white;
             border: none;
             border-radius: 5px;
             padding: 10px 20px;
             cursor: pointer;
-            transition: background-color 0.3s;
-            display: inline-block;
             margin-top: 20px;
+            transition: background-color 0.3s;
         }
-        
-        .go-back-button1:hover,
-        .go-back-button2:hover {
+
+        .go-back-button:hover {
             background-color: #2e7d32;
         }
-        /* Modal styles */
-        
+
         .modal {
             display: none;
             position: fixed;
@@ -105,7 +120,7 @@
             overflow: auto;
             background-color: rgba(0, 0, 0, 0.4);
         }
-        
+
         .modal-content {
             background-color: #fefefe;
             margin: 15% auto;
@@ -116,70 +131,68 @@
             border-radius: 8px;
             box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
-        
+
         .close {
             color: #aaa;
             float: right;
             font-size: 28px;
             font-weight: bold;
         }
-        
+
         .close:hover,
         .close:focus {
             color: black;
             text-decoration: none;
             cursor: pointer;
         }
-        
+
         .star {
             color: gold;
             cursor: pointer;
             font-size: 20px;
         }
-        
-        .comment-container {
-            margin-top: 10px;
+
+        .star.selected {
+            color: darkorange;
         }
     </style>
 </head>
 
 <body>
-
     <header>
         <h1>Borrow History</h1>
     </header>
 
     <div id="errorMessage" class="error-message"></div>
     <div id="historyContent" class="history-list"></div>
-    <button class="go-back-button1" id="BackHomeButton">Back to Home</button>
-    <button class="go-back-button2" id="BackCatalogButton">Back to Catalog</button>
+    <button class="go-back-button" id="BackHomeButton">Back to Home</button>
+    <button class="go-back-button" id="BackCatalogButton">Back to Catalog</button>
 
-    <!-- Modal for commenting -->
+    <!-- Comment Modal -->
     <div id="commentModal" class="modal">
         <div class="modal-content">
             <span class="close" id="closeModal">&times;</span>
-            <h2>Comment on the Book</h2>
-            <div id="starRating">
+            <h2>Comment on Book</h2>
+            <div>
                 <span class="star" data-value="1">★</span>
                 <span class="star" data-value="2">★</span>
                 <span class="star" data-value="3">★</span>
                 <span class="star" data-value="4">★</span>
                 <span class="star" data-value="5">★</span>
             </div>
-            <textarea id="commentText" placeholder="Add your comment here..." rows="4" style="width: 100%; margin-top: 10px;"></textarea>
-            <button id="submitComment" class="comment-button" style="margin-top: 10px;">Submit Comment</button>
+            <textarea id="commentText" placeholder="Add your comment" rows="4" style="width: 100%; margin-top: 10px;"></textarea>
+            <button class="comment-button" id="submitComment">Submit</button>
         </div>
     </div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
         const userid = params.get('userid');
+        const token = localStorage.getItem('token');
+        let selectedRating = 0;
         let currentBookId = null;
-        let currentCommentId = null;
 
-        // Fetch borrow history
         async function fetchBorrowHistory() {
-            const token = localStorage.getItem('token');
             if (!token) {
                 displayError('No token found. Please log in.');
                 return;
@@ -187,10 +200,7 @@
 
             try {
                 const response = await fetch(`/api/userBorrows?userid=${userid}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }
                 });
 
                 if (!response.ok) {
@@ -200,288 +210,141 @@
                 }
 
                 const history = await response.json();
-                await displayBooks(history);
+                displayBooks(history);
             } catch (error) {
                 displayError('An error occurred while fetching borrow history.');
             }
         }
 
-        // Fetch book details by googleId or by ISBN
-        async function fetchBookDetails(googleId, isbn) {
-            const token = localStorage.getItem('token');
-            let book;
-
-            // First attempt to fetch by googleId
-            try {
-                const response = await fetch(`/api/books/${googleId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (!response.ok) {
-                    if (response.status === 404) {
-                        // If not found, try fetching by ISBN
-                        if (isbn) {
-                            book = await fetchBookByISBN(isbn, token);
-                        } else {
-                            console.warn('No ISBN provided for fallback fetch.');
-                            return null;
-                        }
-                    } else {
-                        throw new Error('Failed to fetch book details.');
-                    }
-                } else {
-                    book = await response.json();
-                }
-            } catch (error) {
-                console.error('Error fetching book by googleId:', error);
-                return null; // Return null if the fetch fails
-            }
-
-            return book;
+        async function fetchCoverImage(isbn) {
+            const response = await fetch(`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`);
+            return response.ok ? response.url : 'default_cover_image.png';
         }
 
-        async function fetchBookByISBN(isbn, token) {
-            // Fetch book by ISBN
-            const response = await fetch(`/api/books/isbn/${isbn}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to fetch book details by ISBN.');
-            }
-
-            return await response.json();
-        }
-
-        // Display borrowed books
         async function displayBooks(history) {
             if (history.length === 0) {
                 document.getElementById('historyContent').innerHTML = '<p>No borrow history found.</p>';
                 return;
             }
 
-            const seenGoogleIds = new Set();
-            const bookPromises = history.map(item => fetchBookDetails(item.googleId, item.industryIdentifier[0])); // Use the first industryIdentifier as ISBN
-
-            const books = await Promise.all(bookPromises);
-            const uniqueBooks = [];
-
-            books.forEach((book, index) => {
-                if (book && !seenGoogleIds.has(book.googleId)) {
-                    seenGoogleIds.add(book.googleId);
-                    uniqueBooks.push({
-                        ...book,
-                        borrowDate: history[index].borrowDate,
-                        dueDate: history[index].dueDate,
-                        returned: history[index].returned,
-                        borrowId: history[index]._id,
-                        comments: history[index].comments || []
-                    });
-                } else if (!book) {
-                    console.warn(`Book not found for Google ID: ${history[index].googleId}`);
-                }
-            });
-
-            const historyHTML = uniqueBooks.map(book => `
-            <div class="book-item">
-                <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title} cover" class="book-cover" />
-                <div class="book-details">
-                    <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
-                    <strong>Borrow Date:</strong> ${new Date(book.borrowDate).toLocaleDateString()} <br>
-                    <strong>Due Date:</strong> ${new Date(book.dueDate).toLocaleDateString()} <br>
-                    <strong>Returned:</strong> ${book.returned ? 'Yes' : 'No'} <br>
-                    <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
-                    <button class="return-button" onclick="returnBook('${book.borrowId}')">Return</button>
-                    <button class="borrow-again-button" onclick="borrowAgain('${book.borrowId}')">Borrow Again</button>
-                    <button class="comment-button" onclick="openCommentModal('${book.borrowId}', null)">Comment</button>
-                    <div class="comment-container">
-                        ${book.comments.map(comment => `
-                            <div>
-                                <strong>Rating:</strong> ${comment.rating} stars <br>
-                                <strong>Comment:</strong> ${comment.comment} <br>
-                                <button class="comment-button" onclick="openCommentModal('${book.borrowId}', '${comment._id}', ${comment.rating}, '${comment.comment}')">Edit</button>
-                            </div>
-                        `).join('')}
+            const historyHTML = await Promise.all(history.map(async (borrowRecord) => {
+                const coverImage = await fetchCoverImage(borrowRecord.industryIdentifier[0]);
+                return `
+                    <div class="book-item">
+                        <img src="${coverImage}" alt="${borrowRecord.title} Cover" class="book-cover">
+                        <div class="book-details">
+                            <strong>Title:</strong> ${borrowRecord.title || 'Unknown'}<br>
+                            <strong>Authors:</strong> ${borrowRecord.authors?.join(', ') || 'N/A'}<br>
+                            ${borrowRecord.copies.map(copy => `
+                                <div class="copy-details">
+                                    <strong>Copy ID:</strong> ${copy.copyId}<br>
+                                    <strong>Borrowed Date:</strong> ${new Date(copy.borrowedDate).toISOString().split('T')[0]}<br>
+<strong>Due Date:</strong> ${new Date(copy.dueDate).toISOString().split('T')[0]}<br>
+                        <strong>Returned:</strong> ${copy.returned ? 'Yes' : 'No'} <br>
+                                    <button class="action-button" onclick="returnBook('${borrowRecord._id}', '${copy.copyId}')">Return</button>
+                                    <button class="action-button" onclick="borrowAgain('${borrowRecord._id}', '${copy.copyId}')">Borrow Again</button>
+                                </div>
+                            `).join('')}
+                            <button class="comment-button" onclick="openCommentModal('${borrowRecord._id}')">Comment</button>
+                        </div>
                     </div>
-                </div>
-            </div>
-        `).join('');
+                `;
+            }));
 
-            document.getElementById('historyContent').innerHTML = historyHTML;
+            document.getElementById('historyContent').innerHTML = historyHTML.join('');
         }
 
-        // Handle book return
-        async function returnBook(borrowId) {
-            const token = localStorage.getItem('token');
+        function openCommentModal(bookId) {
+            currentBookId = bookId;
+            document.getElementById('commentModal').style.display = 'block';
+        }
+
+        document.getElementById('closeModal').onclick = function() {
+            document.getElementById('commentModal').style.display = 'none';
+        };
+
+        document.querySelectorAll('.star').forEach(star => {
+            star.addEventListener('click', function () {
+                selectedRating = this.dataset.value;
+                document.querySelectorAll('.star').forEach(s => s.classList.remove('selected'));
+                this.classList.add('selected');
+            });
+        });
+
+        document.getElementById('submitComment').onclick = async function () {
+            const commentText = document.getElementById('commentText').value.trim();
+            if (!commentText || !selectedRating) {
+                alert('Please provide both a rating and a comment.');
+                return;
+            }
 
             try {
-                const response = await fetch(`https://comp-fyp.onrender.com/api/userBorrows/${borrowId}`, {
-                    method: 'PUT',
+                const response = await fetch(`/api/comments`, {
+                    method: 'POST',
                     headers: {
+                        'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
                     },
-                    body: JSON.stringify({ returned: true })
+                    body: JSON.stringify({
+                        bookId: currentBookId,
+                        comment: commentText,
+                        rating: selectedRating,
+                    }),
                 });
 
                 if (response.ok) {
-                    alert('Book returned successfully');
-                    fetchBorrowHistory(); // Refresh the book list
+                    alert('Comment submitted successfully.');
+                    document.getElementById('commentModal').style.display = 'none';
                 } else {
-                    alert('Error returning book');
+                    alert('Failed to submit comment.');
                 }
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error returning book');
+                console.error('Error submitting comment:', error);
             }
-        }
+        };
 
-        // Borrow the book again
-        async function borrowAgain(borrowId) {
-            const token = localStorage.getItem('token');
-
-            try {
-                const response = await fetch(`https://comp-fyp.onrender.com/api/userBorrows/${borrowId}`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ returned: false })
-                });
-
-                if (response.ok) {
-                    alert('Book borrowed successfully!');
-                    fetchBorrowHistory(); // Refresh the history after borrowing
-                } else {
-                    const errorData = await response.text();
-                    alert('Error borrowing the book: ' + errorData);
-                }
-            } catch (error) {
-                console.error('Error borrowing book again:', error);
-                alert('Error borrowing book again: ' + error.message);
-            }
-        }
-
-        // Display error messages
-        function displayError(message) {
-            document.getElementById('errorMessage').innerHTML = message;
-        }
-
-        // Event listener for Back to Home button
         document.getElementById('BackHomeButton').addEventListener('click', () => {
             window.location.href = `index_userlogined.html?userid=${userid}`;
         });
 
-        // Event listener for Back to Catalog button
         document.getElementById('BackCatalogButton').addEventListener('click', () => {
             window.location.href = `user-books-catalog.html?userid=${userid}`;
         });
 
-        // Open comment modal
-        function openCommentModal(borrowId, commentId, rating = 0, commentText = '') {
-            currentBookId = borrowId;
-            currentCommentId = commentId;
-            document.getElementById('commentModal').style.display = 'block';
-            resetCommentForm();
-
-            // If editing, set existing values
-            if (commentId) {
-                document.getElementById('commentText').value = commentText;
-                document.querySelectorAll('.star').forEach(star => {
-                    star.classList.remove('selected');
-                });
-                for (let i = 1; i <= rating; i++) {
-                    document.querySelector(`.star[data-value="${i}"]`).classList.add('selected');
-                }
-                document.getElementById('submitComment').setAttribute('data-rating', rating);
-            }
-        }
-
-        // Close modal functionality
-        document.getElementById('closeModal').onclick = function() {
-            document.getElementById('commentModal').style.display = 'none';
-        }
-
-        // Reset comment form
-        function resetCommentForm() {
-            document.getElementById('commentText').value = '';
-            document.querySelectorAll('.star').forEach(star => {
-                star.classList.remove('selected');
+        async function returnBook(borrowRecordId, copyId) {
+            const response = await fetch(`/api/userBorrows/${borrowRecordId}/copies/${copyId}/return`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-            document.getElementById('submitComment').setAttribute('data-rating', '');
+
+            if (response.ok) {
+                alert('Copy returned successfully.');
+                fetchBorrowHistory();
+            } else {
+                alert('Failed to return copy.');
+            }
         }
 
-        // Handle star rating selection
-        document.querySelectorAll('.star').forEach(star => {
-            star.addEventListener('click', function() {
-                const value = this.getAttribute('data-value');
-                document.querySelectorAll('.star').forEach(star => {
-                    star.classList.remove('selected');
-                });
-                for (let i = 1; i <= value; i++) {
-                    document.querySelector(`.star[data-value="${i}"]`).classList.add('selected');
-                }
-                document.getElementById('submitComment').setAttribute('data-rating', value);
+        async function borrowAgain(borrowRecordId, copyId) {
+            const response = await fetch(`/api/userBorrows/${borrowRecordId}/copies/${copyId}/borrow-again`, {
+                method: 'PUT',
+                headers: { 'Authorization': `Bearer ${token}` }
             });
-        });
 
-        // Submit comment functionality
-        document.getElementById('submitComment').onclick = async function() {
-            const rating = this.getAttribute('data-rating');
-            const comment = document.getElementById('commentText').value.trim();
-
-            if (!rating || !comment) {
-                alert('Please select a rating and enter a comment.');
-                return;
-            }
-
-            const token = localStorage.getItem('token');
-            let method = 'POST';
-            let url = `https://comp-fyp.onrender.com/api/comments`;
-            let body = JSON.stringify({ bookId: currentBookId, rating: rating, comment: comment });
-
-            if (currentCommentId) {
-                method = 'PUT';
-                url += `/${currentCommentId}`;
-                body = JSON.stringify({ rating: rating, comment: comment });
-            }
-
-            try {
-                const response = await fetch(url, {
-                    method: method,
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: body
-                });
-
-                const responseData = await response.text();
-                if (response.ok) {
-                    alert('Comment submitted successfully');
-                    document.getElementById('commentModal').style.display = 'none';
-                    fetchBorrowHistory();
-                } else {
-                    console.error('Error response:', responseData);
-                    alert('Error submitting comment: ' + responseData);
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error submitting comment');
+            if (response.ok) {
+                alert('Copy borrowed again successfully!');
+                fetchBorrowHistory();
+            } else {
+                alert('Failed to borrow copy again.');
             }
         }
 
-        // Start fetching borrow history when the page loads
+        function displayError(message) {
+            document.getElementById('errorMessage').innerText = message;
+        }
+
         window.onload = fetchBorrowHistory;
     </script>
-
 </body>
 
 </html>

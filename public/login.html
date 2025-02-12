@@ -189,7 +189,7 @@
             const username = document.getElementById('login-username').value;
             const password = document.getElementById('login-password').value;
 
-            fetch('https://comp-fyp.onrender.com/login', {
+            fetch('http://localhost:10000/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -206,12 +206,13 @@
                     return response.json();
                 })
                 .then(data => {
-                    // Store the token in localStorage
-                    localStorage.setItem('token', data.token);
-                    // Redirect based on role
-                    window.location.href = data.redirect; // Ensure this is set in your backend response
+                    console.log('Login successful:', data); // Debugging
+                    localStorage.setItem('token', data.token); // Store token
+                    console.log('Redirecting to:', data.redirect); // Debugging
+                    window.location.href = data.redirect; // Redirect based on role
                 })
                 .catch(error => {
+                    console.error('Login error:', error); // Debugging
                     document.getElementById('error-message').innerText = error.message;
                 });
         }

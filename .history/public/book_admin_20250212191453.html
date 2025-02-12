@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Administration</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+        }
+
+        .book-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            display: none;
+        }
+
+        .action-button {
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .details-button {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .details-button:hover {
+            background-color: #1976D2;
+        }
+
+        .edit-button {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        .edit-button:hover {
+            background-color: #fb8c00;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        table th {
+            background-color: #f2f2f2;
+            text-transform: uppercase;
+        }
+
+        .group-row {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+
+        footer {
+            margin-top: 20px;
+            text-align: center;
+            clear: both;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Book Administration</h1>
+    </header>
+
+    <main>
+        <section>
+            <h2>Add New Copy</h2>
+            <form id="addBookForm">
+                <label for="isbn">ISBN:</label>
+                <input type="text" id="isbn" name="isbn" required>
+
+                <label for="bookLocation">Book Location:</label>
+                <select id="bookLocation" name="bookLocation" required>
+                    <option value="Stanley Ho Library">Stanley Ho Library</option>
+                    <option value="Ho Sik Yee Library">Ho Sik Yee Library</option>
+                </select>
+
+                <label for="locationId">Location ID (LCC Code):</label>
+                <input type="text" id="locationId" name="locationId" required placeholder="e.g., HB171.5 .M264 2024">
+
+                <label for="availability">Availability:</label>
+                <input type="checkbox" id="availability" name="availability" checked>
+
+                <label for="noOfCopy">Number of Copies:</label>
+                <input type="number" id="noOfCopy" name="noOfCopy" min="1" required>
+
+                <button type="submit">Add Copy Here</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Existing Books</h2>
+            <table id="booksTable">
+                <thead>
+                    <tr>
+                        <th>ISBN</th>
+                        <th>Copy ID</th>
+                        <th>Location</th>
+                        <th>Location ID</th>
+                        <th>Availability</th>
+                        <th>Total Copies</th>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>Published Date</th>
+                        <th>Categories</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Grouped book entries will be populated here -->
+                </tbody>
+            </table>
+        </section>
+
+        <section id="bookDetails" class="book-details">
+            <!-- Book details will be displayed here -->
+        </section>
+    </main>
+
+    <script>
+        function groupBooksByISBN(books) {
+            const grouped = {};
+            books.forEach((book) => {
+                if (!grouped[book.isbn]) {
+                    grouped[book.isbn] = { totalCopies: 0, entries: [] };
+                }
+                grouped[book.isbn].totalCopies += book.noOfCopy || 1;
+                grouped[book.isbn].entries.push(book);
+            });
+            return grouped;
+        }
+
+        function appendGroupedBooks(groupedBooks) {
+            const tbody = $('#booksTable tbody');
+            tbody.empty();
+
+            Object.keys(groupedBooks).forEach((isbn) => {
+                const group = groupedBooks[isbn];
+                tbody.append(`
+                    <tr class="group-row">
+                        <td colspan="5">ISBN: ${isbn}</td>
+                        <td>${group.totalCopies}</td>
+                        <td colspan="5"></td>
+                    </tr>
+                `);
+                group.entries.forEach((book) => {
+                    tbody.append(`
+                        <tr>
+                            <td>${book.isbn}</td>
+                            <td>${book.copyId || 'N/A'}</td>
+                            <td>${book.bookLocation}</td>
+                            <td>${book.locationId}</td>
+                            <td>${book.availability ? 'Available' : 'Unavailable'}</td>
+                            <td></td>
+                            <td>${book.title}</td>
+                            <td>${book.author}</td>
+                            <td>${book.publishedDate}</td>
+                            <td>${book.categories || 'N/A'}</td>
+                            <td>
+                                <button class="details-button" data-isbn="${book.isbn}">Details</button>
+                                <button class="edit-button" data-copyid="${book.copyId}">Update</button>
+                                <button class="delete-button" data-copyid="${book.copyId}">Delete</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            });
+        }
+
+        
+
+        $(document).ready(function () {
+            // Load books logic
+        });
+    </script>
+</body>
+</html>
