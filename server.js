@@ -758,8 +758,8 @@ app.get('/api/userbooks', authenticateToken, async(req, res) => {
     try {
         const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${search}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A&maxResults=40`); // Replace with your actual API key
 
-        const books = response.data.items;
-
+        let books = response.data.items || [];
+books = books.slice(0, 40);
         await Book.deleteMany({});
 
         for (const book of books) {
@@ -817,65 +817,61 @@ app.get('/api/userbooks', authenticateToken, async(req, res) => {
     }
 });
 // API endpoint to search for books(librarian only)
-app.get('/api/books', authenticateToken, async(req, res) => {
+app.get('/api/books', authenticateToken, async (req, res) => {
     if (req.user.role !== 'librarian') return res.sendStatus(403);
+
     const search = req.query.q;
 
     try {
-        const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${search}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A&maxResults=40`); // Replace with your actual API key
+        // Fetch books from Google Books API with a maximum of 40 results
+        const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=${search}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A&maxResults=40`);
 
-        const books = response.data.items;
+        // Filter books with ISBN and limit to 40
+        let books = response.data.items || [];
+        books = books.filter(book => {
+            const industryIdentifiers = book.volumeInfo.industryIdentifiers || [];
+            return industryIdentifiers.some(identifier =>
+                identifier.type === 'ISBN_10' || identifier.type === 'ISBN_13'
+            );
+        }).slice(0, 40);
 
+        // Clear the database before saving new books
         await Book.deleteMany({});
 
+        // Save filtered books to the database
         for (const book of books) {
-            // Check if the book has ISBN
             const industryIdentifiers = book.volumeInfo.industryIdentifiers || [];
-            const hasISBN = industryIdentifiers.some(identifier =>
+            const industryIdentifier = industryIdentifiers.find(identifier =>
                 identifier.type === 'ISBN_10' || identifier.type === 'ISBN_13'
             );
 
-            // Only proceed if the book has an ISBN
-            if (hasISBN) {
-                const industryIdentifier = industryIdentifiers.find(identifier =>
-                    identifier.type === 'ISBN_10' || identifier.type === 'ISBN_13'
-                );
+            const newBook = new Book({
+                googleId: book.id,
+                industryIdentifier: industryIdentifier ? industryIdentifier.identifier : 'N/A',
+                title: book.volumeInfo.title,
+                subtitle: book.volumeInfo.subtitle || 'N/A',
+                authors: book.volumeInfo.authors || [],
+                publisher: book.volumeInfo.publisher || 'N/A',
+                publishedDate: book.volumeInfo.publishedDate || 'N/A',
+                description: book.volumeInfo.description || 'N/A',
+                pageCount: book.volumeInfo.pageCount || 0,
+                categories: book.volumeInfo.categories || [],
+                language: book.volumeInfo.language || 'N/A',
+                coverImage: book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '',
+                smallThumbnail: book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.smallThumbnail : '',
+                infoLink: book.volumeInfo.infoLink || '',
+                saleInfo: book.saleInfo || {},
+                accessInfo: book.accessInfo || {},
+                searchInfo: book.searchInfo || {},
+                previewLink: book.volumeInfo.previewLink || '',
+            });
 
-                // Use optional chaining correctly
-                const identifierValue = industryIdentifier ? industryIdentifier.identifier : 'N/A';
-
-                const newBook = new Book({
-                    googleId: book.id,
-                    industryIdentifier: identifierValue,
-                    title: book.volumeInfo.title,
-                    subtitle: book.volumeInfo.subtitle || 'N/A',
-                    authors: book.volumeInfo.authors || [],
-                    publisher: book.volumeInfo.publisher || 'N/A',
-                    publishedDate: book.volumeInfo.publishedDate || 'N/A',
-                    description: book.volumeInfo.description || 'N/A',
-                    pageCount: book.volumeInfo.pageCount || 0,
-                    categories: book.volumeInfo.categories || [],
-                    language: book.volumeInfo.language || 'N/A',
-                    coverImage: book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '',
-                    smallThumbnail: book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.smallThumbnail : '',
-                    infoLink: book.volumeInfo.infoLink || '',
-                    saleInfo: book.saleInfo || {},
-                    accessInfo: book.accessInfo || {},
-                    searchInfo: book.searchInfo || {},
-                    previewLink: book.volumeInfo.previewLink || '',
-                });
-
-                await newBook.save();
-            }
+            await newBook.save();
         }
 
+        // Send the filtered books (max 40) as the response
         res.json({
-            data: books.filter(book => {
-                const industryIdentifiers = book.volumeInfo.industryIdentifiers || [];
-                return industryIdentifiers.some(identifier =>
-                    identifier.type === 'ISBN_10' || identifier.type === 'ISBN_13'
-                );
-            })
+            data: books
         });
     } catch (error) {
         console.error('Error fetching data from Google Books API:', error);
