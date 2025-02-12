@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Administration</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+
+        .group-row {
+            background-color: #e3f2fd;
+            font-weight: bold;
+        }
+
+        .action-button {
+            padding: 5px 10px;
+            margin-right: 5px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+        }
+
+        .details-button {
+            background-color: #2196F3;
+            color: white;
+        }
+
+        .details-button:hover {
+            background-color: #1976D2;
+        }
+
+        .edit-button {
+            background-color: #ff9800;
+            color: white;
+        }
+
+        .edit-button:hover {
+            background-color: #fb8c00;
+        }
+
+        .delete-button {
+            background-color: #f44336;
+            color: white;
+        }
+
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .book-details {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Book Administration</h1>
+    </header>
+
+    <main>
+        <section>
+            <h2>Add New Copy</h2>
+            <form id="addBookForm">
+                <label for="isbn">ISBN:</label>
+                <input type="text" id="isbn" name="isbn" required>
+
+                <label for="bookLocation">Book Location:</label>
+                <select id="bookLocation" name="bookLocation" required>
+                    <option value="Stanley Ho Library">Stanley Ho Library</option>
+                    <option value="Ho Sik Yee Library">Ho Sik Yee Library</option>
+                </select>
+                <label for="locationId">Location ID (LCC Code):</label>
+                <input type="text" id="locationId" name="locationId" disabled placeholder="Auto-generated code">
+                
+                <label for="availability">Availability:</label>
+                <input type="checkbox" id="availability" name="availability" checked>
+
+                <label for="noOfCopy">Number of Copies:</label>
+                <input type="number" id="noOfCopy" name="noOfCopy" min="1" required>
+
+                <button type="submit">Add Copy Here</button>
+            </form>
+        </section>
+
+        <section>
+            <h2>Existing Books</h2>
+            <table id="booksTable">
+                <thead>
+                    <tr>
+                        <th>ISBN</th>
+                        <th>Title</th>
+                        <th>Authors</th>
+                        <th>Published Date</th>
+                        <th>Categories</th>
+                        <th>Copies</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Grouped book entries will be populated here -->
+                </tbody>
+            </table>
+        </section>
+
+        <section id="bookDetails" class="book-details">
+            <!-- Book details will be displayed here -->
+        </section>
+    </main>
+
+    <script>
+        // Function to append grouped book data to the table
+
+        function appendGroupedBooksToTable(groupedBooks) {
+            const tbody = $('#booksTable tbody');
+            tbody.empty(); // Clear existing rows
+
+            Object.keys(groupedBooks).forEach(isbn => {
+                const group = groupedBooks[isbn];
+
+                // Add a group header row
+                tbody.append(`
+                    <tr class="group-row">
+                        <td>${isbn}</td>
+                        <td>${group.title || 'N/A'}</td>
+                        <td>${group.authors.join(', ') || 'N/A'}</td>
+                        <td>${group.publishedDate || 'N/A'}</td>
+                        <td>${group.categories.join(', ') || 'N/A'}</td>
+                        <td>${group.copies.length} Copies</td>
+                    </tr>
+                    <tr>
+                        <th>#</th>
+                        <th>Copy ID</th>
+                        <th>Location</th>
+                        <th>Location ID</th>
+                        <th>Availability</th>
+                        <th>Actions</th>
+                    </tr>
+                `);
+
+                // Add rows for each copy in the group
+                group.copies.forEach((copy, index) => {
+                    tbody.append(`
+                        <tr>
+                            <td>${index + 1}</td>
+                            <td>${copy.copyId}</td>
+                            <td>
+                                <select class="location-input">
+                                    <option value="Stanley Ho Library" ${copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''}>Stanley Ho Library</option>
+                                    <option value="Ho Sik Yee Library" ${copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''}>Ho Sik Yee Library</option>
+                                </select>
+                            </td>
+                            <td><input type="text" class="location-id-input" value="${copy.locationId || ''}" /></td>
+                            <td><input type="checkbox" class="availability-input" ${copy.availability ? 'checked' : ''} /></td>
+                            <td>
+                                <button class="details-button" data-isbn="${isbn}">Details</button>
+                                <button class="edit-button" data-copyid="${copy.copyId}">Edit</button>
+                                <button class="delete-button" data-copyid="${copy.copyId}">Delete</button>
+                            </td>
+                        </tr>
+                    `);
+                });
+            });
+        }
+// Handle form submission
+$('#addBookForm').on('submit', function (e) {
+    e.preventDefault();
+
+    const token = localStorage.getItem('token');
+    const isbn = $('#isbn').val();
+    const bookLocation = $('#bookLocation').val();
+    const availability = $('#availability').is(':checked');
+    const noOfCopy = parseInt($('#noOfCopy').val(), 10);
+
+    // Fetch existing grouped books to determine the current copy count for this ISBN
+    $.ajax({
+        url: '/api/admin_books',
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+        success: function (data) {
+            // Group books by ISBN
+            const groupedBooks = {};
+            data.forEach(book => {
+                const bookIsbn = book.isbn;
+
+                if (!groupedBooks[bookIsbn]) {
+                    groupedBooks[bookIsbn] = {
+                        copies: []
+                    };
+                }
+
+                groupedBooks[bookIsbn].copies.push(book);
+            });
+
+            // Determine the current number of copies for the given ISBN
+            const existingCopies = groupedBooks[isbn]?.copies?.length || 0;
+            let currentCopyIndex = existingCopies;
+
+            // Generate and send new copy data
+            const newCopies = [];
+            for (let i = 1; i <= noOfCopy; i++) {
+                currentCopyIndex++; // Increment the index for each new copy
+
+                // Generate the new Location ID
+                const baseLocationId = $('#locationId').val();
+                const copyLocationId = baseLocationId.replace(/\.\d+$/, '') + `.${String(currentCopyIndex).padStart(2, "0")}`;
+
+                newCopies.push({
+                    isbn: isbn,
+                    bookLocation: bookLocation,
+                    locationId: copyLocationId,
+                    availability: availability
+                });
+            }
+
+            // Send new copies to the server
+            $.ajax({
+                url: '/api/admin_books/',
+                method: 'POST',
+                contentType: 'application/json',
+                headers: { 'Authorization': `Bearer ${token}` },
+                data: JSON.stringify({ copies: newCopies }),
+                success: function (response) {
+                    alert('Book copy(s) added successfully!');
+                    loadBooksGroupedByISBN(); // Reload the table dynamically
+                    $('#addBookForm')[0].reset();
+                },
+                error: function (error) {
+                    console.error('Error adding book copies:', error);
+                    alert('Error adding book copies: ' + error.responseText);
+                }
+            });
+        },
+        error: function (error) {
+            console.error('Error loading books:', error);
+            alert('Failed to load existing books.');
+        }
+    });
+});
+
+// Load and group books by ISBN
+function loadBooksGroupedByISBN() {
+    const token = localStorage.getItem('token');
+
+    $.ajax({
+        url: '/api/admin_books',
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+        success: function (data) {
+            const groupedBooks = {};
+
+            data.forEach(book => {
+                const isbn = book.isbn;
+
+                if (!groupedBooks[isbn]) {
+                    groupedBooks[isbn] = {
+                        title: book.title,
+                        authors: book.author,
+                        publishedDate: book.publishedDate ? new Date(book.publishedDate).toLocaleDateString() : 'N/A',
+                        categories: book.categories || [],
+                        copies: []
+                    };
+                }
+
+                groupedBooks[isbn].copies.push({
+                    copyId: book._id,
+                    bookLocation: book.bookLocation,
+                    locationId: book.locationId,
+                    availability: book.availability
+                });
+            });
+
+            appendGroupedBooksToTable(groupedBooks);
+        },
+        error: function (error) {
+            console.error('Error loading books:', error);
+            alert('Failed to load books.');
+        }
+    });
+}
+
+        // Load and group books by ISBN
+        function loadBooksGroupedByISBN() {
+            const token = localStorage.getItem('token');
+
+            $.ajax({
+                url: '/api/admin_books',
+                method: 'GET',
+                headers: { 'Authorization': `Bearer ${token}` },
+                success: function (data) {
+                    const groupedBooks = {};
+
+                    data.forEach(book => {
+                        const isbn = book.isbn;
+
+                        if (!groupedBooks[isbn]) {
+                            groupedBooks[isbn] = {
+                                title: book.title,
+                                authors: book.author,
+                                publishedDate: book.publishedDate ? new Date(book.publishedDate).toLocaleDateString() : 'N/A',
+                                categories: book.categories || [],
+                                copies: []
+                            };
+                        }
+
+                        groupedBooks[isbn].copies.push({
+                            copyId: book._id,
+                            bookLocation: book.bookLocation,
+                            locationId: book.locationId,
+                            availability: book.availability
+                        });
+                    });
+
+                    appendGroupedBooksToTable(groupedBooks);
+                },
+                error: function (error) {
+                    console.error('Error loading books:', error);
+                    alert('Failed to load books.');
+                }
+            });
+        }
+// Event listeners for Details, Edit, and Delete buttons
+$(document).on('click', '.details-button', function () {
+    const isbn = $(this).data('isbn'); // Get ISBN from button data attribute
+    const token = localStorage.getItem('token'); // Retrieve token from local storage
+
+    // Use your API endpoint to fetch book details by ISBN
+    $.ajax({
+        url: `/api/books/isbn/${isbn}`, // Your API endpoint
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}` // Include token in the request headers
+        },
+        success: function (bookDetails) {
+            // Display book details in the #bookDetails section
+            $('#bookDetails').html(`
+                <button class="close-details" style="float: right; background: #f44336; color: white; border: none; border-radius: 5px; padding: 5px 10px; cursor: pointer;">×</button>
+                <h3>Details for ISBN: ${isbn}</h3>
+                <p><strong>Title:</strong> ${bookDetails.title}</p>
+                <p><strong>Subtitle:</strong> ${bookDetails.subtitle || 'N/A'}</p>
+                <p><strong>Author(s):</strong> ${bookDetails.authors.join(', ')}</p>
+                <p><strong>Publisher:</strong> ${bookDetails.publisher}</p>
+                <p><strong>Published Date:</strong> ${bookDetails.publishedDate}</p>
+                <p><strong>Description:</strong> ${bookDetails.description || 'N/A'}</p>
+                <p><strong>Page Count:</strong> ${bookDetails.pageCount}</p>
+                <p><strong>Categories:</strong> ${bookDetails.categories.join(', ')}</p>
+                <p><strong>Language:</strong> ${bookDetails.language}</p>
+                <p><strong>Preview Link:</strong> <a href="${bookDetails.previewLink}" target="_blank">Preview Book</a></p>
+                ${bookDetails.coverImage ? `<img src="${bookDetails.coverImage}" alt="Book Cover" style="max-width: 100%; height: auto; margin-top: 15px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);"/>` : '<p><strong>Cover Image:</strong> Not Available</p>'}
+            `).show();
+        },
+        error: function (error) {
+            console.error('Error fetching book details:', error);
+            alert('Failed to fetch book details. Please try again.');
+        }
+    });
+});
+
+// Event listener for the close button in the details section
+$(document).on('click', '.close-details', function () {
+    $('#bookDetails').hide().html(''); // Clear and hide the book details section
+});
+
+
+$(document).on('click', '.edit-button', function () {
+    const copyId = $(this).data('copyid');
+    const row = $(this).closest('tr');
+
+    const updatedData = {
+        bookLocation: row.find('.location-input').val(),
+        locationId: row.find('.location-id-input').val(),
+        availability: row.find('.availability-input').is(':checked'),
+        noOfCopy: parseInt(row.find('.copies-input').val(), 10) || 1
+    };
+
+    const token = localStorage.getItem('token');
+    $.ajax({
+        url: `/api/admin_books/${copyId}`,
+        method: 'PUT',
+        contentType: 'application/json',
+        headers: {
+            'Authorization': `Bearer ${token}`
+        },
+        data: JSON.stringify(updatedData),
+        success: function () {
+            alert('Book copy updated successfully!');
+            loadBooksGroupedByISBN(); // Reload the table dynamically
+            
+        },
+        error: function (error) {
+            console.error('Error updating book copy:', error);
+            alert('Failed to update book copy.');
+        }
+    });
+});
+
+$(document).on('click', '.delete-button', function () {
+    const copyId = $(this).data('copyid');
+    const token = localStorage.getItem('token');
+
+    if (confirm('Are you sure you want to delete this book copy?')) {
+        $.ajax({
+            url: `/api/admin_books/${copyId}`,
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            success: function () {
+                alert('Book copy deleted successfully!');
+                loadBooksGroupedByISBN(); // Reload the table dynamically
+            },
+            error: function (error) {
+                console.error('Error deleting book copy:', error);
+                alert('Failed to delete book copy.');
+            }
+        });
+    }
+});
+        $(document).ready(function () {
+            loadBooksGroupedByISBN();
+        });
+      
+        const lccCodes = {
+            "Juvenile Fiction": "F 615",
+            "Science": "Q 175",
+            "History": "D 16",
+            // Add more categories and their respective LCC codes here
+        };
+
+        function generateLocationId(isbn, title, authors, publishedDate, category, copyNumber) {
+            const lccCode = lccCodes[category] || "UNKNOWN";
+            const titleCode = title.substring(0, 2).toUpperCase().padEnd(2, "X");
+            const authorCode = authors.length > 0
+                ? authors[0].substring(0, 2).toUpperCase().padEnd(2, "X")
+                : "XX";
+            const year = new Date(publishedDate).getFullYear();
+            const formattedCopyNumber = String(copyNumber).padStart(2, "0");
+            return `${lccCode} ${titleCode} ${authorCode} ${year}.${formattedCopyNumber}`;
+        }
+
+        $('#isbn').on('blur', function () {
+            const isbn = $(this).val();
+            const token = localStorage.getItem('token');
+
+            if (isbn) {
+                $.ajax({
+                    url: `/api/books/isbn/${isbn}`,
+                    method: 'GET',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    success: function (bookDetails) {
+                        const { title, authors, publishedDate, categories } = bookDetails;
+                        const locationId = generateLocationId(
+                            isbn,
+                            title,
+                            authors,
+                            publishedDate,
+                            categories[0] || "Unknown",
+                            1
+                        );
+                        $('#locationId').val(locationId);
+                    },
+                    error: function (error) {
+                        console.error('Error fetching book details:', error);
+                        alert('Failed to fetch book details. Please check the ISBN.');
+                    }
+                });
+            }
+        });
+
+        $('#addBookForm').on('submit', function (e) {
+            e.preventDefault();
+
+            const isbn = $('#isbn').val();
+            const bookLocation = $('#bookLocation').val();
+            const noOfCopy = parseInt($('#noOfCopy').val(), 10);
+            const availability = $('#availability').is(':checked') ? 'Available' : 'Not Available';
+            const baseLocationId = $('#locationId').val();
+
+            if (baseLocationId) {
+                for (let i = 1; i <= noOfCopy; i++) {
+                    const copyLocationId = baseLocationId.replace(/\.\d+$/, '') + `.${String(i).padStart(2, "0")}`;
+                    $('#booksTable tbody').append(`
+                        <tr>
+                            <td>${$('#booksTable tbody tr').length + 1}</td>
+                            <td>${isbn}</td>
+                            <td>${bookLocation}</td>
+                            <td>${copyLocationId}</td>
+                            <td>${availability}</td>
+                        </tr>
+                    `);
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

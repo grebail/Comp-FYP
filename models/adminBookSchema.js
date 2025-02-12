@@ -14,7 +14,7 @@ const adminBookSchema = new mongoose.Schema({
     availability: { type: Boolean, default: true }, // true or false
     noOfCopy: { type: Number, required: true, min: 1 }, // Number of copies
     title: { type: String, }, // New field for book title
-    author: { type: String, }, // New field for book author
+    authors: {  type: [String] }, // New field for book author
     publishedDate: { type: Date }, // New field for published date
     categories: { type: [String], default: [] }
 });

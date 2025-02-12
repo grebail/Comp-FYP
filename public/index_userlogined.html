@@ -317,48 +317,48 @@
 
  
  <script>
-    
-    window.onload = function () {
-        // Extract token and userid from the query parameters
-        const urlParams = new URLSearchParams(window.location.search);
-        const token = urlParams.get('token');
-        const userId = urlParams.get('userid');
-    
-        if (token) {
-            // Save the token to localStorage for future requests
-            localStorage.setItem('token', token);
-            console.log('Token saved to localStorage:', token);
-        } else {
-            // Use the token from localStorage if available
-            const storedToken = localStorage.getItem('token');
-            if (!storedToken) {
-                console.error('No token found in URL or localStorage. Redirecting to login...');
-                window.location.href = 'login.html'; // Redirect to login if no token is found
-                return; // Stop further execution
+   
+        window.onload = function () {
+            // Extract token and userid from the query parameters
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+            const userId = urlParams.get('userid');
+        
+            if (token) {
+                // Save the token to localStorage for future requests
+                localStorage.setItem('token', token);
+                console.log('Token saved to localStorage:', token);
             } else {
-                console.log('Token found in localStorage:', storedToken);
+                // Use the token from localStorage if available
+                const storedToken = localStorage.getItem('token');
+                if (!storedToken) {
+                    console.error('No token found in URL or localStorage. Redirecting to login...');
+                    window.location.href = 'login.html'; // Redirect to login if no token is found
+                    return; // Stop further execution
+                } else {
+                    console.log('Token found in localStorage:', storedToken);
+                }
             }
-        }
-    
-        // Log the userId for debugging purposes
-        if (userId) {
-            console.log('User ID:', userId);
-        } else {
-            console.error('No user ID found in URL.');
-        }
-    };
-    
+        
+            // Log the userId for debugging purposes
+            if (userId) {
+                console.log('User ID:', userId);
+            } else {
+                console.error('No user ID found in URL.');
+            }
+        };
+        
         // Logout Button
         document.getElementById('logout-button').addEventListener('click', function (event) {
             event.preventDefault(); // Prevent default link behavior
             localStorage.removeItem('token'); // Remove the token from local storage
             window.location.href = 'login.html'; // Redirect to login page
         });
-   
+       
         // Slide container
         const slides = document.querySelectorAll('.slide');
         var currentIndex = 0;
-
+    
         // Function to show the current slide
         function showSlide(index) {
             slides.forEach((slide, i) => {
@@ -368,7 +368,7 @@
                 }
             });
         }
-
+    
         // Function to change the slide automatically
         function nextSlide() {
             currentIndex += 1; // Move to the next index
@@ -377,21 +377,32 @@
             }
             showSlide(currentIndex); // Show the current slide
         }
-
+    
         // Initialize the slideshow
         showSlide(currentIndex); // Show the first slide
         setInterval(nextSlide, 3000); // Change slide every 3 seconds
-
+    
         // Books link redirect
-        document.getElementById('books-link').addEventListener('click', function() {
+        document.getElementById('books-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `user-books-catalog.html?userid=${userId}`; // Redirect to books catalog with user ID
-        });
-
-        document.getElementById('acc-link').addEventListener('click', function() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to books catalog with user ID
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    
+            if (!token) {
+                console.error('No token found. Redirecting to login...');
+                window.location.href = 'login.html'; // Redirect to login if no token is found
+                return;
+            }
+    
+            // Redirect to the books catalog with user ID and token in the query string
+            window.location.href = `user-books-catalog.html?userid=${userId}&token=${token}`;
         });
     
+        // Account profile link redirect
+        document.getElementById('acc-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to account profile with user ID
+        });
+  
+   
     </script>
 </html>

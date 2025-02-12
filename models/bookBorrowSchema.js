@@ -10,6 +10,39 @@ const setMidnight = (date) => {
     return midnightDate;
 };
 
+// Define the schema for individual copies
+const borrowedCopySchema = new mongoose.Schema({
+    copyId: {
+        type: String, // Unique identifier for the copy
+        required: true,
+    },
+    bookLocation: {
+        type: String,
+        enum: bookLocationEnum, // Use the defined enum for book locations
+        required: true,
+    },
+    locationId: {
+        type: String, // Identifier for the specific location within the library
+        required: true,
+    },
+    availability: {
+        type: Boolean,
+        default: true, // Default to true, indicating the copy is available
+    },
+    borrowedDate: {
+        type: Date,
+        default: null, // Set to null when the book is not borrowed
+    },
+    dueDate: {
+        type: Date,
+        default: null, // Set to null when the book is not borrowed
+    },
+    returned: {
+        type: Boolean,
+        default: null, // Set to null when the book is not borrowed
+    },
+});
+
 // Define the schema for book borrowing
 const bookBorrowSchema = new mongoose.Schema({
     userid: {
@@ -18,7 +51,7 @@ const bookBorrowSchema = new mongoose.Schema({
     },
     googleId: {
         type: String,
-        required: true,
+        required: false, // Updated to optional
     },
     title: {
         type: String,
@@ -30,52 +63,16 @@ const bookBorrowSchema = new mongoose.Schema({
     },
     publisher: {
         type: String,
-        // Make publisher required
     },
     publishedDate: {
         type: String,
-        // Make publishedDate required
     },
     industryIdentifier: {
         type: [String], // Array to store multiple ISBNs
-        required: true, // Make this required
     },
-    bookLocation: {
-        type: String,
-        enum: bookLocationEnum, // Use the defined enum
-        // Not required
-    },
-    locationId: {
-        type: String, // String to store the LCC code of the book
-        // Not required
-    },
-    availability: {
-        type: Boolean,
-        default: true, // Default to true, but not required
-    },
-    noOfCopy: {
-        type: Number,
-
-        min: 1, // Ensure at least one copy exists
-    },
-    copyId: {
-        type: [String], // Array to store copy IDs
-    },
-    borrowDate: {
-        type: Date,
-        default: () => setMidnight(new Date()), // Automatically set to midnight of the current date
-    },
-    dueDate: {
-        type: Date,
-        default: () => {
-            const dueDate = new Date();
-            dueDate.setMonth(dueDate.getMonth() + 1); // Set due date to one month from now
-            return setMidnight(dueDate); // Set to midnight of the due date
-        },
-    },
-    returned: {
-        type: Boolean,
-        default: false, // Default to false indicating the book is not returned yet
+    copies: {
+        type: [borrowedCopySchema], // Array of sub-documents for individual copies
+        required: true, // At least one copy must exist
     },
     comments: [{
         rating: {

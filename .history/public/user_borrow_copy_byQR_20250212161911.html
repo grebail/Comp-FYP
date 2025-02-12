@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Borrow Book</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1 {
+            color: #1565c0;
+        }
+
+        .book-details {
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-top: 20px;
+        }
+
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+
+        .success-message {
+            color: green;
+            margin-top: 10px;
+        }
+
+        .book-cover {
+            max-width: 200px;
+            margin-bottom: 10px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0d47a1;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Borrow Book</h1>
+    <div id="bookDetails" class="book-details">
+        <!-- Book details and borrowed copies will be displayed here -->
+    </div>
+    <div id="errorMessage" class="error-message"></div>
+    <div id="successMessage" class="success-message"></div>
+    <button id="BorrowHistoryButton">Borrow History</button>
+    <button id="backToCatalogButton">Back to Catalog</button>
+
+    <script>
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
+        }
+
+        const params = new URLSearchParams(window.location.search);
+        const isbn = params.get('isbn');
+        const userId = params.get('userid');
+        const copies = params.get('copies')?.split(',');
+        const userToken = getQueryParam('token') || localStorage.getItem('token');
+
+        console.log('userId:', userId);
+        console.log('ISBN:', isbn);
+        console.log('Selected Copies:', copies);
+        console.log('User Token:', userToken);
+
+        // Function to display success messages
+        function displaySuccess(message) {
+            document.getElementById('successMessage').innerText = message;
+        }
+
+        // Function to display error messages
+        function displayError(message) {
+            document.getElementById('errorMessage').innerText = message;
+        }
+
+        // Automatically borrow selected copies
+        async function borrowSelectedCopies() {
+            if (!copies || copies.length === 0) {
+                displayError('No copies selected for borrowing.');
+                return;
+            }
+
+            try {
+                // Borrow API call
+                const response = await fetch(`/api/books/copy_borrow`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userToken}`
+                    },
+                    body: JSON.stringify({ userid: userId, isbn, copies })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || data.error) {
+                    throw new Error(data.error || 'Failed to borrow copies.');
+                }
+
+                // Display success message
+                displaySuccess(data.message || 'Copies borrowed successfully!');
+                console.log('Borrow response:', data);
+
+                // Optionally display borrowed copies
+                displayBorrowedDetails(copies);
+            } catch (error) {
+                console.error('Error borrowing copies:', error.message);
+                displayError(error.message || 'Failed to borrow copies. Please try again.');
+            }
+        }
+
+        // Function to fetch and display book details
+        async function fetchBookDetails() {
+            try {
+                if (!isbn) {
+                    throw new Error('No ISBN provided.');
+                }
+
+                const response = await fetch(`/api/books/isbn/${isbn}`);
+                if (!response.ok) {
+                    throw new Error('Book not found by ISBN.');
+                }
+
+                const book = await response.json();
+                displayBookDetails(book);
+            } catch (error) {
+                console.error(error.message);
+                displayError(error.message);
+            }
+        }
+
+        // Function to display book details
+        function displayBookDetails(book) {
+            const bookDetailsHTML = `
+                <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
+                <h2>Book Details</h2>
+                <div><strong>Title:</strong> ${book.title}</div>
+                <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
+                <div><strong>Publisher:</strong> ${book.publisher}</div>
+                <div><strong>Published Date:</strong> ${book.publishedDate}</div>
+                <div><strong>ISBN:</strong> ${isbn}</div>
+            `;
+            document.getElementById('bookDetails').innerHTML = bookDetailsHTML;
+        }
+
+        // Function to display borrowed copies
+        function displayBorrowedDetails(copies) {
+            const borrowedDetailsHTML = `
+                <h3>Borrowed Copies</h3>
+                <ul>
+                    ${copies
+                        .map(copyId => `
+                            <li>
+                                <strong>Copy ID:</strong> ${copyId}
+                            </li>
+                        `)
+                        .join('')}
+                </ul>
+            `;
+            document.getElementById('bookDetails').insertAdjacentHTML('beforeend', borrowedDetailsHTML);
+        }
+
+        // Event listener for Back to Catalog button
+        document.getElementById('backToCatalogButton').addEventListener('click', () => {
+            window.location.href = `user-books-catalog.html?userid=${userId}&token=${userToken}`;
+        });
+
+        // Event listener for Borrow History button
+        document.getElementById('BorrowHistoryButton').addEventListener('click', () => {
+            window.location.href = `user_borrow_history.html?userid=${userId}`;
+        });
+
+        // Automatically fetch book details and borrow selected copies when the page loads
+        window.onload = async () => {
+            await fetchBookDetails();
+            await borrowSelectedCopies();
+        };
+    </script>
+
+</body>
+
+</html>
