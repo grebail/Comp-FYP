@@ -37,7 +37,7 @@
 
         searchButton.addEventListener('click', async () => {
             const searchTerm = searchInput.value;
-            const response = await fetch(`http://localhost:9875/books?search=${encodeURIComponent(searchTerm)}`, {
+            const response = await fetch(`https://comp-fyp.onrender.com/books?search=${encodeURIComponent(searchTerm)}`, {
                 headers: { 'Authorization': `Bearer ${token}` }
             });
 

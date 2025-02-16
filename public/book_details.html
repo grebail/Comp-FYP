@@ -253,7 +253,7 @@
             return;
         }
 
-        const qrCodeValue = `http://localhost:10000/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${selectedCopies.join(',')}&token=${userToken}`;
+        const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${selectedCopies.join(',')}&token=${userToken}`;
         const qrCodeElement = document.getElementById('qrCode');
         qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
         qrCodeElement.style.display = 'block';
