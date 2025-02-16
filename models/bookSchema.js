@@ -2,7 +2,7 @@
 const mongoose = require('mongoose');
 
 const bookSchema = new mongoose.Schema({
-    googleId: { type: String, unique: true, required: true },
+    googleId: { type: String,  required: true },
     industryIdentifier: { type: String, unique: true, sparse: true },
     title: String,
     subtitle: String,

@@ -24,7 +24,7 @@ const userDetailsSchema = new mongoose.Schema({
     name: { type: String, },
     email: { type: String, },
     phone: { type: String, },
-    libraryCard: { type: String,  unique: true },
+    libraryCard: { type: String},
     currentLoans: [loanDetailsSchema] // Updated to store detailed loan information
 });
 

@@ -114,25 +114,24 @@ function formatDateToUTC(date) {
 }
 
 // Function to send email using SendGrid
-async function sendEmail(userDetails) {
+async function sendEmail(userDetails, detailedLoans) {
     try {
         const fromAddress = 'abbichiu@gmail.com'; // Sender email
-        const toAddress = userDetails.email;     // Recipient email from user details
+        const toAddress = userDetails.email;          // Recipient email from user details
 
         if (!toAddress) {
             throw new Error('Recipient address is required.');
         }
 
-        // Compose the email including the current loans
+        // Compose the email with the current loans
         let loanDetailsText = 'Current Loans:\n\n';
-        userDetails.currentLoans.forEach((loan, index) => {
+        detailedLoans.forEach((loan, index) => {
             loanDetailsText += `Loan ${index + 1}:\n`;
-            loanDetailsText += `Title: ${loan.details.title}\n`;
-            loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
-            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.details.borrowDate)}\n`; // Convert to UTC
-            loanDetailsText += `Due Date: ${formatDateToUTC(loan.details.dueDate)}\n`;     // Convert to UTC
-            loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
-            loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
+            loanDetailsText += `Title: ${loan.title}\n`;
+            loanDetailsText += `Authors: ${loan.authors.join(', ')}\n`;
+            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.borrowedDate)}\n`;
+            loanDetailsText += `Due Date: ${formatDateToUTC(loan.dueDate)}\n`;
+            loanDetailsText += `Returned: ${loan.returned ? 'Yes' : 'No'}\n\n`;
         });
 
         const emailContent = `
@@ -157,10 +156,10 @@ Library Team`;
         // Send email using SendGrid
         const response = await sgMail.send(msg);
 
-        console.log(`Email sent successfully to ${toAddress}. Response:`, response);
+        console.log(`Email sent successfully to: ${toAddress}`);
         return response;
     } catch (error) {
-        console.error('Error sending email:', error.response ? error.response.body : error.message);
+        console.error('Error sending email to:', userDetails.email, error.response ? error.response.body : error.message);
         throw new Error('Error sending email');
     }
 }
@@ -171,42 +170,98 @@ cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
     try {
         const today = new Date();
         const threeDaysFromNow = new Date(today);
-        threeDaysFromNow.setUTCDate(today.getUTCDate() + 3); // Use UTC dates
+        threeDaysFromNow.setUTCDate(today.getUTCDate() + 3);
+        threeDaysFromNow.setUTCHours(23, 59, 59, 999); // Include the entire last day
 
-        // Fetch users with loans due in the next 3 days
-        const usersWithLoans = await UserDetails.find({
-            'currentLoans.details.dueDate': {
-                $gte: today.toISOString(), // Use ISO string for comparison
-                $lt: threeDaysFromNow.toISOString(),
-            },
-        });
-
-        if (usersWithLoans.length === 0) {
-            console.log('No users with loans due in the next 3 days.');
+        // Fetch all users
+        const allUsers = await UserDetails.find();
+        if (allUsers.length === 0) {
+            console.log('Default admin account already exists.');
             return;
         }
 
-        for (const user of usersWithLoans) {
-            await sendEmail(user);
+        // Iterate over each user and fetch loans
+        for (const userDetails of allUsers) {
+            const userBorrows = await UserBorrow.find({
+                userid: userDetails.userId,
+                'copies.returned': false,
+                'copies.dueDate': {
+                    $gte: today.toISOString(),
+                    $lt: threeDaysFromNow.toISOString(),
+                },
+            });
+
+            // Prepare loan details for the user
+            const detailedLoans = userBorrows.flatMap((borrow) =>
+                borrow.copies
+                    .filter((copy) => !copy.returned && copy.dueDate >= today && copy.dueDate < threeDaysFromNow)
+                    .map((copy) => ({
+                        title: borrow.title,
+                        authors: borrow.authors,
+                        borrowedDate: copy.borrowedDate,
+                        dueDate: copy.dueDate,
+                        returned: copy.returned,
+                    }))
+            );
+
+            if (detailedLoans.length === 0) {
+                console.log(`No loans due for user: ${userDetails.email}. Skipping.`);
+                continue;
+            }
+
+            // Send email to the user
+            try {
+                await sendEmail(userDetails, detailedLoans);
+            } catch (error) {
+                console.error(`Failed to send email to: ${userDetails.email}`, error.message);
+            }
         }
+
+        console.log('Emails sent to all users with pending loans.');
     } catch (error) {
         console.error('Error sending scheduled emails:', error.message);
     }
+
     console.log('Cron job finished at:', new Date());
 });
 
 // Route to manually send an email
 app.post('/send-email', async (req, res) => {
     try {
-        // Fetch user details from the database (modify query as needed)
-        const userDetails = await UserDetails.findOne(); // Fetch the first user for demonstration
+        const { email } = req.body;
 
-        if (!userDetails) {
-            return res.status(404).send('No user found.');
+        if (!email) {
+            return res.status(400).send('Email is required to send the message.');
         }
 
-        // Send email
-        await sendEmail(userDetails);
+        // Fetch user details by email
+        const userDetails = await UserDetails.findOne({ email });
+
+        if (!userDetails) {
+            return res.status(404).send('No user found with the given email.');
+        }
+
+        // Fetch loans for the user
+        const userBorrows = await UserBorrow.find({ userid: userDetails.userId, "copies.returned": false });
+
+        const detailedLoans = userBorrows.flatMap(borrow => {
+            return borrow.copies
+                .filter(copy => !copy.returned)
+                .map(copy => ({
+                    title: borrow.title,
+                    authors: borrow.authors,
+                    borrowedDate: copy.borrowedDate,
+                    dueDate: copy.dueDate,
+                    returned: copy.returned,
+                }));
+        });
+
+        if (detailedLoans.length === 0) {
+            return res.status(404).send('No current loans found for the user.');
+        }
+
+        // Send the email
+        await sendEmail(userDetails, detailedLoans);
 
         res.status(200).send('Email sent successfully!');
     } catch (error) {
@@ -214,6 +269,7 @@ app.post('/send-email', async (req, res) => {
         res.status(500).send('Error sending email');
     }
 });
+
 
 // Assuming you have your Book model defined
 const countBooks = async() => {
@@ -1769,6 +1825,46 @@ app.delete('/api/deletePurchase/:id', async(req, res) => {
 
 
 // API endpoint to save user details
+
+const updateCurrentLoans = async (userId) => {
+    try {
+        // Fetch borrow records where at least one copy is not returned
+        const borrows = await UserBorrow.find({ userid: userId, "copies.returned": false });
+
+        console.log(`[DEBUG] Fetched borrows for userId ${userId}:`, borrows);
+
+        // Flatten the `copies` array and map relevant data
+        const currentLoans = borrows.flatMap(borrow => {
+            return borrow.copies
+                .filter(copy => !copy.returned) // Include only non-returned copies
+                .map(copy => ({
+                    borrowId: borrow._id,
+                    details: {
+                        title: borrow.title,
+                        authors: borrow.authors,
+                        copyId: copy.copyId,
+                        bookLocation: copy.bookLocation || 'Unknown',
+                        locationId: copy.locationId || 'Unknown',
+                        availability: copy.availability || false,
+                        borrowDate: copy.borrowedDate,
+                        dueDate: copy.dueDate,
+                        returned: copy.returned,
+                        industryIdentifier: borrow.industryIdentifier,
+                        publishedDate: borrow.publishedDate,
+                        publisher: borrow.publisher,
+                    },
+                }));
+        });
+
+        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
+
+        return currentLoans;
+    } catch (error) {
+        console.error('[ERROR] Failed to fetch or map borrows:', error.message);
+        throw new Error('Failed to update current loans.');
+    }
+};
+// API endpoint to save user details
 app.post('/api/userDetails', authenticateToken, async (req, res) => {
     const { userId, name, email, phone, libraryCard } = req.body;
 
@@ -1780,35 +1876,25 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
         let userDetails = await UserDetails.findOne({ userId });
 
         if (userDetails) {
-            // Update user details
+            // Fetch current loans and update existing user details
+            const currentLoans = await updateCurrentLoans(userId);
+
+            console.log(`[DEBUG] Updating currentLoans for userId ${userId}:`, currentLoans);
+
             userDetails.name = name;
             userDetails.email = email;
             userDetails.phone = phone;
             userDetails.libraryCard = libraryCard;
-
-            // Optionally, if you want to update currentLoans from UserBorrow
-            const borrows = await UserBorrow.find({ userid: userId, returned: false });
-            userDetails.currentLoans = borrows.map(borrow => ({
-                borrowId: borrow._id,
-                details: {
-                    title: borrow.title,
-                    authors: borrow.authors,
-                    availability: borrow.availability,
-                    borrowDate: borrow.borrowDate,
-                    dueDate: borrow.dueDate,
-                    comments: borrow.comments,
-                    copyId: borrow.copyId,
-                    googleId: borrow.googleId,
-                    industryIdentifier: borrow.industryIdentifier,
-                    publishedDate: borrow.publishedDate,
-                    publisher: borrow.publisher,
-                    returned: borrow.returned
-                }
-            }));
+            userDetails.currentLoans = currentLoans;
 
             await userDetails.save();
             return res.status(200).json({ message: 'User details updated successfully.' });
         } else {
+            // Fetch current loans for a new userDetails document
+            const currentLoans = await updateCurrentLoans(userId);
+
+            console.log(`[DEBUG] Creating new userDetails with currentLoans for userId ${userId}:`, currentLoans);
+
             // Create new user details
             userDetails = new UserDetails({
                 userId,
@@ -1816,17 +1902,17 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
                 email,
                 phone,
                 libraryCard,
+                currentLoans, // Assign current loans fetched from UserBorrow
             });
 
             await userDetails.save();
-            return res.status(201).json({ message: 'User details saved successfully.' });
+            return res.status(201).json({ message: 'User details saved successfully.', userDetails });
         }
     } catch (error) {
-        console.error('Error saving user details:', error.message);
+        console.error('[ERROR] Failed to save user details:', error.message);
         return res.status(500).json({ error: error.message });
     }
 });
-
 // Get userDetails
 // Get userDetails
 app.get('/api/userDetails', authenticateToken, async (req, res) => {
@@ -1837,14 +1923,12 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
     }
 
     try {
-        // Check if UserDetails exists for the provided userid
         let userDetails = await UserDetails.findOne({ userId: userid }).populate('currentLoans.borrowId');
 
-        // If UserDetails does not exist, create a new one with default values
+        // If UserDetails does not exist, create a new one
         if (!userDetails) {
-            console.log(`[INFO] UserDetails not found for userId: ${userid}. Creating a new document with default values.`);
+            console.log(`[INFO] UserDetails not found for userId: ${userid}. Creating a new document.`);
 
-            // Create new UserDetails with default empty values
             userDetails = new UserDetails({
                 userId: userid,
                 name: '',
@@ -1854,19 +1938,18 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
                 currentLoans: [],
             });
 
-            try {
-                await userDetails.save(); // Save the newly created UserDetails
-                console.log('[INFO] New UserDetails document created successfully.');
-            } catch (error) {
-                console.error('[ERROR] Failed to create UserDetails:', error.message);
-                return res.status(500).json({ error: 'Failed to create UserDetails.' });
-            }
+            await userDetails.save();
         }
 
-        // Return the UserDetails (existing or newly created)
+        // Update the currentLoans field
+        userDetails.currentLoans = await updateCurrentLoans(userid);
+        await userDetails.save();
+
+        console.log(`[DEBUG] Updated currentLoans for userId ${userid}:`, userDetails.currentLoans);
+
         return res.status(200).json(userDetails);
     } catch (error) {
-        console.error('[ERROR] Error fetching user details:', error.message);
+        console.error('[ERROR] Failed to fetch user details:', error.message);
         return res.status(500).json({ error: error.message });
     }
 });
@@ -1881,11 +1964,10 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     }
 
     try {
-        // Fetch all borrow records for the user where copies have not been returned
-        const borrows = await UserBorrow.find({ 
-            userid: userid, 
-            "copies.returned": false // Filter for copies that are not returned
-        });
+        // Fetch all borrow records for the user where copies are not returned
+        const borrows = await UserBorrow.find({ userid, "copies.returned": false });
+
+        console.log(`[DEBUG] Fetched borrows for userId ${userid}:`, borrows);
 
         // Map the borrow records to include relevant details
         const detailedBorrows = borrows.flatMap(borrow => {
@@ -1908,17 +1990,12 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
                 }));
         });
 
-        res.json(detailedBorrows);
+        // Return the detailed borrow records
+        return res.json(detailedBorrows);
     } catch (error) {
-        console.error('Error fetching borrow history:', error);
-        res.status(500).json({ error: 'Failed to fetch borrow history.' });
+        console.error('[ERROR] Failed to fetch borrow history:', error.message);
+        return res.status(500).json({ error: 'Failed to fetch borrow history.' });
     }
-});
-
-
-// Route to serve the Google verification file
-app.get('/google56342aab9c608962.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'google56342aab9c608962.html'));
 });
 
 // Route to redirect to the Privacy Policy URL
