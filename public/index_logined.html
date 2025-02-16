@@ -312,7 +312,6 @@
     </footer>
 
     <script>
-       
         window.onload = function () {
             // Extract token and userid from the query parameters
             const urlParams = new URLSearchParams(window.location.search);
@@ -342,6 +341,7 @@
                 console.error('No user ID found in URL.');
             }
         };
+       
 
 // Logout Button
 document.getElementById('logout-button').addEventListener('click', function (event) {
@@ -378,9 +378,31 @@ showSlide(currentIndex); // Show the first slide
 setInterval(nextSlide, 3000); // Change slide every 3 seconds
 
 // Books link redirect
+// Books link redirect
 document.getElementById('books-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `books-catalog.html?userid=${userId}`; // Redirect to books catalog with user ID
+    // Retrieve the token from URL or localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    let token = urlParams.get('token'); // Try getting the token from the URL
+
+    if (!token) {
+        token = localStorage.getItem('token'); // Fall back to the token in localStorage
+    }
+
+    if (!token) {
+        console.error('No token found. Redirecting to login...');
+        window.location.href = 'login.html'; // Redirect to login if no token is found
+        return;
+    }
+
+    const userId = urlParams.get('userid'); // Get user ID from the URL
+    if (!userId) {
+        console.error('No user ID found. Redirecting to login...');
+        window.location.href = 'login.html'; // Redirect to login if no user ID is found
+        return;
+    }
+
+    // Redirect to the books catalog page with token and user ID
+    window.location.href = `books-catalog.html?userid=${userId}&token=${token}`;
 });
     </script>
 

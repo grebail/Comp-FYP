@@ -1443,7 +1443,40 @@ app.delete('/api/userPurchases', authenticateToken, async(req, res) => {
         res.status(500).json({ error: 'Failed to delete purchase.' });
     }
 });
+// An endpoint to update inserted book copy
 
+app.put('/api/updatePurchase/:copyId', authenticateToken, async (req, res) => {
+    const { copyId } = req.params; // Extract copyId from the URL path
+    const updateData = req.body; // Extract the fields to update from the request body
+
+    // Validate request parameters
+    if (!copyId) {
+        return res.status(400).json({ error: 'Missing copyId.' });
+    }
+
+    try {
+        // Find and update the specific copy within the copies array
+        const updateResult = await BookBuy.updateOne(
+            { 'copies.copyId': copyId }, // Match the specific copyId in the copies array
+            {
+                $set: {
+                    'copies.$.bookLocation': updateData.bookLocation, // Update the bookLocation
+                    'copies.$.locationId': updateData.locationId,     // Update the locationId
+                    'copies.$.availability': updateData.availability, // Update availability
+                },
+            }
+        );
+
+        if (updateResult.matchedCount === 0) {
+            return res.status(404).json({ error: 'Copy not found.' });
+        }
+
+        res.json({ message: 'Copy updated successfully.' });
+    } catch (error) {
+        console.error('Error updating copy:', error);
+        res.status(500).json({ error: 'Failed to update copy.' });
+    }
+});
 // API endpoint to get all purchased books
 app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
     try {
@@ -1519,7 +1552,7 @@ const upload = multer({ dest: 'uploads/' }); // Temporary file storage
 
 
 // API endpoint to import books from CSV
-app.post('/api/importBooks', upload.single('file'), async(req, res) => {
+app.post('/api/importBooks', upload.single('file'), async (req, res) => {
     const results = [];
     const errors = [];
 
@@ -1531,7 +1564,7 @@ app.post('/api/importBooks', upload.single('file'), async(req, res) => {
             .on('data', (data) => {
                 results.push(data);
             })
-            .on('end', async() => {
+            .on('end', async () => {
                 await processBooks(results, errors);
                 fs.unlinkSync(req.file.path); // Clean up uploaded file
                 sendResponse(res, errors);
@@ -1549,10 +1582,6 @@ app.post('/api/importBooks', upload.single('file'), async(req, res) => {
         return res.status(400).json({ error: 'No valid input provided. Please upload a file or provide JSON.' });
     }
 });
-
-function newFunction() {
-    return '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';
-}
 
 async function processBooks(books, errors) {
     const userId = 'defaultUserId'; // Replace with a valid user ID if needed
@@ -1581,6 +1610,19 @@ async function processBooks(books, errors) {
         // Validate publishedDate
         if (!isValidDate(publishedDate)) {
             errors.push({ error: 'Invalid published date for a book.', book });
+            continue;
+        }
+
+        // Check if the book with the same googleId already exists in the database
+        try {
+            const existingBook = await BookBuy.findOne({ googleId });
+            if (existingBook) {
+                errors.push({ error: 'Duplicate googleId found. Skipping book.', book });
+                continue;
+            }
+        } catch (findError) {
+            console.error('Error checking for existing book:', findError.message);
+            errors.push({ error: 'Error checking for existing book.', book, details: findError.message });
             continue;
         }
 
@@ -1638,7 +1680,6 @@ function sendResponse(res, errors) {
         errors: errors.length > 0 ? errors : undefined
     });
 }
-
 // API endpoint to export all purchases to CSV
 app.get('/api/exportBooks', async(req, res) => {
     try {

@@ -236,6 +236,7 @@
                     <input type="checkbox" id="copy-${copy.copyId}" value="${copy.copyId}" ${!copy.availability ? 'disabled' : ''}>
                     <label for="copy-${copy.copyId}">
                         <strong>Copy ID:</strong> ${copy.copyId},
+                        <strong>Location ID:</strong> ${copy. locationId},
                         <strong>Location:</strong> ${copy.bookLocation},
                         <strong>Available:</strong> ${copy.availability ? 'Yes' : 'No'}
                     </label>

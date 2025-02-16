@@ -343,9 +343,9 @@
         }
 
         function ImportBook() {
-            window.location.href = `http://localhost:10000/importBook.html?userid=${userId}`;
+            const token = new URLSearchParams(window.location.search).get('token'); // Extract token from URL
+            window.location.href = `http://localhost:10000/importBook.html?userid=${userId}&token=${token}`;
         }
-
         function Admin_Book() {
             window.location.href = `http://localhost:10000/book_admin.html?userid=${userId}`;
         }
