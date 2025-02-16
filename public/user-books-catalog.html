@@ -467,10 +467,12 @@
         }
 
         function viewAccount() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`;
         }
 
         function viewHistory() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `user_borrow_history.html?userid=${userId}`;
         }
 
