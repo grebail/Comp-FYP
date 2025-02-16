@@ -187,6 +187,26 @@
 </footer>
 
 <script>
+    function populateUserDetails(userDetails) {
+        if (!userDetails) {
+            console.error('User details are not available.');
+            return;
+        }
+    
+        // Populate the form fields
+        document.getElementById('name').value = userDetails.name || '';
+        document.getElementById('email').value = userDetails.email || '';
+        document.getElementById('phone').value = userDetails.phone || '';
+        document.getElementById('library-card').value = userDetails.libraryCard || '';
+    
+        // Check if all fields are empty
+        const isEmpty = !userDetails.name && !userDetails.email && !userDetails.phone && !userDetails.libraryCard;
+    
+        if (isEmpty) {
+            alert('Your profile is incomplete! Please fill in your details to complete your profile.');
+        }
+    }
+
     async function fetchUserDetails() {
         const userId = new URLSearchParams(window.location.search).get('userid'); // Get userId from URL
         const token = localStorage.getItem('token'); // Retrieve the token from local storage
@@ -204,27 +224,15 @@
             }
     
             const userDetails = await userResponse.json();
-            console.log('Fetched User Details:', userDetails); // Log the fetched user details
-
-            populateUserDetails(userDetails); // Populate the input fields
+            console.log('Fetched or Created User Details:', userDetails); // Log the fetched or new user details
+    
+            populateUserDetails(userDetails); // Populate the input fields with fetched or default data
         } catch (error) {
             console.error('Error fetching user details:', error);
             alert('Error fetching user details. Please try again.');
         }
     }
-
-    function populateUserDetails(userDetails) {
-        if (!userDetails) {
-            console.error('User details are not available.');
-            return;
-        }
-        
-        document.getElementById('name').value = userDetails.name || ''; 
-        document.getElementById('email').value = userDetails.email || '';
-        document.getElementById('phone').value = userDetails.phone || '';
-        document.getElementById('library-card').value = userDetails.libraryCard || '';
-    }
-
+   
     async function saveChanges(event) {
         event.preventDefault(); // Prevent the default form submission
     

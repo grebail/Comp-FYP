@@ -21,10 +21,10 @@ const loanDetailsSchema = new mongoose.Schema({
 // Modify the userDetailsSchema to include the new structure for currentLoans
 const userDetailsSchema = new mongoose.Schema({
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String, required: true },
-    libraryCard: { type: String, required: true, unique: true },
+    name: { type: String, },
+    email: { type: String, },
+    phone: { type: String, },
+    libraryCard: { type: String,  unique: true },
     currentLoans: [loanDetailsSchema] // Updated to store detailed loan information
 });
 
