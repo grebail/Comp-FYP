@@ -460,21 +460,21 @@
         }
 
         function backHome (){
-            const userId = new URLSearchParams(window.location.search).get('userId');
-            window.location.href = `index_userlogined.html?userid=${userId}`;
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userid}`;
         };
         function viewDetails(googleId, industryIdentifier) {
             window.location.href = `book_details.html?googleId=${googleId}&&userid=${userId}&isbn=${industryIdentifier}&token=${token}`;
         }
 
         function viewAccount() {
-            const userId = new URLSearchParams(window.location.search).get('userId');
-            window.location.href = `acc_profile.html?userid=${userId}`;
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `acc_profile.html?userid=${userid}`;
         }
 
         function viewHistory() {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `user_borrow_history.html?userid=${userId}`;
+            window.location.href = `user_borrow_history.html?userid=${userid}`;
         }
 
         let searchTimeout;
