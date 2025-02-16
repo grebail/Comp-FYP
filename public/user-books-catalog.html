@@ -460,18 +460,20 @@
         }
 
         function backHome (){
-            window.location.href = `index_userlogined.html?userid=${userid}`;
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`;
         };
         function viewDetails(googleId, industryIdentifier) {
             window.location.href = `book_details.html?googleId=${googleId}&&userid=${userId}&isbn=${industryIdentifier}&token=${token}`;
         }
 
         function viewAccount() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`;
         }
 
-
         function viewHistory() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `user_borrow_history.html?userid=${userId}`;
         }
 
@@ -481,10 +483,6 @@
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(searchBooks, 300);
         }
-
-        document.getElementById('homeButton').addEventListener('click', () => {
-            window.location.href = `index_userlogined.html`;
-        });
 
         window.onload = loadBooks; // Load books when the page is loaded
     </script>
