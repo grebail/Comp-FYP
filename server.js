@@ -1603,6 +1603,7 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
 
 
 
+
 // API endpoint to import books from CSV
 const upload = multer({ dest: 'uploads/' }); // Temporary file storage
 
@@ -1644,7 +1645,7 @@ async function processBooks(books, errors) {
 
     for (const book of books) {
         const {
-            googleId,
+            googleId, // Informational, not used for duplicate checks
             title,
             authors,
             publisher,
@@ -1654,7 +1655,8 @@ async function processBooks(books, errors) {
             categories,
             language,
             coverImage,
-            copies // This should be a string of copies
+            copies, // Optional field
+            industryIdentifier // Used for duplicate checking
         } = book;
 
         // Validate required fields
@@ -1663,78 +1665,87 @@ async function processBooks(books, errors) {
             continue;
         }
 
-        // Validate publishedDate
-        if (!isValidDate(publishedDate)) {
-            errors.push({ error: 'Invalid published date for a book.', book });
+        // Allow flexible formats for publishedDate (year-only, full date, or empty)
+        const formattedDate = parsePublishedDate(publishedDate);
+        if (publishedDate && !formattedDate) {
+            errors.push({ error: 'Invalid published date format.', book });
             continue;
         }
 
-        // Check if the book with the same googleId already exists in the database
         try {
-            const existingBook = await BookBuy.findOne({ googleId });
+            // Check if the book with the same industryIdentifier already exists
+            const existingBook = await BookBuy.findOne({ industryIdentifier: { $in: [industryIdentifier.trim()] } });
+
             if (existingBook) {
-                errors.push({ error: 'Duplicate googleId found. Skipping book.', book });
-                continue;
+                // Log that the book is skipped due to duplicate industryIdentifier
+                console.log(`Skipping duplicate book with industryIdentifier: ${industryIdentifier}`);
+                errors.push({ error: 'Duplicate industryIdentifier found. Skipping book.', book });
+                continue; // Skip the current book
             }
-        } catch (findError) {
-            console.error('Error checking for existing book:', findError.message);
-            errors.push({ error: 'Error checking for existing book.', book, details: findError.message });
-            continue;
-        }
 
-        // Prepare copies array from CSV or JSON data
-        const copiesArray = (copies || '').split(';').map(copy => {
-            const details = copy.split(',');
-            if (details.length !== 4) {
-                errors.push({ error: 'Invalid copies format.', book });
-                return null; // Skip this copy
-            }
-            return {
-                copyId: details[0],
-                bookLocation: details[1],
-                locationId: details[2],
-                availability: details[3] === 'true',
-            };
-        }).filter(copy => copy !== null); // Remove null entries
+            // Prepare copies array if provided
+            const copiesArray = copies
+                ? copies.split(';').map(copy => {
+                    const details = copy.split(',');
+                    if (details.length !== 4) {
+                        errors.push({ error: 'Invalid copies format.', book });
+                        return null; // Skip this copy
+                    }
+                    return {
+                        copyId: details[0],
+                        bookLocation: details[1],
+                        locationId: details[2],
+                        availability: details[3] === 'true',
+                    };
+                }).filter(copy => copy !== null) // Remove null entries
+                : []; // Default to an empty array if copies is not provided
 
-        // Create a new purchase record using the book details
-        const purchase = new BookBuy({
-            userId,
-            googleId,
-            industryIdentifier: book.industryIdentifier ? [book.industryIdentifier] : [],
-            title,
-            authors: authors ? authors.split(',') : ['Unknown Author'],
-            publisher,
-            publishedDate,
-            description,
-            pageCount: pageCount ? Number(pageCount) : undefined,
-            categories: categories ? categories.split(',') : [],
-            language,
-            coverImage,
-            purchaseDate: new Date(),
-            copies: copiesArray
-        });
+            // Create a new purchase record using the book details
+            const newBook = new BookBuy({
+                userId,
+                googleId, // Informational field, not used for duplicate checks
+                industryIdentifier: industryIdentifier ? [industryIdentifier.trim()] : [],
+                title,
+                authors: authors ? authors.split(',') : ['Unknown Author'],
+                publisher,
+                publishedDate: formattedDate,
+                description,
+                pageCount: pageCount ? Number(pageCount) : undefined,
+                categories: categories ? categories.split(',') : [],
+                language,
+                coverImage,
+                purchaseDate: new Date(),
+                copies: copiesArray // Optional field
+            });
 
-        // Save the purchase to the database
-        try {
-            await purchase.save();
-        } catch (saveError) {
-            console.error('Error saving book:', saveError.message);
-            errors.push({ error: 'Failed to save book.', book, details: saveError.message });
+            // Save the new book to the database
+            console.log('Attempting to save new book:', newBook);
+            await newBook.save();
+            console.log('Saved new book:', newBook.industryIdentifier);
+        } catch (error) {
+            console.error('Error processing book:', error.message);
+            errors.push({ error: 'Failed to process book.', book, details: error.message });
         }
     }
 }
+/**
+ * Helper function to parse flexible date formats for publishedDate.
+ * - Accepts full dates (e.g., "2025-02-17", "02/17/2025").
+ * - Accepts year-only (e.g., "2025").
+ * - Returns null if invalid.
+ */
+function parsePublishedDate(dateString) {
+    if (!dateString) return null; // Allow empty dates
+    const fullDate = new Date(dateString);
+    if (!isNaN(fullDate.getTime())) return fullDate; // Valid full date
 
-function isValidDate(dateString) {
-    const date = new Date(dateString);
-    return !isNaN(date.getTime()); // Check if date is valid
-}
+    // Handle year-only format (e.g., "2025")
+    if (/^\d{4}$/.test(dateString)) {
+        return new Date(`${dateString}-01-01`); // Default to January 1st
+    }
 
-function sendResponse(res, errors) {
-    res.status(201).json({
-        message: 'Books imported successfully!',
-        errors: errors.length > 0 ? errors : undefined
-    });
+    // Invalid date format
+    return null;
 }
 // API endpoint to export all purchases to CSV
 app.get('/api/exportBooks', async(req, res) => {
