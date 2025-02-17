@@ -1610,33 +1610,36 @@ const upload = multer({ dest: 'uploads/' }); // Temporary file storage
 
 // API endpoint to import books from CSV
 app.post('/api/importBooks', upload.single('file'), async (req, res) => {
-    const results = [];
-    const errors = [];
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded.' });
+        }
 
-    // Check if the request contains a file
-    if (req.file) {
-        // Read CSV file and parse it
+        const results = [];
+        const errors = [];
+
         fs.createReadStream(req.file.path)
-            .pipe(csv({ separator: ',' })) // Adjust for comma-separated values
+            .pipe(csv({ separator: ',' }))
             .on('data', (data) => {
                 results.push(data);
             })
             .on('end', async () => {
-                await processBooks(results, errors);
-                fs.unlinkSync(req.file.path); // Clean up uploaded file
-                sendResponse(res, errors);
+                try {
+                    await processBooks(results, errors);
+                    fs.unlinkSync(req.file.path); // Clean up uploaded file
+                    res.json({ message: 'Books imported successfully.', errors });
+                } catch (err) {
+                    console.error('Error processing books:', err);
+                    res.status(500).json({ error: 'Failed to process books.' });
+                }
             })
             .on('error', (error) => {
                 console.error('Error parsing CSV:', error);
-                return res.status(400).json({ error: 'Error parsing CSV file.' });
+                res.status(400).json({ error: 'Error parsing CSV file.' });
             });
-    } else if (req.body.books) {
-        // Handle JSON input
-        await processBooks(req.body.books, errors);
-        sendResponse(res, errors);
-    } else {
-        // No valid input provided
-        return res.status(400).json({ error: 'No valid input provided. Please upload a file or provide JSON.' });
+    } catch (err) {
+        console.error('Error importing books:', err);
+        res.status(500).json({ error: 'An unexpected error occurred.' });
     }
 });
 
