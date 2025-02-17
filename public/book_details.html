@@ -246,6 +246,7 @@
         }
        // Generate QR Code for borrowing selected copies
        // Generate individual QR codes for borrowing selected copies
+// Generate individual QR codes for borrowing selected copies, and clear existing QR codes on subsequent clicks
 function generateQRCode() {
     const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
 
@@ -254,14 +255,21 @@ function generateQRCode() {
         return;
     }
 
-    // Clear any existing QR codes
-    document.getElementById('copiesSection').innerHTML += '<h3>QR Codes for Borrowing:</h3>';
+    // Clear existing QR codes if already generated
+    const existingQrContainer = document.getElementById('qrCodesContainer');
+    if (existingQrContainer) {
+        existingQrContainer.remove();
+    }
+
+    // Create a container for the new QR codes
     const qrContainer = document.createElement('div');
     qrContainer.id = "qrCodesContainer";
     qrContainer.style.display = 'flex';
     qrContainer.style.flexWrap = 'wrap';
     qrContainer.style.gap = '10px';
+    qrContainer.style.marginTop = '20px';
 
+    // Generate QR codes for each selected copy
     selectedCopies.forEach(copyId => {
         const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${userToken}`;
         const qrCodeImg = document.createElement('img');
@@ -284,6 +292,7 @@ function generateQRCode() {
         qrContainer.appendChild(qrCodeWrapper);
     });
 
+    // Append the new QR codes to the copies section
     document.getElementById('copiesSection').appendChild(qrContainer);
 }
 
