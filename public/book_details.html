@@ -245,19 +245,47 @@
             copiesSection.innerHTML = copiesHTML;
         }
        // Generate QR Code for borrowing selected copies
-       function generateQRCode() {
-        const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+       // Generate individual QR codes for borrowing selected copies
+function generateQRCode() {
+    const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
 
-        if (selectedCopies.length === 0) {
-            alert('Please select at least one copy to generate a QR code.');
-            return;
-        }
-
-        const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${selectedCopies.join(',')}&token=${userToken}`;
-        const qrCodeElement = document.getElementById('qrCode');
-        qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
-        qrCodeElement.style.display = 'block';
+    if (selectedCopies.length === 0) {
+        alert('Please select at least one copy to generate QR codes.');
+        return;
     }
+
+    // Clear any existing QR codes
+    document.getElementById('copiesSection').innerHTML += '<h3>QR Codes for Borrowing:</h3>';
+    const qrContainer = document.createElement('div');
+    qrContainer.id = "qrCodesContainer";
+    qrContainer.style.display = 'flex';
+    qrContainer.style.flexWrap = 'wrap';
+    qrContainer.style.gap = '10px';
+
+    selectedCopies.forEach(copyId => {
+        const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${userToken}`;
+        const qrCodeImg = document.createElement('img');
+        qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
+        qrCodeImg.alt = `QR Code for Copy ID: ${copyId}`;
+        qrCodeImg.style.margin = '10px';
+
+        const qrCodeLabel = document.createElement('div');
+        qrCodeLabel.style.textAlign = 'center';
+        qrCodeLabel.style.fontSize = '14px';
+        qrCodeLabel.style.marginTop = '5px';
+        qrCodeLabel.textContent = `Copy ID: ${copyId}`;
+
+        const qrCodeWrapper = document.createElement('div');
+        qrCodeWrapper.style.display = 'inline-block';
+        qrCodeWrapper.style.textAlign = 'center';
+        qrCodeWrapper.appendChild(qrCodeImg);
+        qrCodeWrapper.appendChild(qrCodeLabel);
+
+        qrContainer.appendChild(qrCodeWrapper);
+    });
+
+    document.getElementById('copiesSection').appendChild(qrContainer);
+}
 
         // Borrow selected copies
         function borrowSelectedCopies() {
