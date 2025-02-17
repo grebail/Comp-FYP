@@ -159,7 +159,7 @@
             formData.append('file', file); // Append the CSV file
 
             try {
-                const response = await fetch('/api/importBooks', {
+                const response = await fetch('https://comp-fyp.onrender.com/api/importBooks', {
                     method: 'POST',
                     body: formData // Use FormData to send the file
                 });
