@@ -76,12 +76,13 @@
 
     <script>
         
-        const userToken = new URLSearchParams(window.location.search).get('token'); // Extract token from query string
+       ; // Extract token from query string
         // Function to fetch all user borrow data
         async function fetchAllUserBorrowData() {
-            const token = new URLSearchParams(window.location.search).get('token'); // Extract token from URL
+            const userToken = new URLSearchParams(window.location.search).get('token')
+           // Extract token from URL
             try {
-                const response = await fetch(`/api/userBorrows`, {
+                const response = await fetch(`https://comp-fyp.onrender.com/api/userBorrows`, {
 
                     method: 'GET',
                     headers: {
