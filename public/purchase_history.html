@@ -191,6 +191,7 @@ async function deleteBook(isbn) {
         // Function to display purchased books
 // Function to display purchased books
 // Function to display purchased books
+// Function to display purchased books
 async function displayBooks(history) {
     if (history.length === 0) {
         document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
@@ -220,7 +221,14 @@ async function displayBooks(history) {
 
     // Construct HTML for valid books
     const historyHTML = validBooks.map(book => {
-        const purchase = history.find(h => h.industryIdentifier === book.industryIdentifier); // Match purchase record
+        // Find the purchase record that matches the book's industryIdentifier
+        const purchase = history.find(h => h.industryIdentifier === book.industryIdentifier);
+
+        if (!purchase) {
+            console.warn('No matching purchase found for book:', book);
+            return ''; // Skip rendering if no matching purchase is found
+        }
+
         return `
             <div class="book-item">
                 <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
@@ -234,6 +242,7 @@ async function displayBooks(history) {
         `;
     }).join('');
 
+    // Update the HTML with the constructed book items
     document.getElementById('historyContent').innerHTML = historyHTML;
 }
         // Function to display error messages
