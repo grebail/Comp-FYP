@@ -2126,14 +2126,14 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
 
 
 // Endpoint to get all user borrow data without token validation
-app.get('/api/show_userBorrows',authenticateToken, async (req, res) => {
+app.get('/api/show_userBorrows', async (req, res) => {
     try {
-        // Fetch all borrowed books data
+        // Fetch and return all user borrow data without requiring authentication
         const allUserBorrowData = await UserBorrow.find({})
-            .populate('userid', 'username') // Populate the 'userid' field with 'username'
+            .populate('userid', 'username')
             .exec();
 
-        res.status(200).json(allUserBorrowData); // Return the data
+        res.status(200).json(allUserBorrowData);
     } catch (error) {
         console.error('Error fetching user borrow data:', error);
         res.status(500).json({ error: 'Failed to fetch user borrow data.' });
