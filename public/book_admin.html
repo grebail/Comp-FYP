@@ -215,41 +215,49 @@ $('#addBookForm').on('submit', function (e) {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
         success: function (existingBooks) {
-            const nextIndex = existingBooks.length; // Determine the next copy index
-            const locationId = generateLocationId(
-                isbn,
-                existingBooks[0]?.title || 'Unknown',
-                existingBooks[0]?.authors || [],
-                existingBooks[0]?.publishedDate || new Date().toISOString(),
-                existingBooks[0]?.categories[0] || 'Unknown',
-                nextIndex
-            );
+            const nextIndex = existingBooks.length; // Determine the starting index for new copies
 
-            const bookData = {
-                isbn,
-                bookLocation,
-                locationId,
-                availability,
-                noOfCopy
-            };
+            const copies = [];
+            for (let i = 0; i < noOfCopy; i++) {
+                const locationId = generateLocationId(
+                    isbn,
+                    existingBooks[0]?.title || 'Unknown',
+                    existingBooks[0]?.authors || [],
+                    existingBooks[0]?.publishedDate || new Date().toISOString(),
+                    existingBooks[0]?.categories[0] || 'Unknown',
+                    nextIndex + i // Increment index for each new copy
+                );
 
-            // Add the new copy
-            $.ajax({
-                url: '/api/admin_books/',
-                method: 'POST',
-                contentType: 'application/json',
-                headers: { 'Authorization': `Bearer ${token}` },
-                data: JSON.stringify(bookData),
-                success: function () {
-                    alert('Book copy added successfully!');
-                    loadBooksGroupedByISBN(); // Reload the table dynamically
-                    $('#addBookForm')[0].reset();
-                },
-                error: function (error) {
-                    console.error('Error adding book:', error);
-                    alert('Error adding book: ' + error.responseText);
-                }
+                copies.push({
+                    isbn,
+                    bookLocation,
+                    locationId,
+                    availability
+                });
+            }
+
+            // Add all copies in one batch
+            const requests = copies.map(copy => {
+                return $.ajax({
+                    url: '/api/admin_books/',
+                    method: 'POST',
+                    contentType: 'application/json',
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    data: JSON.stringify(copy)
+                });
             });
+
+            // Wait for all requests to complete
+            Promise.all(requests)
+                .then(() => {
+                    alert('All book copies added successfully!');
+                    loadBooksGroupedByISBN(); // Reload the table dynamically
+                    $('#addBookForm')[0].reset(); // Reset the form
+                })
+                .catch(error => {
+                    console.error('Error adding one or more book copies:', error);
+                    alert('Failed to add some book copies. Please try again.');
+                });
         },
         error: function (error) {
             console.error('Error fetching existing books:', error);
