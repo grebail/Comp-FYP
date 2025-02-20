@@ -133,63 +133,34 @@
 
         // Function to fetch book details by googleId
         // Function to fetch book details by ISBN
-// Function to fetch book details by ISBN
-async function fetchBookDetails(isbn) {
-    if (!isbn) {
-        throw new Error('ISBN is undefined');
-    }
-
-    const token = localStorage.getItem('token');
-    console.log('Fetching book details for ISBN:', isbn); // Debugging log
-
-    try {
-        const response = await fetch(`/api/books/isbn/${isbn}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text(); // Get the response text
-            console.error('Error fetching book details:', response.status, errorText); // Log error details
-            throw new Error('Failed to fetch book details: ' + errorText);
-        }
-
-        return await response.json(); // Return the fetched book details
-    } catch (error) {
-        console.error('Error fetching book details by ISBN:', error);
-        throw error;
-    }
+// Function to fetch book de
 }
         // Function to delete a purchased book
-        // Function to delete a purchased book
-async function deleteBook(isbn) {
-    const token = localStorage.getItem('token');
-    try {
-        const response = await fetch(`/api/userPurchases?isbn=${isbn}&userid=${userid}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
+        async function deleteBook(googleId) {
+            const token = localStorage.getItem('token');
+            try {
+                const response = await fetch(`/api/userPurchases?googleId=${googleId}&userid=${userid}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.text();
+                    displayError(errorData || 'Failed to delete the book.');
+                    return;
+                }
+
+                // Refresh the purchase history after deletion
+                fetchPurchaseHistory();
+            } catch (error) {
+                displayError('An error occurred while trying to delete the book.');
             }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.text();
-            displayError(errorData || 'Failed to delete the book.');
-            return;
         }
-
-        // Refresh the purchase history after deletion
-        fetchPurchaseHistory();
-    } catch (error) {
-        displayError('An error occurred while trying to delete the book.');
-    }
-}
 
         // Function to display purchased books
         // Function to display purchased books
-// Function to display purchased books
 // Function to display purchased books
 async function displayBooks(history) {
     if (history.length === 0) {
@@ -197,42 +168,36 @@ async function displayBooks(history) {
         return;
     }
 
-    // Fetch details for each book using the ISBN (industryIdentifier)
     const bookPromises = history.map(async (item) => {
-        const isbn = item.industryIdentifier; // Extract ISBN from userPurchases
+        const isbn = item.isbn; // Use ISBN instead of googleId
         if (!isbn) {
-            console.warn('Skipping item with undefined ISBN:', item);
+            console.warn('Skipping undefined ISBN for item:', item);
             return null; // Skip if ISBN is undefined
         }
 
         try {
-            const bookDetails = await fetchBookDetails(isbn); // Fetch book details by ISBN
-            return bookDetails; // Return book details if successful
+            const bookDetails = await fetchBookDetails(isbn); // Fetch by ISBN
+            return bookDetails; // Return the book details if successful
         } catch (error) {
             console.error('Error fetching book details for ISBN:', isbn, error);
             return null; // Return null if there's an error
         }
     });
 
-    // Wait for all promises to resolve and filter out null values
     const books = await Promise.all(bookPromises);
     const validBooks = books.filter(book => book !== null); // Keep only valid book details
 
-    // Construct HTML for valid books
-    const historyHTML = validBooks.map(book => {
-        const purchase = history.find(h => h.industryIdentifier === book.industryIdentifier); // Match purchase record
-        return `
-            <div class="book-item">
-                <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
-                <div class="book-details">
-                    <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
-                    <strong>Purchase Date:</strong> ${new Date(purchase.purchaseDate).toLocaleDateString()} <br>
-                    <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
-                </div>
-                <button class="delete-button" onclick="deleteBook('${book.industryIdentifier}')">Delete</button>
+    const historyHTML = validBooks.map(book => `
+        <div class="book-item">
+            <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
+            <div class="book-details">
+                <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
+                <strong>Purchase Date:</strong> ${new Date(history.find(h => h.isbn === book.industryIdentifier).purchaseDate).toLocaleDateString()} <br>
+                <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
             </div>
-        `;
-    }).join('');
+            <button class="delete-button" onclick="deleteBook('${book.industryIdentifier}')">Delete</button>
+        </div>
+    `).join('');
 
     document.getElementById('historyContent').innerHTML = historyHTML;
 }

@@ -163,29 +163,7 @@ async function fetchBookDetails(isbn) {
     }
 }
         // Function to delete a purchased book
-        // Function to delete a purchased book
-async function deleteBook(isbn) {
-    const token = localStorage.getItem('token');
-    try {
-        const response = await fetch(`/api/userPurchases?isbn=${isbn}&userid=${userid}`, {
-            method: 'DELETE',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            const errorData = await response.text();
-            displayError(errorData || 'Failed to delete the book.');
-            return;
-        }
-
-        // Refresh the purchase history after deletion
-        fetchPurchaseHistory();
-    } catch (error) {
-        displayError('An error occurred while trying to delete the book.');
-    }
-}
+        
 
         // Function to display purchased books
         // Function to display purchased books
