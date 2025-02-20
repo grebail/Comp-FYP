@@ -234,7 +234,7 @@ async function displayBooks(history) {
                 <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
                 <div class="book-details">
                     <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
-                    <strong>Purchase Date:</strong> ${new Date(purchase.purchaseDate).toLocaleDateString()} <br>
+                  
                     <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
                 </div>
                 <button class="delete-button" onclick="deleteBook('${book.industryIdentifier}')">Delete</button>
