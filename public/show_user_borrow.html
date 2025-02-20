@@ -75,18 +75,12 @@
     <button id="backToHomeButton">Back to Home</button>
 
     <script>
-        
-       ; // Extract token from query string
         // Function to fetch all user borrow data
         async function fetchAllUserBorrowData() {
-            const userToken = new URLSearchParams(window.location.search).get('token')
-           // Extract token from URL
             try {
-                const response = await fetch(`https://comp-fyp.onrender.com/api/userBorrows`, {
-
+                const response = await fetch(`/api/userBorrows`, {
                     method: 'GET',
                     headers: {
-                        'Authorization': `Bearer ${userToken}`,
                         'Content-Type': 'application/json'
                     }
                 });
@@ -106,26 +100,31 @@
         // Function to display borrow data
         function displayBorrowData(borrowData) {
             const borrowListElement = document.getElementById('borrowList');
+            if (borrowData.length === 0) {
+                borrowListElement.innerHTML = "<p>No borrowed books found.</p>";
+                return;
+            }
+
             borrowListElement.innerHTML = borrowData.map(userBorrow => `
                 <div class="borrow-item">
                     <h2>${userBorrow.title}</h2>
-                    <p><strong>User ID:</strong> ${userBorrow.userid._id}</p>
-                    <p><strong>Username:</strong> ${userBorrow.userid.username || 'N/A'}</p>
-                    <p><strong>Author(s):</strong> ${userBorrow.authors.join(', ')}</p>
+                    <p><strong>User ID:</strong> ${userBorrow.userid?._id || 'N/A'}</p>
+                    <p><strong>Username:</strong> ${userBorrow.userid?.username || 'N/A'}</p>
+                    <p><strong>Author(s):</strong> ${userBorrow.authors?.join(', ') || 'Unknown'}</p>
                     <p><strong>Publisher:</strong> ${userBorrow.publisher || 'Unknown'}</p>
                     <p><strong>Published Date:</strong> ${userBorrow.publishedDate || 'Unknown'}</p>
-                    <p><strong>ISBN(s):</strong> ${userBorrow.industryIdentifier.join(', ')}</p>
+                    <p><strong>ISBN(s):</strong> ${userBorrow.industryIdentifier?.join(', ') || 'N/A'}</p>
                     <h3>Copies:</h3>
                     <ul>
-                        ${userBorrow.copies.map(copy => `
+                        ${userBorrow.copies?.map(copy => `
                             <li>
-                                <strong>Copy ID:</strong> ${copy.copyId} <br>
-                                <strong>Location:</strong> ${copy.bookLocation} <br>
-                                <strong>Borrowed Date:</strong> ${new Date(copy.borrowedDate).toLocaleDateString()} <br>
-                                <strong>Due Date:</strong> ${new Date(copy.dueDate).toLocaleDateString()} <br>
+                                <strong>Copy ID:</strong> ${copy.copyId || 'N/A'} <br>
+                                <strong>Location:</strong> ${copy.bookLocation || 'N/A'} <br>
+                                <strong>Borrowed Date:</strong> ${copy.borrowedDate ? new Date(copy.borrowedDate).toLocaleDateString() : 'N/A'} <br>
+                                <strong>Due Date:</strong> ${copy.dueDate ? new Date(copy.dueDate).toLocaleDateString() : 'N/A'} <br>
                                 <strong>Returned:</strong> ${copy.returned ? 'Yes' : 'No'}
                             </li>
-                        `).join('')}
+                        `).join('') || '<li>No copies found.</li>'}
                     </ul>
                 </div>
             `).join('');

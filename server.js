@@ -2123,20 +2123,17 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
     }
 });
 
-// API endpoint to get all user borrow data with usernames
-app.get('/api/userBorrows', authenticateToken, async (req, res) => {
-    console.log('User Info from Token:', req.user);
-    if (req.user.role !== 'librarian') {
-        console.error('Access denied. Insufficient permissions.');
-        return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
-    }
 
+
+// Endpoint to get all user borrow data without token validation
+app.get('/api/userBorrows', async (req, res) => {
     try {
+        // Fetch all borrowed books data
         const allUserBorrowData = await UserBorrow.find({})
-            .populate('userid', 'username')
+            .populate('userid', 'username') // Populate the 'userid' field with 'username'
             .exec();
 
-        res.status(200).json(allUserBorrowData);
+        res.status(200).json(allUserBorrowData); // Return the data
     } catch (error) {
         console.error('Error fetching user borrow data:', error);
         res.status(500).json({ error: 'Failed to fetch user borrow data.' });
