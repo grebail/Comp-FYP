@@ -2126,7 +2126,7 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
 
 
 // Endpoint to get all user borrow data without token validation
-app.get('/api/userBorrows', async (req, res) => {
+app.get('/api/show_userBorrows',authenticateToken, async (req, res) => {
     try {
         // Fetch all borrowed books data
         const allUserBorrowData = await UserBorrow.find({})
