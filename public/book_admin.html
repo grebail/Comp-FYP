@@ -267,6 +267,46 @@ $('#addBookForm').on('submit', function (e) {
         }
     });
 });
+// Load and group books by ISBN
+function loadBooksGroupedByISBN() {
+    const token = localStorage.getItem('token');
+
+    $.ajax({
+        url: '/api/admin_books',
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${token}` },
+        success: function (data) {
+            const groupedBooks = {};
+
+            data.forEach(book => {
+                const isbn = book.isbn;
+
+                if (!groupedBooks[isbn]) {
+                    groupedBooks[isbn] = {
+                        title: book.title,
+                        authors: book.author,
+                        publishedDate: book.publishedDate ? new Date(book.publishedDate).toLocaleDateString() : 'N/A',
+                        categories: book.categories || [],
+                        copies: []
+                    };
+                }
+
+                groupedBooks[isbn].copies.push({
+                    copyId: book._id,
+                    bookLocation: book.bookLocation,
+                    locationId: book.locationId,
+                    availability: book.availability
+                });
+            });
+
+            appendGroupedBooksToTable(groupedBooks);
+        },
+        error: function (error) {
+            console.error('Error loading books:', error);
+            alert('Failed to load books.');
+        }
+    });
+}
 // Event listeners for Details, Edit, and Delete buttons
 $(document).on('click', '.details-button', function () {
     const isbn = $(this).data('isbn'); // Get ISBN from button data attribute
