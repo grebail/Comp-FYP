@@ -193,6 +193,7 @@
 
 
             <button onclick="viewAccount()">My Account</button>
+            <button onclick="showUserBorrow()">Book inventory</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
         </div>
@@ -348,6 +349,9 @@
         }
         function Admin_Book() {
             window.location.href = `https://comp-fyp.onrender.com/book_admin.html?userid=${userId}`;
+        }
+        function showUserBorrow(){
+            window.location.href = `https://comp-fyp.onrender.com/show_user_borrow.html?userid=${userId}&token=${token}`;
         }
 
         function debouncedSearch() {

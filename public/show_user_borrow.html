@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>All User Borrowed Books</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1 {
+            color: #1565c0;
+        }
+
+        .borrow-list {
+            margin-top: 20px;
+        }
+
+        .borrow-item {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 15px;
+        }
+
+        .borrow-item h2 {
+            margin: 0;
+            font-size: 18px;
+            color: #1565c0;
+        }
+
+        .borrow-item ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .borrow-item ul li {
+            margin: 5px 0;
+        }
+
+        .error-message {
+            color: red;
+            margin-top: 10px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 15px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0d47a1;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>All User Borrowed Books</h1>
+    <div id="borrowList" class="borrow-list">
+        <!-- Borrowed books data will be displayed here -->
+    </div>
+    <div id="errorMessage" class="error-message"></div>
+    <button id="backToHomeButton">Back to Home</button>
+
+    <script>
+        const userToken = localStorage.getItem('token');
+
+        // Function to fetch all user borrow data
+        async function fetchAllUserBorrowData() {
+            try {
+                const response = await fetch(`/api/userBorrows`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${userToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch user borrow data. Status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                displayBorrowData(data);
+            } catch (error) {
+                console.error(error.message);
+                document.getElementById('errorMessage').innerText = error.message;
+            }
+        }
+
+        // Function to display borrow data
+        function displayBorrowData(borrowData) {
+            const borrowListElement = document.getElementById('borrowList');
+            borrowListElement.innerHTML = borrowData.map(userBorrow => `
+                <div class="borrow-item">
+                    <h2>${userBorrow.title}</h2>
+                    <p><strong>User ID:</strong> ${userBorrow.userid._id}</p>
+                    <p><strong>Username:</strong> ${userBorrow.userid.username || 'N/A'}</p>
+                    <p><strong>Author(s):</strong> ${userBorrow.authors.join(', ')}</p>
+                    <p><strong>Publisher:</strong> ${userBorrow.publisher || 'Unknown'}</p>
+                    <p><strong>Published Date:</strong> ${userBorrow.publishedDate || 'Unknown'}</p>
+                    <p><strong>ISBN(s):</strong> ${userBorrow.industryIdentifier.join(', ')}</p>
+                    <h3>Copies:</h3>
+                    <ul>
+                        ${userBorrow.copies.map(copy => `
+                            <li>
+                                <strong>Copy ID:</strong> ${copy.copyId} <br>
+                                <strong>Location:</strong> ${copy.bookLocation} <br>
+                                <strong>Borrowed Date:</strong> ${new Date(copy.borrowedDate).toLocaleDateString()} <br>
+                                <strong>Due Date:</strong> ${new Date(copy.dueDate).toLocaleDateString()} <br>
+                                <strong>Returned:</strong> ${copy.returned ? 'Yes' : 'No'}
+                            </li>
+                        `).join('')}
+                    </ul>
+                </div>
+            `).join('');
+        }
+
+        // Event listener for Back to Home button
+        document.getElementById('backToHomeButton').addEventListener('click', () => {
+            window.location.href = 'index.html';
+        });
+
+        // Fetch all user borrow data on page load
+        window.onload = fetchAllUserBorrowData;
+    </script>
+</body>
+
+</html>

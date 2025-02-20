@@ -46,7 +46,8 @@ const borrowedCopySchema = new mongoose.Schema({
 // Define the schema for book borrowing
 const bookBorrowSchema = new mongoose.Schema({
     userid: {
-        type: String,
+        type: mongoose.Schema.Types.ObjectId, // Reference the User schema
+        ref: 'User', // Link to the User model
         required: true,
     },
     googleId: {

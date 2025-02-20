@@ -2123,6 +2123,21 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
     }
 });
 
+// API endpoint to get all user borrow data with usernames
+app.get('/api/userBorrows', async (req, res) => {
+    try {
+        // Fetch all user borrow data and populate the username from the User schema
+        const allUserBorrowData = await UserBorrow.find({})
+            .populate('userid', 'username') // Populate the username field from the User schema
+            .exec();
+
+        res.status(200).json(allUserBorrowData);
+    } catch (error) {
+        console.error('Error fetching user borrow data:', error);
+        res.status(500).json({ error: 'Failed to fetch user borrow data.' });
+    }
+});
+
 // Start server and create default admin
 app.listen(PORT, async() => {
     console.log(`Server running on http://localhost:${PORT}`);
