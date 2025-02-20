@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+
 <html lang="en">
 
 <head>
@@ -209,15 +209,16 @@ $('#addBookForm').on('submit', function (e) {
     const availability = $('#availability').is(':checked');
     const noOfCopy = parseInt($('#noOfCopy').val(), 10);
 
-    // Fetch existing copies for the ISBN to calculate the next index
+    // Fetch existing copies for the ISBN to calculate the correct index
     $.ajax({
         url: `/api/admin_books?isbn=${isbn}`,
         method: 'GET',
         headers: { 'Authorization': `Bearer ${token}` },
         success: function (existingBooks) {
-            const nextIndex = existingBooks.length; // Determine the starting index for new copies
-
+            const totalCopies = existingBooks.length; // Total existing copies
             const copies = [];
+
+            // Generate data for each new copy
             for (let i = 0; i < noOfCopy; i++) {
                 const locationId = generateLocationId(
                     isbn,
@@ -225,9 +226,10 @@ $('#addBookForm').on('submit', function (e) {
                     existingBooks[0]?.authors || [],
                     existingBooks[0]?.publishedDate || new Date().toISOString(),
                     existingBooks[0]?.categories[0] || 'Unknown',
-                    nextIndex + i // Increment index for each new copy
+                    totalCopies + i // Calculate copy index dynamically
                 );
 
+                // Add to copies array
                 copies.push({
                     isbn,
                     bookLocation,
@@ -256,7 +258,7 @@ $('#addBookForm').on('submit', function (e) {
                 })
                 .catch(error => {
                     console.error('Error adding one or more book copies:', error);
-                    alert('Failed to add some book copies. Please try again.');
+                    alert('Failed to add some book copies. Please check the console for details.');
                 });
         },
         error: function (error) {
@@ -265,46 +267,6 @@ $('#addBookForm').on('submit', function (e) {
         }
     });
 });
-        // Load and group books by ISBN
-        function loadBooksGroupedByISBN() {
-            const token = localStorage.getItem('token');
-
-            $.ajax({
-                url: '/api/admin_books',
-                method: 'GET',
-                headers: { 'Authorization': `Bearer ${token}` },
-                success: function (data) {
-                    const groupedBooks = {};
-
-                    data.forEach(book => {
-                        const isbn = book.isbn;
-
-                        if (!groupedBooks[isbn]) {
-                            groupedBooks[isbn] = {
-                                title: book.title,
-                                authors: book.author,
-                                publishedDate: book.publishedDate ? new Date(book.publishedDate).toLocaleDateString() : 'N/A',
-                                categories: book.categories || [],
-                                copies: []
-                            };
-                        }
-
-                        groupedBooks[isbn].copies.push({
-                            copyId: book._id,
-                            bookLocation: book.bookLocation,
-                            locationId: book.locationId,
-                            availability: book.availability
-                        });
-                    });
-
-                    appendGroupedBooksToTable(groupedBooks);
-                },
-                error: function (error) {
-                    console.error('Error loading books:', error);
-                    alert('Failed to load books.');
-                }
-            });
-        }
 // Event listeners for Details, Edit, and Delete buttons
 $(document).on('click', '.details-button', function () {
     const isbn = $(this).data('isbn'); // Get ISBN from button data attribute
@@ -457,15 +419,16 @@ $(document).on('click', '.delete-button', function () {
             // Add more categories and their respective LCC codes here
         };
 
-        function generateLocationId(isbn, title, authors, publishedDate, category, index = 0) {
-            const lccCode = lccCodes[category] || "UNKNOWN";
-            const titleCode = title.substring(0, 2).toUpperCase().padEnd(2, "X");
+        function generateLocationId(isbn, title, authors, publishedDate, category, copyIndex) {
+            const lccCode = lccCodes[category] || "UNKNOWN"; // Get LCC Code
+            const titleCode = title.substring(0, 2).toUpperCase().padEnd(2, "X"); // First 2 letters of title
             const authorCode = authors.length > 0
-                ? authors[0].substring(0, 2).toUpperCase().padEnd(2, "X")
-                : "XX";
-            const year = new Date(publishedDate).getFullYear();
-            const suffix = (index + 1).toString().padStart(2, "0"); // Convert index to 2-digit suffix
-            return `${lccCode} ${titleCode} ${authorCode} ${year}.${suffix}`;
+                ? authors[0].substring(0, 2).toUpperCase().padEnd(2, "X") // First 2 letters of first author
+                : "XX"; // Default if no authors
+            const year = new Date(publishedDate).getFullYear(); // Published year
+            const suffix = (copyIndex + 1).toString().padStart(2, "0"); // Calculate suffix (e.g., 01, 02)
+        
+            return `${lccCode} ${titleCode} ${authorCode} ${year}.${suffix}`; // Final location ID
         }
 
         $('#isbn').on('blur', function () {
