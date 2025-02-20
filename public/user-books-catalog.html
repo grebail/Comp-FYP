@@ -323,11 +323,12 @@
             console.error(`Failed to fetch book details after ${maxRetries} retries.`);
             return null; // Return null after exhausting retries
         }
-        async function displayBooks(startIndex) {
+        async function displayBooks(startIndex, booksToDisplay = allBooks) {
+           
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
 
-            const booksToShow = allBooks.slice(startIndex, startIndex + booksPerPage);
+            const booksToShow =  booksToDisplay .slice(startIndex, startIndex + booksPerPage);
             if (booksToShow.length === 0) {
                 catalog.innerHTML = '<p>No more books found.</p>';
                 return;
@@ -433,32 +434,37 @@
         async function searchBooks() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
             showLoader();
-
+        
             if (!query) {
                 currentStartIndex = 0;
                 displayBooks(currentStartIndex);
                 hideLoader();
                 return;
             }
-
+        
             const filteredBooks = allBooks.filter(book => {
                 const title = book.title ? book.title.toLowerCase() : '';
                 const authors = book.authors ? book.authors.join(', ').toLowerCase() : '';
                 const categories = book.categories ? book.categories.join(', ').toLowerCase() : '';
                 return title.includes(query) || authors.includes(query) || categories.includes(query);
             });
-
+        
             currentStartIndex = 0; // Reset to the first page
             if (filteredBooks.length > 0) {
-                allBooks = filteredBooks; // Update allBooks to filtered ones
-                displayBooks(currentStartIndex);
+                displayBooks(currentStartIndex, filteredBooks); // Temporarily display filtered books
             } else {
                 document.getElementById('bookCatalog').innerHTML = '<p>No books found for your search.</p>';
             }
-
+        
             hideLoader();
+        
+            // Automatically reset to the full catalog after 5 seconds
+            setTimeout(() => {
+                currentStartIndex = 0; // Reset to the first page
+                displayBooks(currentStartIndex); // Reload original book catalog
+                document.getElementById('searchInput').value = ''; // Clear the search input
+            }, 5000); // 5-second delay
         }
-
         function backHome (){
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `index_userlogined.html?userid=${userId}`;
