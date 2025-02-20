@@ -2124,7 +2124,7 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
 });
 
 // API endpoint to get all user borrow data with usernames
-app.get('/api/userBorrows', async (req, res) => {
+app.get('/api/userBorrows',authenticateToken, async (req, res) => {
     try {
         // Fetch all user borrow data and populate the username from the User schema
         const allUserBorrowData = await UserBorrow.find({})
