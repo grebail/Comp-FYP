@@ -75,8 +75,8 @@
     <button id="backToHomeButton">Back to Home</button>
 
     <script>
-        const userToken = localStorage.getItem('token');
-
+        
+        const userToken = new URLSearchParams(window.location.search).get('token'); // Extract token from query string
         // Function to fetch all user borrow data
         async function fetchAllUserBorrowData() {
             const token = new URLSearchParams(window.location.search).get('token'); // Extract token from URL

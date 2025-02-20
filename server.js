@@ -2124,11 +2124,16 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
 });
 
 // API endpoint to get all user borrow data with usernames
-app.get('/api/userBorrows',authenticateToken, async (req, res) => {
+app.get('/api/userBorrows', authenticateToken, async (req, res) => {
+    console.log('User Info from Token:', req.user);
+    if (req.user.role !== 'librarian') {
+        console.error('Access denied. Insufficient permissions.');
+        return res.status(403).json({ error: 'Access denied. Insufficient permissions.' });
+    }
+
     try {
-        // Fetch all user borrow data and populate the username from the User schema
         const allUserBorrowData = await UserBorrow.find({})
-            .populate('userid', 'username') // Populate the username field from the User schema
+            .populate('userid', 'username')
             .exec();
 
         res.status(200).json(allUserBorrowData);
