@@ -117,7 +117,6 @@
         
         .logout-button:hover {
             background-color: #45a049;
-            /* Darker green on hover */
         }
         /* Content */
         
@@ -130,47 +129,38 @@
         
         .content section {
             background-color: #fff;
-            /* White background */
             padding: 20px;
             margin: 20px;
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
             flex: 1 1 300px;
-            /* Allow sections to grow and shrink */
             max-width: 400px;
-            /* Limit width */
         }
         /* Slide Container */
         
         .slide-container {
             width: 100%;
             height: 80vh;
-            /* Allow height to adjust based on content */
             background-color: #e1f5fe;
-            /* Light blue background */
             text-align: center;
             position: relative;
             margin: 10px 0;
             overflow: hidden;
             flex-wrap: wrap;
         }
-        /* Each Slide */
         
         .slide {
             width: 100%;
             height: auto;
-            /* Allow height to adjust based on content */
             position: absolute;
             top: 0;
             left: 0;
             display: none;
-            /* Hide all slides by default */
             overflow: hidden;
         }
         
         .active {
             display: block;
-            /* Show the active slide */
         }
 
         /* Card Container */
@@ -178,36 +168,29 @@
         .card-container {
             display: flex;
             flex-wrap: wrap;
-            /* Allow wrapping on smaller screens */
             justify-content: center;
             padding: 20px;
         }
         
         .card {
             border: 1px solid #90caf9;
-            /* Light blue border */
             padding: 20px;
             text-align: center;
             width: 150px;
             border-radius: 10px;
             background-color: #fff;
-            /* White background for cards */
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin: 10px;
-            /* Space between cards */
         }
         
         .card img {
             width: 100%;
-            /* Responsive image */
             height: auto;
-            /* Maintain aspect ratio */
         }
         
         .card a {
             text-decoration: none;
             color: #1e88e5;
-            /* Blue text for links */
         }
         /* Footer */
         
@@ -223,19 +206,14 @@
         @media (max-width: 768px) {
             header h1 {
                 font-size: 24px;
-                /* Smaller font size for mobile */
             }
             nav a {
                 display: block;
-                /* Stack links vertically */
                 margin: 5px 0;
-                /* Space between links */
             }
             .card {
                 width: 80%;
-                /* Wider cards on mobile */
                 max-width: 300px;
-                /* Limit width */
             }
         }
     </style>
@@ -284,7 +262,7 @@
         </div>
         <div class="card">
             <img src="event_img.png" alt="Event">
-            <a href=".html">Event & Promotion</a>
+            <a id="event-link" href="#">Event & Promotion</a>
         </div>
     </div>
 
@@ -405,7 +383,12 @@
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to account profile with user ID
         });
-  
-   
+        
+        // Event booking and promo link redirect
+        document.getElementById('event-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `event_booking.html?userid=${userId}`; // Redirect to event booking with user ID
+        });
+
     </script>
 </html>
