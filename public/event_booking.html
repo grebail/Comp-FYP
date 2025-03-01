@@ -19,15 +19,6 @@
             text-align: center;
             border-bottom: 5px solid #388e3c; /* Slightly lighter green border */
         }
-        nav {
-            margin: 20px 0;
-        }
-        nav a {
-            margin: 0 15px;
-            color: #0056b3;
-            text-decoration: none;
-            font-weight: bold;
-        }
         .container {
             max-width: 900px;
             margin: 20px auto;
@@ -62,11 +53,14 @@
             background: #218838;
         }
         footer {
-            text-align: center;
-            margin-top: 20px;
-            padding: 10px;
-            background: #0056b3;
+            background: linear-gradient(to left, #55ba59, #27732b);
             color: #fff;
+            padding: 10px;
+            text-align: center;
+            clear: both;
+            position: relative;
+            bottom: 0;
+            width: 100%;
         }
         .modal {
             display: none;
@@ -105,12 +99,7 @@
 <body>
 
 <header>
-    <h1>Welcome to Smart Library!</h1>
-    <nav>
-        <a href="#services">Library Services</a>
-        <a href="#events">Events</a>
-        <a href="#contact">Contact Us</a>
-    </nav>
+    <h1>Event Booking</h1>
 </header>
 
 <div class="container">
@@ -157,6 +146,10 @@
     </div>
 </div>
 
+<div class="back-home">
+    <a id="home-link" href="#">Back to Home</a>
+</div>
+
 <script>
     function openModal(eventName) {
         document.getElementById('event-name').innerText = "You are booking: " + eventName;
@@ -178,6 +171,13 @@
             closeModal();
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
+        });
+    });    
 </script>
 
 <footer>
