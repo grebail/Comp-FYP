@@ -19,6 +19,47 @@
             text-align: center;
             border-bottom: 5px solid #388e3c; /* Slightly lighter green border */
         }
+        .promo-container {
+            max-width: 600px;
+            position: relative;
+            overflow: hidden;
+            margin: 0 auto;
+        }
+        .promo-slider {
+            display: flex;
+            transition: transform 0.5s ease;
+            width: calc(100% * 3); /* Adjust based on the number of images */
+        }
+        .promo-slide {
+            min-width: 100%; 
+            box-sizing: border-box;
+            position: relative;
+            place-items: center;
+            left: 4%;
+        }
+        .promo-slide img {
+            width: 25%;
+            height: auto;
+            border-radius: 8px;
+            align-items: center;
+        }
+        .scroll-button {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255, 255, 255, 0.8);
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+            z-index: 10;
+        }
+        .scroll-left {
+            left: 10px;
+        }
+        .scroll-right {
+            right: 10px;
+        }
         .container {
             max-width: 900px;
             margin: 20px auto;
@@ -27,6 +68,7 @@
             border-radius: 8px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
         }
+
         h2 {
             color: #0056b3;
         }
@@ -158,19 +200,16 @@
 
 <!-- Promotional Section -->
 <div class ="promo-container">
-    <button class="scroll-button scroll-left" onclick="scrollLeft()">&#10094;</button>
+    <button class="scroll-button scroll-left" onclick="slideLeft()">&#10094;</button>
     <div class="promo-slider" id="promoSlider">
         <div class="promo-slide">
-            <img src="promo1.jpg" alt="Promotion 1">
+            <img src="Event-Promotion-test.jpeg" alt="Promotion 1">
         </div>
         <div class="promo-slide">
-            <img src="promo2.jpg" alt="Promotion 2">
-        </div>
-        <div class="promo-slide">
-            <img src="promo3.jpg" alt="Promotion 3">
+            <img src="Event-Promotion-850x425.png" alt="Promotion 2">
         </div>
     </div>
-    <button class="scroll-button scroll-right" onclick="scrollRight()">&#10095;</button>
+    <button class="scroll-button scroll-right" onclick="slideRight()">&#10095;</button>
 </div>
 
 <!-- Booking  Section -->
@@ -228,19 +267,36 @@
 
 <script>
     let currentIndex = 0;
+    const slides = document.querySelectorAll('.promo-slide');
+    const totalSlides = slides.length;
 
-    function scrollLeft() {
-        const slider = document.getElementById('promoSlider');
-        currentIndex = Math.max(currentIndex - 1, 0);
-        slider.style.transform = 'translateX(' + (-currentIndex * 100) + '%)';
+    function slideLeft() {
+        if (currentIndex > 0) {
+            currentIndex--;
+            updateSliderPosition();
+        }
     }
 
-    function scrollRight() {
-        const slider = document.getElementById('promoSlider');
-        const totalSlides = document.querySelectorAll('.promo-slide').length;
-        currentIndex = Math.min(currentIndex + 1, totalSlides - 1);
-        slider.style.transform = 'translateX(' + (-currentIndex * 100) + '%)';
+    function slideRight() {
+        if (currentIndex < totalSlides - 1) {
+            currentIndex++;
+            updateSliderPosition();
+        }
     }
+
+    function updateSliderPosition() {
+        const slider = document.getElementById('promoSlider');
+        slider.style.transform = `translateX(-${currentIndex * 100}%)`;
+    }
+
+    setInterval(() => {
+        if (currentIndex < totalSlides - 1) {
+            currentIndex++;
+        } else {
+            currentIndex = 0;
+        }
+        updateSliderPosition();
+    }, 5000);
 
 
     function openModal(eventName) {
