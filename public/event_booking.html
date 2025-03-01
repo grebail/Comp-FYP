@@ -52,8 +52,24 @@
         .book-button:hover {
             background: #218838;
         }
-                /* Back to Home Button */
-                .back-home {
+
+
+        .detail-button {
+            background: #0056b3;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background 0.3s;
+        }
+        .detail-button:hover {
+            background: #014690;
+        }
+
+
+        /* Back to Home Button */
+       .back-home {
             text-align: center;
             margin: 20px 0;
         }
@@ -165,24 +181,28 @@
         <p>Date: March 15, 2025</p>
         <p>Time: 3:00 PM - 4:00 PM</p>
         <button class="book-button" onclick="openModal('The Great Gatsby')">Book Now</button>
+        <button class="detail-button">Details</button>
     </div>
     <div class="event">
         <h3>Writing Workshop</h3>
         <p>Date: March 20, 2025</p>
         <p>Time: 1:00 PM - 3:00 PM</p>
         <button class="book-button" onclick="openModal('Writing Workshop')">Book Now</button>
+        <button class="detail-button">Details</button>
     </div>
     <div class="event">
         <h3>Author Meet and Greet</h3>
         <p>Date: April 10, 2025</p>
         <p>Time: 5:00 PM - 7:00 PM</p>
         <button class="book-button" onclick="openModal('Author Meet and Greet')">Book Now</button>
+        <button class="detail-button">Details</button>
     </div>
     <div class="event">
         <h3>Digital Literacy Workshop</h3>
         <p>Date: April 15, 2025</p>
         <p>Time: 2:00 PM - 4:00 PM</p>
         <button class="book-button" onclick="openModal('Digital Literacy Workshop')">Book Now</button>
+        <button class="detail-button">Details</button>
     </div>
 </div>
 
@@ -222,7 +242,7 @@
         slider.style.transform = 'translateX(' + (-currentIndex * 100) + '%)';
     }
 
-    
+
     function openModal(eventName) {
         document.getElementById('event-name').innerText = "You are booking: " + eventName;
         document.getElementById('myModal').style.display = "block";
