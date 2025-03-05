@@ -290,6 +290,7 @@
         const loginForm = document.getElementById('loginForm');
         const messageDiv = document.getElementById('message');
 
+        // SlideShow
         let currentIndex = 0;
         const slides = document.querySelectorAll('.slide');
         const totalSlides = slides.length;
@@ -297,16 +298,16 @@
         function updateSliderPosition() {
         const slider = document.getElementById('homeSlider');
         slider.style.transform = `translateX(-${currentIndex * 100}%)`;
-    }
-
-    setInterval(() => {
-        if (currentIndex < totalSlides - 1) {
-            currentIndex++;
-        } else {
-            currentIndex = 0;
         }
-        updateSliderPosition();
-    }, 5000);
+
+        setInterval(() => {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+            } else {
+                currentIndex = 0;
+            }
+            updateSliderPosition();
+        }, 5000);
 
         // Books link redirect
         document.getElementById('books-link').addEventListener('click', function() {

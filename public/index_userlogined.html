@@ -139,30 +139,31 @@
         /* Slide Container */
         
         .slide-container {
-            width: 100%;
-            height: 80vh;
-            background-color: #e1f5fe;
-            text-align: center;
+            max-width: 200ex;
+            max-height: 60ex;
             position: relative;
-            margin: 10px 0;
             overflow: hidden;
-            flex-wrap: wrap;
+            margin: 0 auto;
         }
-        
+        .slider {
+            display: flex;
+            transition: transform 0.5s ease;
+            width: calc(100% * 3);
+        }
         .slide {
-            width: 100%;
-            height: auto;
-            position: absolute;
-            top: 0;
+            min-width: 100%; 
+            box-sizing: border-box;
+            position: relative;
+            place-items: center;
             left: 0;
-            display: none;
-            overflow: hidden;
         }
-        
-        .active {
-            display: block;
+        .slide img {
+            width: 35%; 
+            max-height: 60%; 
+            height: auto;
+            border-radius: 8px;
+            object-fit: contain;
         }
-
         /* Card Container */
         
         .card-container {
@@ -239,11 +240,13 @@
     </nav>
 
     <div class="slide-container">
-        <div class="slide active">
-            <img src="slide-image-test.jpg" alt="Slide Image1">
-        </div>
-        <div class="slide">
-            <img src="slide-image-test2.jpg" alt="Slide Image2">
+        <div class="slider" id="homeSlider">
+            <div class="slide">
+                <img src="slide-image-test.jpg" alt="Slide Image1">
+            </div>
+            <div class="slide">
+                <img src="slide-image-test2.jpg" alt="Slide Image2">
+            </div>
         </div>
     </div>
 
@@ -336,32 +339,24 @@
             window.location.href = 'login.html'; // Redirect to login page
         });
        
-        // Slide container
+        // SlideShow
+        let currentIndex = 0;
         const slides = document.querySelectorAll('.slide');
-        var currentIndex = 0;
-    
-        // Function to show the current slide
-        function showSlide(index) {
-            slides.forEach((slide, i) => {
-                slide.classList.remove('active'); // Hide all slides
-                if (i === index) {
-                    slide.classList.add('active'); // Show the current slide
-                }
-            });
+        const totalSlides = slides.length;
+
+        function updateSliderPosition() {
+        const slider = document.getElementById('homeSlider');
+        slider.style.transform = `translateX(-${currentIndex * 100}%)`;
         }
-    
-        // Function to change the slide automatically
-        function nextSlide() {
-            currentIndex += 1; // Move to the next index
-            if (currentIndex >= slides.length) { // Return to the first index
+
+        setInterval(() => {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+            } else {
                 currentIndex = 0;
             }
-            showSlide(currentIndex); // Show the current slide
-        }
-    
-        // Initialize the slideshow
-        showSlide(currentIndex); // Show the first slide
-        setInterval(nextSlide, 3000); // Change slide every 3 seconds
+            updateSliderPosition();
+        }, 5000);
     
         // Books link redirect
         document.getElementById('books-link').addEventListener('click', function () {
