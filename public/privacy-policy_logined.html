@@ -42,7 +42,7 @@
 
         .policy-container h2 {
             text-align: center;
-            color: #1e88e5; 
+            color: #1e88e5; /* Blue color for the heading */
             margin-bottom: 20px;
         }
 
@@ -114,12 +114,21 @@
 
 <!-- Back to Home Button -->
 <div class="back-home">
-    <a href="index.html">Back to Home</a>
+    <a id="home-link" href="#">Back to Home</a>
 </div>
 
 <footer>
     <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
 </footer>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
+        });
+    });    
+</script>
 
 </body>
 </html>

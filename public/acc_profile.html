@@ -140,7 +140,7 @@
             <input type="text" id="name" name="name" required>
 
             <label for="library-card"><strong>Library Card #:</strong></label>
-            <input type="text" id="library-card" name="library-card" required>
+            <input type="text" id="library-card" name="library-card" readonly>
 
             <label for="email"><strong>Email:</strong></label>
             <input type="email" id="email" name="email" required>
@@ -333,7 +333,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('home-link').addEventListener('click', function() {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
+            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to home with user ID
         });
 
         fetchUserDetails(); // Fetch user details when the page loads
