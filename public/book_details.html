@@ -207,136 +207,21 @@
                 document.getElementById('copiesSection').innerHTML = `<p>ISBN is missing in the URL. Cannot fetch book copies.</p>`;
                 return;
             }
-
-            fetch(`/api/books/isbn/${isbn}/copies`, {
-                headers: {
-                    'Authorization': `Bearer ${userToken}` // Use token for authentication
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    displayBookCopies(data.copies);
-                })
-                .catch(err => {
-                    console.error('Error fetching copies:', err);
-                    document.getElementById('copiesSection').innerHTML = `<p>${err.message}</p>`;
-                });
+            window.location.href = `user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${isbn}`; // Redirect to borrow page with ISBN
         }
 
-        // Display book copies with checkboxes
-        function displayBookCopies(copies) {
-            const copiesSection = document.getElementById('copiesSection');
-            if (!copies || copies.length === 0) {
-                copiesSection.innerHTML = '<p>No copies available for this book.</p>';
-                return;
-            }
+        function generateQRCode() {
+            console.log('Generating QR code...');
 
-            const copiesHTML = copies.map(copy => `
-                <div class="copy-item">
-                    <input type="checkbox" id="copy-${copy.copyId}" value="${copy.copyId}" ${!copy.availability ? 'disabled' : ''}>
-                    <label for="copy-${copy.copyId}">
-                        <strong>Copy ID:</strong> ${copy.copyId},
-                        <strong>Location ID:</strong> ${copy. locationId},
-                        <strong>Location:</strong> ${copy.bookLocation},
-                        <strong>Available:</strong> ${copy.availability ? 'Yes' : 'No'}
-                    </label>
-                </div>
-            `).join('');
-            copiesSection.innerHTML = copiesHTML;
-        }
-       // Generate QR Code for borrowing selected copies
-       // Generate individual QR codes for borrowing selected copies
-// Generate individual QR codes for borrowing selected copies, and clear existing QR codes on subsequent clicks
-function generateQRCode() {
-    const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
+            const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow.html?googleId=${googleId}&userid=${userId}&isbn=${isbn}`;
 
-    if (selectedCopies.length === 0) {
-        alert('Please select at least one copy to generate QR codes.');
-        return;
-    }
-
-    // Clear existing QR codes if already generated
-    const existingQrContainer = document.getElementById('qrCodesContainer');
-    if (existingQrContainer) {
-        existingQrContainer.remove();
-    }
-
-    // Create a container for the new QR codes
-    const qrContainer = document.createElement('div');
-    qrContainer.id = "qrCodesContainer";
-    qrContainer.style.display = 'flex';
-    qrContainer.style.flexWrap = 'wrap';
-    qrContainer.style.gap = '10px';
-    qrContainer.style.marginTop = '20px';
-
-    // Generate QR codes for each selected copy
-    selectedCopies.forEach(copyId => {
-        const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${userToken}`;
-        const qrCodeImg = document.createElement('img');
-        qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
-        qrCodeImg.alt = `QR Code for Copy ID: ${copyId}`;
-        qrCodeImg.style.margin = '10px';
-
-        const qrCodeLabel = document.createElement('div');
-        qrCodeLabel.style.textAlign = 'center';
-        qrCodeLabel.style.fontSize = '14px';
-        qrCodeLabel.style.marginTop = '5px';
-        qrCodeLabel.textContent = `Copy ID: ${copyId}`;
-
-        const qrCodeWrapper = document.createElement('div');
-        qrCodeWrapper.style.display = 'inline-block';
-        qrCodeWrapper.style.textAlign = 'center';
-        qrCodeWrapper.appendChild(qrCodeImg);
-        qrCodeWrapper.appendChild(qrCodeLabel);
-
-        qrContainer.appendChild(qrCodeWrapper);
-    });
-
-    // Append the new QR codes to the copies section
-    document.getElementById('copiesSection').appendChild(qrContainer);
-}
-
-        // Borrow selected copies
-        function borrowSelectedCopies() {
-            const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
-        
-            if (selectedCopies.length === 0) {
-                alert('Please select at least one copy to borrow.');
-                return;
-            }
-        
-            fetch(`/api/books/copy_borrow`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${userToken}` // Use token for authentication
-                },
-                body: JSON.stringify({ userid: userId, isbn, selectedCopies })
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.message || data.error) {
-                        throw new Error(data.error || 'Failed to borrow copies.');
-                    }
-        
-                    // Notify the user of success
-                    alert(data.message || 'Copies borrowed successfully!');
-        
-                    // Redirect to the user_borrow_copy page
-                    if (data.redirectUrl) {
-                        window.location.href = data.redirectUrl;
-                    } else {
-                        // Fallback to default redirection if no redirect URL is provided
-                        window.location.href = `user_borrow_copy.html?userid=${userId}&isbn=${isbn}&copies=${selectedCopies.join(',')}&token=${userToken}}`;
-                    }
-                })
-                .catch(err => {
-                    console.error('Error borrowing copies:', err);
-                    alert(err.message || 'Failed to borrow copies. Please try again later.');
-                });
+            const qrCodeElement = document.getElementById('qrCode');
+            qrCodeElement.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
+            qrCodeElement.style.display = 'block'; // Show the QR Code image
+            console.log(`QR Code generated for: ${qrCodeValue}`);
         }
 
-        // Back button event listener
+        // Event listener for Back button
         document.getElementById('goBackButton').addEventListener('click', () => {
             window.location.href = `user-books-catalog.html?userid=${userId}&token=${userToken}`;
         });

@@ -128,49 +128,7 @@
     </div>
 
     <script>
-      
-            async function handleSignup(event) {
-                event.preventDefault(); // Prevent the form from reloading the page
         
-                // Get the input values
-                const username = document.getElementById('signup-username').value.trim();
-                const password = document.getElementById('signup-password').value.trim();
-                const retypePassword = document.getElementById('signup-retype-password').value.trim();
-        
-                // Check if passwords match
-                if (password !== retypePassword) {
-                    alert('Passwords do not match!');
-                    return;
-                }
-        
-                try {
-                    // Send POST request to /users endpoint
-                    const response = await fetch('/users', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({ username, password }),
-                    });
-        
-                    // Handle server response
-                    if (response.ok) {
-                        const data = await response.json();
-                        alert('Sign up successful!');
-                        console.log('User created:', data);
-                        // Redirect to login page or another page
-                        window.location.href = 'login.html';
-                    } else {
-                        const errorData = await response.json();
-                        alert(`Error: ${errorData.error}`);
-                        console.error('Signup error:', errorData);
-                    }
-                } catch (error) {
-                    console.error('Error making request:', error);
-                    alert('An unexpected error occurred. Please try again later.');
-                }
-            }
-       
     </script>
 </body>
 </html>

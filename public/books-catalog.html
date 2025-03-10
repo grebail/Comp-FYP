@@ -193,7 +193,6 @@
 
 
             <button onclick="viewAccount()">My Account</button>
-            <button onclick="showUserBorrow()">showUserBorrow</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button class="return-button" id="homeButton">Home</button>
         </div>
@@ -221,183 +220,146 @@
     </footer>
 
     <script>
-        
-            let currentStartIndex = 0;
-            const booksPerPage = 5;
-            let allBooks = [];
-            const userId = new URLSearchParams(window.location.search).get('userid'); // Extract user ID from URL
-            let originalBooks = []; // Store the original book list
-            let resetTimeout; // Timeout to reset the book list
-        
-            async function loadBooks() {
-                showLoader();
-                try {
-                    const response = await fetch('/api/books?q=accounting', {
-                        headers: {
-                            'Authorization': `Bearer ${localStorage.getItem('token')}`
-                        }
-                    });
-        
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        console.error('Error loading books:', errorText);
-                        alert('Failed to load books. Please check the console for details.');
-                        return;
+        let currentStartIndex = 0;
+        const booksPerPage = 5;
+        let allBooks = [];
+        const userId = new URLSearchParams(window.location.search).get('userid'); // Extract user ID from URL
+
+        async function loadBooks() {
+            showLoader();
+            try {
+                const response = await fetch('/api/books?q=accounting', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
-        
-                    const result = await response.json();
-                    allBooks = result.data;
-                    originalBooks = [...allBooks]; // Save the original list of books
-                    displayBooks(currentStartIndex);
-                } catch (error) {
-                    console.error('Error loading books:', error);
-                    alert('Failed to load books. Please try again later.');
-                } finally {
-                    hideLoader();
-                }
-            }
-        
-            function showLoader() {
-                document.getElementById('loader').style.display = 'block';
-            }
-        
-            function hideLoader() {
-                document.getElementById('loader').style.display = 'none';
-            }
-        
-            function displayBooks(startIndex) {
-                const catalog = document.getElementById('bookCatalog');
-                catalog.innerHTML = ''; // Clear existing content
-        
-                const booksToShow = allBooks.slice(startIndex, startIndex + booksPerPage);
-                if (booksToShow.length === 0) {
-                    catalog.innerHTML = '<p>No more books found.</p>';
-                    return;
-                }
-        
-                booksToShow.forEach(book => {
-                    const card = document.createElement('div');
-                    card.className = 'book-card';
-        
-                    const title = book.volumeInfo.title || 'N/A';
-                    const author = book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'N/A';
-                    const publishedDate = book.volumeInfo.publishedDate || 'N/A';
-                    const coverImage = book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '';
-                    const googleId = book.id;
-        
-                    card.innerHTML = `
-                        <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                        <div class="book-title">${title}</div>
-                        <div class="book-author">Author: ${author}</div>
-                        <div class="book-published">Published: ${publishedDate}</div>
-                        <div class="action-buttons">
-                            <button onclick="buyBook('${googleId}')">Buy Book</button>
-                            <button onclick="viewDetails('${googleId}')">View Details</button>
-                        </div>
-                    `;
-                    catalog.appendChild(card);
                 });
-            }
-        
-            function nextBooks() {
-                if (currentStartIndex + booksPerPage < allBooks.length) {
-                    currentStartIndex += booksPerPage;
-                    displayBooks(currentStartIndex);
-                }
-            }
-        
-            function prevBooks() {
-                if (currentStartIndex - booksPerPage >= 0) {
-                    currentStartIndex -= booksPerPage;
-                    displayBooks(currentStartIndex);
-                }
-            }
-        
-            function searchBooks() {
-                const query = document.getElementById('searchInput').value.trim(); // Trim whitespace
-                showLoader();
-                clearTimeout(resetTimeout); // Clear any existing reset timeout
-            
-                if (!query) {
-                    alert("Please enter a search query."); // Notify the user if the input is empty
-                    hideLoader();
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error loading books:', errorText);
+                    alert('Failed to load books. Please check the console for details.');
                     return;
                 }
-            
-                fetch(`/api/books?q=${encodeURIComponent(query)}`, {
+
+                const result = await response.json();
+                allBooks = result.data;
+                displayBooks(currentStartIndex);
+            } catch (error) {
+                console.error('Error loading books:', error);
+                alert('Failed to load books. Please try again later.');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        function showLoader() {
+            document.getElementById('loader').style.display = 'block';
+        }
+
+        function hideLoader() {
+            document.getElementById('loader').style.display = 'none';
+        }
+
+        function displayBooks(startIndex) {
+            const catalog = document.getElementById('bookCatalog');
+            catalog.innerHTML = ''; // Clear existing content
+
+            const booksToShow = allBooks.slice(startIndex, startIndex + booksPerPage);
+            if (booksToShow.length === 0) {
+                catalog.innerHTML = '<p>No more books found.</p>';
+                return;
+            }
+
+            booksToShow.forEach(book => {
+                const card = document.createElement('div');
+                card.className = 'book-card';
+
+                const title = book.volumeInfo.title || 'N/A';
+                const author = book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'N/A';
+                const publishedDate = book.volumeInfo.publishedDate || 'N/A';
+                const coverImage = book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '';
+                const googleId = book.id;
+
+                card.innerHTML = `
+                    <img src="${coverImage}" alt="${title} cover" class="book-cover" />
+                    <div class="book-title">${title}</div>
+                    <div class="book-author">Author: ${author}</div>
+                    <div class="book-published">Published: ${publishedDate}</div>
+                    <div class="action-buttons">
+                        <button onclick="buyBook('${googleId}')">Buy Book</button>
+                        <button onclick="viewDetails('${googleId}')">View Details</button>
+                    </div>
+                `;
+                catalog.appendChild(card);
+            });
+        }
+
+        function nextBooks() {
+            if (currentStartIndex + booksPerPage < allBooks.length) {
+                currentStartIndex += booksPerPage;
+                displayBooks(currentStartIndex);
+            }
+        }
+
+        function prevBooks() {
+            if (currentStartIndex - booksPerPage >= 0) {
+                currentStartIndex -= booksPerPage;
+                displayBooks(currentStartIndex);
+            }
+        }
+
+        function searchBooks() {
+            const query = document.getElementById('searchInput').value;
+            showLoader();
+            fetch(`/api/books?q=${encodeURIComponent(query)}`, {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch books');
-                    }
-                    return response.json();
-                })
+                .then(response => response.json())
                 .then(data => {
-                    if (data.data && data.data.length > 0) {
-                        allBooks = data.data;
-                        currentStartIndex = 0;
-                        displayBooks(currentStartIndex);
-                    } else {
-                        // Handle empty results
-                        document.getElementById('bookCatalog').innerHTML = '<p>No books found for your search.</p>';
-                    }
-            
-                    // Automatically reset to the original book list after 5 seconds
-                    resetTimeout = setTimeout(() => {
-                        allBooks = [...originalBooks]; // Reset to the original books
-                        currentStartIndex = 0;
-                        displayBooks(currentStartIndex);
-                        document.getElementById('searchInput').value = ''; // Clear the search input
-                        alert("Search results cleared. Returning to the original book list.");
-                    }, 5000); // 5-second delay
+                    allBooks = data.data;
+                    currentStartIndex = 0;
+                    displayBooks(currentStartIndex);
                 })
                 .catch(error => {
                     console.error('Error fetching books:', error);
                     alert('Failed to fetch books. Please try again later.');
                 })
                 .finally(() => hideLoader());
-            }
-            function viewDetails(googleId) {
-                window.location.href = `book_details.html?googleId=${googleId}&userid=${userId}`;
-            }
-        
-            function buyBook(googleId) {
-                // Redirect to a purchase page or handle the buying process
-                window.location.href = `book_buy.html?googleId=${googleId}&userid=${userId}`;
-            }
-        
-            function viewHistory(userId) {
-                window.location.href = `https://comp-fyp.onrender.com/purchase_history.html?userid=${userId}`;
-            }
-        
-            function ImportBook() {
-                const token = new URLSearchParams(window.location.search).get('token'); // Extract token from URL
-                window.location.href = `https://comp-fyp.onrender.com/importBook.html?userid=${userId}&token=${token}`;
-            }
-        
-            function Admin_Book() {
-                window.location.href = `https://comp-fyp.onrender.com/book_admin.html?userid=${userId}`;
-            }
-        
-            function showUserBorrow() {
-                const token = new URLSearchParams(window.location.search).get('token');
-                window.location.href = `https://comp-fyp.onrender.com/show_user_borrow.html?userid=${userId}&token=${token}`;
-            }
-        
-            function debouncedSearch() {
-                clearTimeout(searchTimeout);
-                searchTimeout = setTimeout(searchBooks, 300);
-            }
-        
-            document.getElementById('homeButton').addEventListener('click', () => {
-                window.location.href = `index_logined.html?userid=${userId}`;
-            });
-        
-            window.onload = loadBooks; // Load books when the page is loaded
-       
+        }
+
+        function viewDetails(googleId) {
+            window.location.href = `book_details.html?googleId=${googleId}&userid=${userId}`;
+        }
+
+        function buyBook(googleId) {
+            // Redirect to a purchase page or handle the buying process
+            window.location.href = `book_buy.html?googleId=${googleId}&userid=${userId}`;
+        }
+
+        function viewHistory(userId) {
+            window.location.href = `http://localhost:10000/purchase_history.html?userid=${userId}`;
+        }
+
+        function ImportBook() {
+            window.location.href = `http://localhost:10000/importBook.html?userid=${userId}`;
+        }
+
+        function Admin_Book() {
+            window.location.href = `http://localhost:10000/book_admin.html?userid=${userId}`;
+        }
+
+        function debouncedSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(searchBooks, 300);
+        }
+
+        document.getElementById('homeButton').addEventListener('click', () => {
+            window.location.href = `index_logined.html?userid=${userId}`;
+        });
+
+        window.onload = loadBooks; // Load books when the page is loaded
     </script>
 </body>
 
