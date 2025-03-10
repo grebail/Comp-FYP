@@ -184,6 +184,44 @@
             text-align: center;
             margin: 20px;
         }
+        .advanced-search {
+            display: flex; /* Always visible */
+            flex-wrap: wrap;
+            gap: 10px;
+            margin: 20px auto; /* Center the search bar */
+            justify-content: center;
+            background-color: #f9f9f9; /* Optional background color */
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1); /* Optional shadow for better visibility */
+        }
+        
+        .advanced-search input,
+        .advanced-search select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            width: 300px;
+        }
+        .reset-button {
+            background-color: #f44336; /* Red background */
+            color: white;
+            border: none;
+            border-radius: 50%;
+            font-size: 18px;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background-color 0.3s;
+        }
+    
+        .reset-button:hover {
+            background-color: #d32f2f; /* Darker red on hover */
+        }
     </style>
 </head>
 
@@ -199,10 +237,23 @@
     </header>
 
     <div class="search-container">
-        <input type="text" placeholder="Search for Books by subject, title, or author" id="searchInput" oninput="debouncedSearch()">
-        <button onclick="searchBooks()">Search</button>
-    </div>
-
+       
+      <!-- Advanced Search Section Always Visible -->
+    <div class="advanced-search" id="advancedSearch" style="display: flex;">
+        <input type="text" id="titleInput" placeholder="Search by Title">
+        <input type="text" id="authorInput" placeholder="Search by Author">
+        <input type="text" id="isbnInput" placeholder="Search by ISBN">
+        <select id="bookTypeSelect">
+            <option value="">Select Book Type</option>
+            <option value="fiction">Fiction</option>
+            <option value="non-fiction">Non-Fiction</option>
+            <option value="science">Science</option>
+            <option value="history">History</option>
+        </select>
+        <button onclick="performAdvancedSearch()">Search</button>
+        <!-- Reset Button -->
+        <button class="reset-button" onclick="resetAdvancedSearch()">×</button>
+ </div>
     <div class="loader" id="loader">Loading...</div>
 
     <main>
@@ -323,11 +374,12 @@
             console.error(`Failed to fetch book details after ${maxRetries} retries.`);
             return null; // Return null after exhausting retries
         }
-        async function displayBooks(startIndex) {
+        async function displayBooks(startIndex, booksToDisplay = allBooks) {
+           
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
 
-            const booksToShow = allBooks.slice(startIndex, startIndex + booksPerPage);
+            const booksToShow =  booksToDisplay .slice(startIndex, startIndex + booksPerPage);
             if (booksToShow.length === 0) {
                 catalog.innerHTML = '<p>No more books found.</p>';
                 return;
@@ -433,45 +485,52 @@
         async function searchBooks() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
             showLoader();
-
+        
             if (!query) {
                 currentStartIndex = 0;
                 displayBooks(currentStartIndex);
                 hideLoader();
                 return;
             }
-
+        
             const filteredBooks = allBooks.filter(book => {
                 const title = book.title ? book.title.toLowerCase() : '';
                 const authors = book.authors ? book.authors.join(', ').toLowerCase() : '';
                 const categories = book.categories ? book.categories.join(', ').toLowerCase() : '';
                 return title.includes(query) || authors.includes(query) || categories.includes(query);
             });
-
+        
             currentStartIndex = 0; // Reset to the first page
             if (filteredBooks.length > 0) {
-                allBooks = filteredBooks; // Update allBooks to filtered ones
-                displayBooks(currentStartIndex);
+                displayBooks(currentStartIndex, filteredBooks); // Temporarily display filtered books
             } else {
                 document.getElementById('bookCatalog').innerHTML = '<p>No books found for your search.</p>';
             }
-
+        
             hideLoader();
+        
+            // Automatically reset to the full catalog after 5 seconds
+            setTimeout(() => {
+                currentStartIndex = 0; // Reset to the first page
+                displayBooks(currentStartIndex); // Reload original book catalog
+                document.getElementById('searchInput').value = ''; // Clear the search input
+            }, 5000); // 5-second delay
         }
-
         function backHome (){
-            window.location.href = `index_userlogined.html?userid=${userid}`;
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`;
         };
         function viewDetails(googleId, industryIdentifier) {
             window.location.href = `book_details.html?googleId=${googleId}&&userid=${userId}&isbn=${industryIdentifier}&token=${token}`;
         }
 
         function viewAccount() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`;
         }
 
-
         function viewHistory() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `user_borrow_history.html?userid=${userId}`;
         }
 
@@ -481,12 +540,96 @@
             clearTimeout(searchTimeout);
             searchTimeout = setTimeout(searchBooks, 300);
         }
-
-        document.getElementById('homeButton').addEventListener('click', () => {
-            window.location.href = `index_userlogined.html`;
-        });
-
-        window.onload = loadBooks; // Load books when the page is loaded
+        function toggleAdvancedSearch() {
+            const advancedSearch = document.getElementById('advancedSearch');
+            advancedSearch.style.display = advancedSearch.style.display === 'flex' ? 'none' : 'flex';
+        }
+        
+        function performAdvancedSearch() {
+            const title = document.getElementById('titleInput').value.toLowerCase().trim();
+            const author = document.getElementById('authorInput').value.toLowerCase().trim();
+            const isbn = document.getElementById('isbnInput').value.toLowerCase().trim();
+            const bookType = document.getElementById('bookTypeSelect').value.toLowerCase().trim();
+        
+            const filteredBooks = allBooks.filter(book => {
+                const bookTitle = book.title ? book.title.toLowerCase() : '';
+                const bookAuthor = book.authors ? book.authors.join(', ').toLowerCase() : '';
+                const bookIsbn = book.industryIdentifier ? book.industryIdentifier[0] : '';
+                const bookCategories = book.categories ? book.categories.join(', ').toLowerCase() : '';
+        
+                return (!title || bookTitle.includes(title)) &&
+                       (!author || bookAuthor.includes(author)) &&
+                       (!isbn || bookIsbn.includes(isbn)) &&
+                       (!bookType || bookCategories.includes(bookType)); // Partial match for categories
+            });
+        
+            currentStartIndex = 0;
+            if (filteredBooks.length > 0) {
+                displayBooks(currentStartIndex, filteredBooks);
+            } else {
+                document.getElementById('bookCatalog').innerHTML = '<p>No books found for your search criteria.</p>';
+            }
+        }
+        async function fetchAllCategories() {
+            const categoriesSet = new Set(); // Use a Set to store unique categories
+            const bookTypeSelect = document.getElementById('bookTypeSelect');
+        
+            // Clear existing categories before populating
+            bookTypeSelect.innerHTML = '<option value="">Select Book Type</option>';
+        
+            try {
+                // Fetch a broad range of books to get diverse categories
+                const response = await fetch(`https://www.googleapis.com/books/v1/volumes?q=subject:*&maxResults=40&key=${apiKey}`);
+                const data = await response.json();
+        
+                if (data.items && Array.isArray(data.items)) {
+                    // Extract categories from each book
+                    data.items.forEach(item => {
+                        if (item.volumeInfo && item.volumeInfo.categories) {
+                            item.volumeInfo.categories.forEach(category => categoriesSet.add(category));
+                        }
+                    });
+        
+                    // Populate the dropdown with categories
+                    categoriesSet.forEach(category => {
+                        const option = document.createElement('option');
+                        option.value = category.toLowerCase();
+                        option.textContent = category.length > 50 ? category.slice(0, 50) + '...' : category; // Truncate long names
+                        bookTypeSelect.appendChild(option);
+                    });
+        
+                    console.log('Categories added:', Array.from(categoriesSet));
+                } else {
+                    console.warn('No categories found in the API response');
+                    bookTypeSelect.innerHTML = '<option value="">No categories available</option>';
+                }
+            } catch (error) {
+                console.error('Error fetching categories:', error);
+                bookTypeSelect.innerHTML = '<option value="">Error loading categories</option>';
+            }
+        }
+        function resetAdvancedSearch() {
+            // Clear all input fields
+            document.getElementById('titleInput').value = '';
+            document.getElementById('authorInput').value = '';
+            document.getElementById('isbnInput').value = '';
+            document.getElementById('bookTypeSelect').value = '';
+        
+            // Reset to the original catalog
+            currentStartIndex = 0;
+            displayBooks(currentStartIndex, allBooks); // Reload the full book catalog
+        
+       
+        }
+        window.onload = async function () {
+            try {
+                await fetchAllCategories(); // Fetch and populate all categories
+                await loadBooks();          // Load books after fetching categories
+            } catch (error) {
+                console.error('Error during initialization:', error);
+                alert('Failed to load the page properly. Please try reloading.');
+            }
+        };
     </script>
 </body>
 

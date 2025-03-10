@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
-
+// Define an enumeration for book statuses
+const bookStatusEnum = ['borrowed', 'in return box', 'in library'];
 // Define the schema for book purchases
 const buyBookSchema = new mongoose.Schema({
     userid: {
@@ -45,9 +46,14 @@ const buyBookSchema = new mongoose.Schema({
             type: Boolean, // Indicates whether the copy is available
             default: true, // Default to true (available)
         },
-        returned: {
-            type: Boolean, // Indicates whether the copy has been returned
-            default: null, // Default to null for purchases (not applicable unless explicitly set)
+        status: {
+            type: String,
+            enum: bookStatusEnum, // Use the defined enum for statuses
+            default: 'in library', // Default to 'in library'
+        
+        },
+        epc: {
+            type: String, // EPC number from the RFID tag
         },
     }],
 });

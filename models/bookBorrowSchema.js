@@ -3,6 +3,9 @@ const mongoose = require('mongoose');
 // Define an enumeration for book locations
 const bookLocationEnum = ['Stanley Ho Library', 'Ho Sik Yee Library'];
 
+// Define an enumeration for book statuses
+const bookStatusEnum = ['borrowed', 'in return box', 'in library'];
+
 // Function to set time to midnight
 const setMidnight = (date) => {
     const midnightDate = new Date(date);
@@ -37,9 +40,17 @@ const borrowedCopySchema = new mongoose.Schema({
         type: Date,
         default: null, // Set to null when the book is not borrowed
     },
-    returned: {
-        type: Boolean,
-        default: null, // Set to null when the book is not borrowed
+    epc: {
+        type: String, // EPC number from the RFID tag
+    },
+    status: {
+        type: String,
+        enum: bookStatusEnum, // Use the defined enum for statuses
+        default: 'in library', // Default to 'in library'
+    },
+    borrowStatus: {
+        type: Boolean, // Boolean indicating if the book is borrowed
+        default: false, // Default to false (not borrowed)
     },
 });
 

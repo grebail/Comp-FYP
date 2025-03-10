@@ -59,36 +59,6 @@
             margin: 10px 0;
         }
 
-        .action-button {
-            background-color: #ff5722;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 8px;
-            cursor: pointer;
-            margin-right: 10px;
-            transition: background-color 0.3s;
-        }
-
-        .action-button:hover {
-            background-color: #e64a19;
-        }
-
-        .comment-button {
-            background-color: #4caf50;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            padding: 8px;
-            cursor: pointer;
-            margin-top: 10px;
-            transition: background-color 0.3s;
-        }
-
-        .comment-button:hover {
-            background-color: #388e3c;
-        }
-
         .error-message {
             color: red;
             margin: 20px 0;
@@ -108,53 +78,6 @@
         .go-back-button:hover {
             background-color: #2e7d32;
         }
-
-        .modal {
-            display: none;
-            position: fixed;
-            z-index: 1;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            overflow: auto;
-            background-color: rgba(0, 0, 0, 0.4);
-        }
-
-        .modal-content {
-            background-color: #fefefe;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            width: 80%;
-            max-width: 400px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        .close {
-            color: #aaa;
-            float: right;
-            font-size: 28px;
-            font-weight: bold;
-        }
-
-        .close:hover,
-        .close:focus {
-            color: black;
-            text-decoration: none;
-            cursor: pointer;
-        }
-
-        .star {
-            color: gold;
-            cursor: pointer;
-            font-size: 20px;
-        }
-
-        .star.selected {
-            color: darkorange;
-        }
     </style>
 </head>
 
@@ -168,29 +91,10 @@
     <button class="go-back-button" id="BackHomeButton">Back to Home</button>
     <button class="go-back-button" id="BackCatalogButton">Back to Catalog</button>
 
-    <!-- Comment Modal -->
-    <div id="commentModal" class="modal">
-        <div class="modal-content">
-            <span class="close" id="closeModal">&times;</span>
-            <h2>Comment on Book</h2>
-            <div>
-                <span class="star" data-value="1">★</span>
-                <span class="star" data-value="2">★</span>
-                <span class="star" data-value="3">★</span>
-                <span class="star" data-value="4">★</span>
-                <span class="star" data-value="5">★</span>
-            </div>
-            <textarea id="commentText" placeholder="Add your comment" rows="4" style="width: 100%; margin-top: 10px;"></textarea>
-            <button class="comment-button" id="submitComment">Submit</button>
-        </div>
-    </div>
-
     <script>
         const params = new URLSearchParams(window.location.search);
         const userid = params.get('userid');
         const token = localStorage.getItem('token');
-        let selectedRating = 0;
-        let currentBookId = null;
 
         async function fetchBorrowHistory() {
             if (!token) {
@@ -228,80 +132,36 @@
             }
 
             const historyHTML = await Promise.all(history.map(async (borrowRecord) => {
+                const nonReturnedCopies = borrowRecord.copies.filter(copy => copy.status !== 'in return box');
+                if (nonReturnedCopies.length === 0) return ''; // Skip if no non-returned copies
+
                 const coverImage = await fetchCoverImage(borrowRecord.industryIdentifier[0]);
+
                 return `
                     <div class="book-item">
                         <img src="${coverImage}" alt="${borrowRecord.title} Cover" class="book-cover">
                         <div class="book-details">
                             <strong>Title:</strong> ${borrowRecord.title || 'Unknown'}<br>
                             <strong>Authors:</strong> ${borrowRecord.authors?.join(', ') || 'N/A'}<br>
-                            ${borrowRecord.copies.map(copy => `
+                            ${nonReturnedCopies.map(copy => `
                                 <div class="copy-details">
                                     <strong>Copy ID:</strong> ${copy.copyId}<br>
                                     <strong>Borrowed Date:</strong> ${new Date(copy.borrowedDate).toISOString().split('T')[0]}<br>
-<strong>Due Date:</strong> ${new Date(copy.dueDate).toISOString().split('T')[0]}<br>
-                        <strong>Returned:</strong> ${copy.returned ? 'Yes' : 'No'} <br>
-                                    <button class="action-button" onclick="returnBook('${borrowRecord._id}', '${copy.copyId}')">Return</button>
-                                    <button class="action-button" onclick="borrowAgain('${borrowRecord._id}', '${copy.copyId}')">Borrow Again</button>
+                                    <strong>Due Date:</strong> ${new Date(copy.dueDate).toISOString().split('T')[0]}<br>
+                                    <strong>Status:</strong> ${copy.status}<br>
                                 </div>
                             `).join('')}
-                            <button class="comment-button" onclick="openCommentModal('${borrowRecord._id}')">Comment</button>
                         </div>
                     </div>
                 `;
             }));
 
-            document.getElementById('historyContent').innerHTML = historyHTML.join('');
+            document.getElementById('historyContent').innerHTML = historyHTML.filter(html => html).join('');
         }
 
-        function openCommentModal(bookId) {
-            currentBookId = bookId;
-            document.getElementById('commentModal').style.display = 'block';
+        function displayError(message) {
+            document.getElementById('errorMessage').innerText = message;
         }
-
-        document.getElementById('closeModal').onclick = function() {
-            document.getElementById('commentModal').style.display = 'none';
-        };
-
-        document.querySelectorAll('.star').forEach(star => {
-            star.addEventListener('click', function () {
-                selectedRating = this.dataset.value;
-                document.querySelectorAll('.star').forEach(s => s.classList.remove('selected'));
-                this.classList.add('selected');
-            });
-        });
-
-        document.getElementById('submitComment').onclick = async function () {
-            const commentText = document.getElementById('commentText').value.trim();
-            if (!commentText || !selectedRating) {
-                alert('Please provide both a rating and a comment.');
-                return;
-            }
-
-            try {
-                const response = await fetch(`/api/comments`, {
-                    method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        bookId: currentBookId,
-                        comment: commentText,
-                        rating: selectedRating,
-                    }),
-                });
-
-                if (response.ok) {
-                    alert('Comment submitted successfully.');
-                    document.getElementById('commentModal').style.display = 'none';
-                } else {
-                    alert('Failed to submit comment.');
-                }
-            } catch (error) {
-                console.error('Error submitting comment:', error);
-            }
-        };
 
         document.getElementById('BackHomeButton').addEventListener('click', () => {
             window.location.href = `index_userlogined.html?userid=${userid}`;
@@ -310,38 +170,6 @@
         document.getElementById('BackCatalogButton').addEventListener('click', () => {
             window.location.href = `user-books-catalog.html?userid=${userid}`;
         });
-
-        async function returnBook(borrowRecordId, copyId) {
-            const response = await fetch(`/api/userBorrows/${borrowRecordId}/copies/${copyId}/return`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                alert('Copy returned successfully.');
-                fetchBorrowHistory();
-            } else {
-                alert('Failed to return copy.');
-            }
-        }
-
-        async function borrowAgain(borrowRecordId, copyId) {
-            const response = await fetch(`/api/userBorrows/${borrowRecordId}/copies/${copyId}/borrow-again`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Bearer ${token}` }
-            });
-
-            if (response.ok) {
-                alert('Copy borrowed again successfully!');
-                fetchBorrowHistory();
-            } else {
-                alert('Failed to borrow copy again.');
-            }
-        }
-
-        function displayError(message) {
-            document.getElementById('errorMessage').innerText = message;
-        }
 
         window.onload = fetchBorrowHistory;
     </script>

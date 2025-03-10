@@ -32,7 +32,7 @@ const Comment = require('./models/commentSchema');
 const AdminBook = require('./models/adminBookSchema');
 const BookBuy = require('./models/buyBookSchema');
 const UserDetails = require('./models/userDetailsSchema');
-
+const EPC = require('./models/epcSchema');
 const app = express();
 const PORT = process.env.PORT || 10000
 const SECRET_KEY = 'your_secure_secret_key';
@@ -69,6 +69,29 @@ app.use(session({
         saveUninitialized: false
     }));
 
+// API route to create an EPC
+app.post('/api/epc', async (req, res) => {
+    try {
+        const { epc, title, author, status, industryIdentifier  } = req.body;
+
+        // Create a new EPC record
+        const newEPC = new EPC({
+            epc,
+            title,
+            author,
+            status,
+            industryIdentifier,
+        });
+
+        // Save the EPC to the database
+        const savedEPC = await newEPC.save();
+
+        res.status(201).json(savedEPC); // Respond with the saved EPC record
+    } catch (error) {
+        console.error('Error creating EPC:', error); // Log the error details
+        res.status(500).json({ error: 'Failed to create EPC.', details: error.message });
+    }
+});
 
 // Create OAuth2 client with hard-coded credentials
 const oauth2Client = new OAuth2(
@@ -300,6 +323,7 @@ const setMidnight = (date) => {
     return midnightDate;
 };
 // API endpoint to borrow a book by copyId
+
 app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
     const { userid, copyId, selectedCopies, isbn } = req.body;
 
@@ -334,11 +358,12 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
         book.copies.forEach(copy => {
             if (copiesToBorrow.includes(copy.copyId)) {
                 if (copy.availability) {
-                    // Mark as unavailable and add borrowing details
+                    // Update the copy details for borrowing
                     copy.availability = false;
                     copy.borrowedDate = new Date();
                     copy.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days from today
-                    copy.returned = false;
+                    copy.status = 'borrowed'; // Set status to 'borrowed'
+                    copy.borrowStatus = true; // Mark as borrowed
                     borrowedCopies.push(copy);
                 } else {
                     unavailableCopies.push(copy.copyId);
@@ -346,15 +371,28 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
             }
         });
 
-        // Save the updated book document
-        await book.save();
-
         // Handle unavailable copies
         if (unavailableCopies.length > 0) {
             return res.status(400).json({
                 error: 'Some copies are unavailable.',
                 unavailableCopies
             });
+        }
+
+        // Save the updated book document
+        await book.save();
+
+        // Synchronize the status in the EPC schema
+        for (const copy of borrowedCopies) {
+            if (copy.epc) {
+                // Update the EPC status to 'borrowed'
+                await EPC.updateOne(
+                    { epc: copy.epc }, // Match the EPC number
+                    { $set: { status: 'borrowed' } } // Set status to 'borrowed'
+                );
+
+                console.log(`Synchronized EPC "${copy.epc}" with status "borrowed".`);
+            }
         }
 
         // Check if the user has an existing borrow record for this book
@@ -372,9 +410,11 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
                     bookLocation: copy.bookLocation || 'Unknown',
                     locationId: copy.locationId || 'Unknown',
                     borrowedDate: copy.borrowedDate,
-                    availability: copy.availability,
                     dueDate: copy.dueDate,
-                    returned: copy.returned,
+                    epc: copy.epc, // Include the EPC number
+                    status: 'borrowed', // Set status to 'borrowed'
+                    availability: false, // Set availability to false
+                    borrowStatus: true, // Set borrowStatus to true
                 })),
             ];
         } else {
@@ -391,20 +431,51 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
                     bookLocation: copy.bookLocation || 'Unknown',
                     locationId: copy.locationId || 'Unknown',
                     borrowedDate: copy.borrowedDate,
-                    availability: copy.availability,
                     dueDate: copy.dueDate,
-                    returned: copy.returned,
+                    epc: copy.epc, // Include the EPC number
+                    status: 'borrowed', // Set status to 'borrowed'
+                    availability: false, // Set availability to false
+                    borrowStatus: true, // Set borrowStatus to true
                 })),
             });
         }
 
-        // Save the borrow record
+        // Save the updated UserBorrow record
         await userBorrow.save();
+
+        // Log the borrowed copies with their EPC numbers
+        console.log('Borrowed Copies with EPC Numbers:');
+        borrowedCopies.forEach(copy => {
+            console.log(`CopyId: ${copy.copyId}, EPC: ${copy.epc}`);
+        });
+
+        // Synchronize with BookBuy schema
+        for (const copy of borrowedCopies) {
+            await BookBuy.updateOne(
+                { 'copies.copyId': copy.copyId }, // Match the copyId in the BookBuy schema
+                { 
+                    $set: { 
+                        'copies.$.availability': false, 
+                        'copies.$.status': 'borrowed', 
+                     
+                    } // Update the availability, status, and borrowStatus fields
+                }
+            );
+
+            console.log(`Synchronized BookBuy copy "${copy.copyId}" as borrowed.`);
+        }
 
         // Respond with redirect URL including valid copy IDs
         res.status(200).json({
             message: 'Copies borrowed successfully.',
-            borrowedCopies,
+            borrowedCopies: borrowedCopies.map(copy => ({
+                copyId: copy.copyId,
+                epc: copy.epc, // Include the EPC number in the response
+                borrowedDate: copy.borrowedDate,
+                dueDate: copy.dueDate,
+                status: copy.status,
+                borrowStatus: copy.borrowStatus,
+            })),
             redirectUrl: `user_borrow_copy.html?userid=${userid}&isbn=${isbn}&copies=${copiesToBorrow.join(',')}`
         });
     } catch (error) {
@@ -412,100 +483,77 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
         res.status(500).json({ error: error.message || 'Internal server error.' });
     }
 });
-//Update API for Returning a Copy
-app.put('/api/userBorrows/:borrowRecordId/copies/:copyId/return', authenticateToken, async (req, res) => {
-    const { borrowRecordId, copyId } = req.params;
 
-    try {
-        // Update the UserBorrow collection
-        const userBorrow = await UserBorrow.findById(borrowRecordId);
-        if (!userBorrow) {
-            return res.status(404).json({ error: 'Borrow record not found' });
-        }
+app.post('/api/books/return', async (req, res) => {
+    const { epc } = req.body;
 
-        const userCopy = userBorrow.copies.find(copy => copy.copyId === copyId);
-        if (!userCopy) {
-            return res.status(404).json({ error: 'Copy not found in UserBorrow record.' });
-        }
-
-        if (userCopy.returned) {
-            return res.status(400).json({ error: 'This copy has already been returned.' });
-        }
-
-        userCopy.returned = true;
-        userCopy.availability= true;  
-        await userBorrow.save();
-
-        // Update the BookBuy collection
-        const book = await BookBuy.findOne({ industryIdentifier: userBorrow.industryIdentifier });
-        if (!book) {
-            return res.status(404).json({ error: 'Book not found in BookBuy collection.' });
-        }
-
-        const bookCopy = book.copies.find(copy => copy.copyId === copyId);
-        if (!bookCopy) {
-            return res.status(404).json({ error: 'Copy not found in BookBuy collection.' });
-        }
-
-        bookCopy.availability = true;
-        bookCopy.returned = true;
-        bookCopy.borrowedDate = null;
-        bookCopy.dueDate = null;
-
-        await book.save();
-
-        res.status(200).json({ message: 'Copy returned successfully.' });
-    } catch (error) {
-        console.error('Error returning copy:', error);
-        res.status(500).json({ error: 'Failed to return the copy.' });
+    // Validate request body
+    if (!epc) {
+        return res.status(400).json({ error: 'EPC number is required.' });
     }
-});
-//Update API for Borrowing Again
-app.put('/api/userBorrows/:borrowRecordId/copies/:copyId/borrow-again', authenticateToken, async (req, res) => {
-    const { borrowRecordId, copyId } = req.params;
 
     try {
-        // Update the UserBorrow collection
-        const userBorrow = await UserBorrow.findById(borrowRecordId);
-        if (!userBorrow) {
-            return res.status(404).json({ error: 'Borrow record not found' });
+        // Find the EPC document and update its status to "in return box"
+        const epcRecord = await EPC.findOneAndUpdate(
+            { epc }, // Find by EPC number
+            { $set: { status: 'in return box' } }, // Update the status to "in return box"
+            { new: true } // Return the updated document
+        );
+
+        if (!epcRecord) {
+            return res.status(404).json({ error: `EPC number '${epc}' not found.` });
         }
 
-        const userCopy = userBorrow.copies.find(copy => copy.copyId === copyId);
-        if (!userCopy) {
-            return res.status(404).json({ error: 'Copy not found in UserBorrow record.' });
+        console.log(`EPC status updated to "in return box" for EPC: ${epc}`);
+
+        // Find the UserBorrow document that contains this EPC and update the corresponding copy
+        const userBorrowRecord = await UserBorrow.findOneAndUpdate(
+            { 'copies.epc': epc }, // Find the UserBorrow document with a copy that has this EPC
+            { 
+                $set: { 
+                    'copies.$.status': 'in return box', 
+                    'copies.$.availability': true, 
+                    'copies.$.borrowStatus': false 
+                } // Update the status, availability, and borrowStatus fields
+            },
+            { new: true } // Return the updated document
+        );
+
+        if (!userBorrowRecord) {
+            return res.status(404).json({ error: `No UserBorrow record found for EPC '${epc}'.` });
         }
 
-        if (!userCopy.returned) {
-            return res.status(400).json({ error: 'This copy is already borrowed.' });
-        }
+        console.log(`UserBorrow status updated to "in return box" for EPC: ${epc}`);
 
-        userCopy.returned = false;
-        userCopy.availability = false;
-        await userBorrow.save();
+        // Find the BookBuy document and update the corresponding copy's availability
+        const book = await BookBuy.findOneAndUpdate(
+            { 'copies.epc': epc }, // Find the BookBuy document with a copy that has this EPC
+            { 
+                $set: { 
+                    'copies.$.availability': true, 
+                    'copies.$.status': 'in return box', 
+                    'copies.$.borrowStatus': false 
+                } // Update the availability, status, and borrowStatus fields
+            },
+            { new: true } // Return the updated document
+        );
 
-        // Update the BookBuy collection
-        const book = await BookBuy.findOne({ industryIdentifier: userBorrow.industryIdentifier });
         if (!book) {
-            return res.status(404).json({ error: 'Book not found in BookBuy collection.' });
+            return res.status(404).json({ error: `No BookBuy record found for EPC '${epc}'.` });
         }
 
-        const bookCopy = book.copies.find(copy => copy.copyId === copyId);
-        if (!bookCopy) {
-            return res.status(404).json({ error: 'Copy not found in BookBuy collection.' });
-        }
+        console.log(`BookBuy availability updated to "true" for EPC: ${epc}`);
 
-        bookCopy.availability = false;
-        bookCopy.returned = false;
-        bookCopy.borrowedDate = new Date(); // Set the new borrowed date
-        bookCopy.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // Set due date 14 days from now
-
-        await book.save();
-
-        res.status(200).json({ message: 'Copy borrowed again successfully.' });
+        // Respond with success
+        res.status(200).json({
+            message: `Book with EPC '${epc}' returned successfully.`,
+            epcRecord,
+            userBorrowRecord,
+            book,
+        });
     } catch (error) {
-        console.error('Error borrowing copy again:', error);
-        res.status(500).json({ error: 'Failed to borrow the copy again.' });
+        console.error('Error returning book:', error);
+        res.status(500).json({ error: error.message || 'Internal server error.' });
     }
 });
 
@@ -1069,8 +1117,68 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
 });
 
 
+async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
+    try {
+        // Debug: Log the input parameters
+        console.log('Book Title:', bookTitle);
+        console.log('Book Authors:', bookAuthors);
 
+        // Search for EPC records with matching title and authors
+        const epcRecords = await EPC.find({
+            title: { $regex: new RegExp(bookTitle, 'i') }, // Case-insensitive match
+            author: { $all: bookAuthors }, // Match all authors exactly
+        });
 
+        console.log('EPC Records Found:', epcRecords);
+
+        if (!epcRecords || epcRecords.length === 0) {
+            console.log(`No EPC records found for book "${bookTitle}".`);
+            return;
+        }
+
+        // Fetch the corresponding BookBuy record
+        const bookBuy = await BookBuy.findOne({
+            title: { $regex: new RegExp(bookTitle, 'i') }, // Match the title
+            authors: { $all: bookAuthors }, // Match all authors
+        });
+
+        if (!bookBuy) {
+            console.log(`No BookBuy record found for book "${bookTitle}".`);
+            return;
+        }
+
+        console.log('BookBuy Found:', bookBuy);
+
+        let epcIndex = 0; // Start assigning EPCs from the first record
+
+        // Iterate through the copies in the BookBuy document
+        for (let copy of bookBuy.copies) {
+            // Assign EPC to copies that don't already have one
+            if (!copy.epc && epcIndex < epcRecords.length) {
+                const assignedEPC = epcRecords[epcIndex].epc; // Get the EPC number
+                copy.epc = assignedEPC;
+                copy.status = epcRecords[epcIndex].status; // Copy the status from the EPC record
+
+                // Synchronize the EPC with the UserBorrow schema
+                const result = await UserBorrow.updateOne(
+                    { 'copies.copyId': copy.copyId }, // Match by copyId
+                    { $set: { 'copies.$.epc': assignedEPC } } // Update the EPC in UserBorrow
+                );
+
+                console.log(`Synchronized EPC "${assignedEPC}" for copyId "${copy.copyId}" in UserBorrow:`, result);
+
+                epcIndex++; // Move to the next EPC
+            }
+        }
+
+        // Save the updated BookBuy document
+        await bookBuy.save();
+
+        console.log(`EPCs assigned to copies for book "${bookTitle}" and synchronized with UserBorrow.`);
+    } catch (error) {
+        console.error('Error assigning EPCs to existing copies:', error);
+    }
+}
 // Create a new admin book
 // Create a new admin book
 app.post('/api/admin_books', authenticateToken, async (req, res) => {
@@ -1083,7 +1191,9 @@ app.post('/api/admin_books', authenticateToken, async (req, res) => {
 
     try {
         // Fetch book details from Google Books API
-        const googleBooksResponse = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+        const googleBooksResponse = await axios.get(
+            `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`
+        );
         const bookData = googleBooksResponse.data;
 
         if (bookData.totalItems === 0) {
@@ -1120,21 +1230,24 @@ app.post('/api/admin_books', authenticateToken, async (req, res) => {
             copies.push({
                 copyId: savedAdminBook._id,
                 bookLocation,
-                locationId,
-                availability
+                locationId: `${locationId}.${i + 1}`, // Append copy index to location ID
+                availability,
+                status: 'in library', // Default status
+                epc: null // Initially set EPC to null
             });
         }
 
         // Check if a corresponding entry exists in BookBuy
-        const existingBookBuy = await BookBuy.findOne({ industryIdentifier: [isbn] });
+        let bookBuy;
+        const existingBookBuy = await BookBuy.findOne({ industryIdentifier: { $in: [isbn] } });
 
         if (existingBookBuy) {
             // If the book already exists, add the new copies to the copies array
             existingBookBuy.copies.push(...copies);
-            await existingBookBuy.save();
+            bookBuy = await existingBookBuy.save();
         } else {
             // Create a new corresponding entry in BookBuy with the copies array
-            const newBookBuy = new BookBuy({
+            bookBuy = await BookBuy.create({
                 userid: req.user.id, // Assuming you have user information in the request
                 googleId: bookInfo.id,
                 industryIdentifier: [isbn],
@@ -1147,8 +1260,12 @@ app.post('/api/admin_books', authenticateToken, async (req, res) => {
                 coverImage: bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : null,
                 copies: copies, // Include copies array
             });
-            await newBookBuy.save(); // Save the new book to the BookBuy collection
         }
+
+        // Invoke the assignEPCsToExistingCopies function
+        const bookTitle = bookBuy.title;
+        const bookAuthors = bookBuy.authors;
+        await assignEPCsToExistingCopies(bookTitle, bookAuthors);
 
         // Return the created adminBooks in the response
         res.status(201).json({
@@ -1170,7 +1287,7 @@ app.post('/api/admin_books', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
     }
 });
-
+  
 // Get all admin books
 app.get('/api/admin_books', authenticateToken, async(req, res) => {
     try {
