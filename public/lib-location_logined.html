@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Information</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #e8f5e9; /* Light green background */
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(to right, #55ba59, #27732b);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c; /* Slightly lighter green border */
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        /* Additional styling for content */
+        main {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        section {
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #1e88e5;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f2f2f2;
+        }
+                
+        /* Back to Home Button */
+        .back-home {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .back-home a {
+            background-color: #55ba59; /* Green background */
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .back-home a:hover {
+            background-color: #45a049; /* Darker green on hover */
+        }
+
+        /* Footer */
+        footer {
+            background: linear-gradient(to left, #55ba59, #27732b);
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            clear: both;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Library Information</h1>
+    </header>
+    <main>
+        <section>
+            <h2>About the Library</h2>
+            <p>The library is a community hub offering a wide range of books, digital resources, and events for all ages.</p>
+        </section>
+        <section>
+            <h2>Location</h2>
+            <h4>Stanley Ho Library</h4>
+            <p>Location: JCC 5/F</p><br>
+            <h4>Ho Sik Yee Library</h4>
+            <p>Location: HKMU 2/F</p>
+        </section>
+        <section>
+            <h2>Opening Hours</h2>
+            <table>
+        <tr>
+            <th rowspan="1"> </th>
+            <th>Non-examination period*</th>
+            <th>Examination period*</th>
+        </tr>
+        <tr>
+            <td>Mondays to Fridays <br> (excluding Public Holidays)</td>
+            <td>09:00 - 22:00</td>
+            <td rowspan="2">09:00 - 22:00</td>
+        </tr>
+        <tr>
+            <td>Saturdays, Sundays and Public Holidays</td>
+            <td>12:00 - 21:00</td>
+        </tr>
+        <tr>
+            <td>Festival days**</td>
+            <td colspan="2">Early closing at 17:40</td>
+        </tr>
+            </table>
+            <p>*Examination period refer to the school calender</p><br>
+            <p>**Festival days including Mid-Autumn Festival, Winter Solstice, Christmas Eve, New Year's Eve, and Lunar New Year's Eve</p>
+        </section>
+    </main>
+
+    <div class="back-home">
+        <a id="home-link" href="#">Back to Home</a>
+    </div>
+    
+    <footer>
+        <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
+    </footer>
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; 
+        });
+    });
+</script>
+</html>
