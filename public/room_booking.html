@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Room Booking</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c;
+        }
+
+        .nav-bar {
+            display: flex;
+            justify-content: center;
+            background-color: #eee;
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 20px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+
+        .nav-bar button {
+            margin: 0 10px;
+            padding: 10px 15px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            flex: 0 0 auto;
+        }
+
+        .nav-bar button:hover {
+            background-color: #1e88e5;
+        }
+
+        main {
+            flex: 1;
+            padding: 20px;
+        }
+
+        .search-container {
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 0 auto 20px;
+        }
+
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            margin-top: 10px;
+            font-weight: bold;
+        }
+
+        input, select {
+            padding: 10px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        button[type="submit"] {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button[type="submit"]:hover {
+            background-color: #1e88e5;
+        }
+
+        .room-listings, .current-bookings {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        .room-listings h2, .current-bookings h2 {
+            text-align: center;
+            color: #1565c0;
+        }
+
+        .room-card, .booking-card {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        .room-card h3, .booking-card h3 {
+            margin: 0 0 10px;
+            color: #333;
+        }
+
+        .room-card p, .booking-card p {
+            margin: 5px 0;
+        }
+
+        .book-btn {
+            padding: 8px 12px;
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .book-btn:hover {
+            background-color: #2e7d32;
+        }
+
+        footer {
+            background: linear-gradient(to left, #55ba59, #27732b);
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Study Room Booking</h1>
+        <nav class="nav-bar">
+            <button class="nav-home">Home</button>
+            <button class="nav-current-booking">Current Booking</button>
+            <button class="nav-contact">Contact</button>
+        </nav>
+    </header>
+
+    <main>
+        <section class="search-container">
+            <h2>Search for Study Rooms</h2>
+            <form id="bookingForm">
+                <label for="bookingDate">Booking Date:</label>
+                <input type="date" id="bookingDate" name="bookingDate" required>
+
+                <label for="timeslot">Timeslot (1 hour):</label>
+                <select id="timeslot" name="timeslot" required>
+                    <option value="09:00–10:00">09:00–10:00</option>
+                    <option value="10:00–11:00">10:00–11:00</option>
+                    <option value="11:00–12:00">11:00–12:00</option>
+                    <option value="12:00–13:00">12:00–13:00</option>
+                    <option value="13:00–14:00">13:00–14:00</option>
+                    <option value="14:00–15:00">14:00–15:00</option>
+                    <option value="15:00–16:00">15:00–16:00</option>
+                    <option value="16:00–17:00">16:00–17:00</option>
+                    <option value="17:00–18:00">17:00–18:00</option>
+                </select>
+
+                <label for="guests">Number of Guests:</label>
+                <input type="number" id="guests" name="guests" min="1" max="10" value="1" required>
+
+                <label for="roomtype">Room Type:</label>
+                <select id="roomtype" name="roomtype">
+                    <option value="any">Any</option>
+                    <option value="small">Small</option>
+                    <option value="medium">Medium</option>
+                    <option value="other">Other</option>
+                </select>
+
+                <button type="submit">Search Study Rooms</button>
+            </form>
+        </section>
+
+        <section class="room-listings">
+            <h2>Available Study Rooms</h2>
+            <div id="roomList">
+                <p>Please enter your search criteria to find available study rooms.</p>
+            </div>
+        </section>
+
+        <section class="current-bookings" style="display: none;">
+            <h2>Your Current Bookings</h2>
+            <div id="bookingList">
+                <!-- Bookings will be displayed here -->
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>© 2025 Study Room Booking. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Room data with study room names and timeslots
+        const rooms = [
+            {
+                id: 1,
+                name: "Study Room 1",
+                type: "Small",
+                maxGuests: 4,
+                bookedTimeslots: [
+                    { date: "2025-03-25", timeslot: "09:00–10:00" }
+                ]
+            },
+            {
+                id: 2,
+                name: "Study Room 2",
+                type: "Medium",
+                maxGuests: 10,
+                bookedTimeslots: [
+                    { date: "2025-03-28", timeslot: "10:00–11:00" }
+                ]
+            },
+            {
+                id: 3,
+                name: "Study Room 3",
+                type: "Medium",
+                maxGuests: 10,
+                bookedTimeslots: [
+                    { date: "2025-04-01", timeslot: "11:00–12:00" }
+                ]
+            },
+            {
+                id: 4,
+                name: "DIY Studio",
+                type: "Other",
+                maxGuests: 8,
+                bookedTimeslots: [
+                    { date: "2025-04-05", timeslot: "13:00–14:00" }
+                ]
+            }
+        ];
+
+        let userBookings = [];
+
+        // Function to check room availability for a date and timeslot
+        function isRoomAvailable(room, date, timeslot) {
+            return !room.bookedTimeslots.some(booked => 
+                booked.date === date && booked.timeslot === timeslot
+            );
+        }
+
+        // Function to filter rooms based on search criteria
+        function filterRooms(rooms, date, timeslot, guests, roomType) {
+            return rooms.filter(room => {
+                const matchesType = roomType === "any" || room.type.toLowerCase() === roomType;
+                const matchesGuests = room.maxGuests >= guests;
+                const isAvailable = isRoomAvailable(room, date, timeslot);
+                return matchesType && matchesGuests && isAvailable;
+            });
+        }
+
+        // Function to generate a random booking ID
+        function generateBookingId() {
+            const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+            let bookingId = "";
+            for (let i = 0; i < 6; i++) {
+                bookingId += characters.charAt(Math.floor(Math.random() * characters.length));
+            }
+            return bookingId;
+        }
+
+        // Function to book a room
+        function bookRoom(roomId, date, timeslot) {
+            const room = rooms.find(r => r.id === roomId);
+            if (room && isRoomAvailable(room, date, timeslot)) {
+                room.bookedTimeslots.push({ date, timeslot });
+                const bookingId = generateBookingId();
+                userBookings.push({
+                    roomName: room.name,
+                    date: date,
+                    timeslot: timeslot,
+                    bookingId: bookingId
+                });
+                alert(`Room "${room.name}" booked successfully for ${date} at ${timeslot}! Your Booking ID is: ${bookingId}`);
+                const guests = parseInt(document.getElementById("guests").value);
+                const roomType = document.getElementById("roomtype").value;
+                const filteredRooms = filterRooms(rooms, date, timeslot, guests, roomType);
+                renderRooms(filteredRooms, date, timeslot);
+            } else {
+                alert("This room is no longer available for the selected date and timeslot.");
+            }
+        }
+
+        // Function to display filtered rooms with booking buttons
+        function renderRooms(filteredRooms, date, timeslot) {
+            const roomList = document.getElementById("roomList");
+            roomList.innerHTML = "";
+
+            if (filteredRooms.length === 0) {
+                roomList.innerHTML = "<p>No study rooms available for the selected criteria.</p>";
+            } else {
+                filteredRooms.forEach(room => {
+                    const roomElement = document.createElement("div");
+                    roomElement.className = "room-card";
+                    roomElement.innerHTML = `
+                        <h3>${room.name}</h3>
+                        <p>Type: ${room.type}</p>
+                        <p>Max Guests: ${room.maxGuests}</p>
+                        <p>Date: ${date}</p>
+                        <p>Timeslot: ${timeslot}</p>
+                        <button class="book-btn" data-room-id="${room.id}">Book Now</button>
+                    `;
+                    roomList.appendChild(roomElement);
+                });
+
+				document.querySelectorAll(".book-btn").forEach(button => {
+    				button.addEventListener("click", () => {
+        				const roomId = parseInt(button.getAttribute("data-room-id"));
+        				const room = rooms.find(r => r.id === roomId); // Assume 'rooms' is your array of room objects
+        				const confirmation = confirm(`Are you sure you want to book "${room.name}" on ${date} at ${timeslot}?`);
+        				if (confirmation) {
+            				bookRoom(roomId, date, timeslot); // Proceed only if confirmed
+        				}
+    				});
+				});
+            }
+        }
+
+        // Function to display current bookings
+        function renderCurrentBookings() {
+            const bookingList = document.getElementById("bookingList");
+            bookingList.innerHTML = "";
+            if (userBookings.length === 0) {
+                bookingList.innerHTML = "<p>You have no current bookings.</p>";
+            } else {
+                userBookings.forEach(booking => {
+                    const bookingElement = document.createElement("div");
+                    bookingElement.className = "booking-card";
+                    bookingElement.innerHTML = `
+                        <h3>${booking.roomName}</h3>
+                        <p>Date: ${booking.date}</p>
+                        <p>Timeslot: ${booking.timeslot}</p>
+                        <p>Booking ID: ${booking.bookingId}</p>
+                    `;
+                    bookingList.appendChild(bookingElement);
+                });
+            }
+        }
+
+        // Handle form submission
+        document.getElementById("bookingForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const date = document.getElementById("bookingDate").value;
+            const timeslot = document.getElementById("timeslot").value;
+            const guests = parseInt(document.getElementById("guests").value);
+            const roomType = document.getElementById("roomtype").value;
+            const filteredRooms = filterRooms(rooms, date, timeslot, guests, roomType);
+            renderRooms(filteredRooms, date, timeslot);
+        });
+
+        // Nav button event listeners
+        document.querySelector(".nav-home").addEventListener("click", () => {
+            document.querySelector(".search-container").style.display = "block";
+            document.querySelector(".room-listings").style.display = "block";
+            document.querySelector(".current-bookings").style.display = "none";
+            document.getElementById("roomList").innerHTML = "<p>Please enter your search criteria to find available study rooms.</p>";
+        });
+
+        document.querySelector(".nav-current-booking").addEventListener("click", () => {
+            document.querySelector(".search-container").style.display = "none";
+            document.querySelector(".room-listings").style.display = "none";
+            document.querySelector(".current-bookings").style.display = "block";
+            renderCurrentBookings();
+        });
+    </script>
+</body>
+</html>
