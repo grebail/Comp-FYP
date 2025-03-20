@@ -288,7 +288,7 @@
             <h2>Library News</h2>
             <p>Check out our library latest news.</p>
         </section>
-        <a href="#lib-location.html" style="text-decoration: none; color: inherit;">
+        <a id="lib-location-link" href="#" style="text-decoration: none; color: inherit;">
         <section id="location" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
             <h2>Our Libraries</h2><br>
             <h4>Stanley Ho Library</h4>
@@ -296,7 +296,7 @@
             <h4>Ho Sik Yee Library</h4>
             <p>Location: HKMU</p>
         </section>
-        <a href="contact.html" style="text-decoration: none; color: inherit;">
+        <a id="contact-link" href="#" style="text-decoration: none; color: inherit;">
             <section id="contact" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
                 <h2>Contact Us</h2>
                 <p>Email: info@smart-library.com</p>
@@ -307,7 +307,7 @@
 
     <footer>
         <p>&copy 2024-2025 Smart Library. All rights reserved.</p><br>
-        <a href="privacy-policy_logined.html" style="text-decoration: none; color: inherit;">
+        <a id="privacy-policy-link" href="#" style="text-decoration: none; color: inherit;">
             <b>Privacy Policy</b>
         </a>
     </footer>
@@ -398,5 +398,22 @@
             window.location.href = `event_booking.html?userid=${userId}`; // Redirect to event booking with user ID
         });
 
+        // Privacy policy link redirect
+        document.getElementById('privacy-policy-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `privacy-policy_logined.html?userid=${userId}`;
+        })
+
+        // Library Location link redirect
+        document.getElementById('lib-location-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `lib-location_logined.html?userid=${userId}`;
+        })
+
+        // Contact link redirect
+        document.getElementById('contact-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `contact_logined.html?userid=${userId}`;
+        })
     </script>
 </html>
