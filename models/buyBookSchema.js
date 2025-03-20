@@ -1,6 +1,8 @@
 const mongoose = require('mongoose');
+
 // Define an enumeration for book statuses
 const bookStatusEnum = ['borrowed', 'in return box', 'in library'];
+
 // Define the schema for book purchases
 const buyBookSchema = new mongoose.Schema({
     userid: {
@@ -32,6 +34,10 @@ const buyBookSchema = new mongoose.Schema({
         type: Date,
         default: Date.now, // Automatically set the purchase date to the current date
     },
+    quantity: {
+        type: Number, // Total quantity of the book
+        default: 0, // Default to 0 if not specified
+    },
     copies: [{ // Array of objects to store details about each copy
         copyId: {
             type: String, // Unique identifier for each copy
@@ -50,7 +56,6 @@ const buyBookSchema = new mongoose.Schema({
             type: String,
             enum: bookStatusEnum, // Use the defined enum for statuses
             default: 'in library', // Default to 'in library'
-        
         },
         epc: {
             type: String, // EPC number from the RFID tag

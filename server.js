@@ -1640,128 +1640,132 @@ const upload = multer({ dest: 'uploads/' }); // Temporary file storage
 
 
 // API endpoint to import books from CSV
-app.post('/api/importBooks', upload.single('file'), async(req, res) => {
+app.post('/api/importBooks', upload.single('file'), async (req, res) => {
     const results = [];
     const errors = [];
 
-    // Check if the request contains a file
     if (req.file) {
-        // Read CSV file and parse it
-        fs.createReadStream(req.file.path)
-            .pipe(csv({ separator: ',' })) // Adjust for comma-separated values
-            .on('data', (data) => {
-                results.push(data);
-            })
-            .on('end', async() => {
-                await processBooks(results, errors);
-                fs.unlinkSync(req.file.path); // Clean up uploaded file
-                sendResponse(res, errors);
-            })
-            .on('error', (error) => {
-                console.error('Error parsing CSV:', error);
-                return res.status(400).json({ error: 'Error parsing CSV file.' });
-            });
+        try {
+            fs.createReadStream(req.file.path)
+                .pipe(csv({ separator: ',' }))
+                .on('data', (data) => {
+                    results.push(data);
+                })
+                .on('end', async () => {
+                    try {
+                        await processBooks(results, errors);
+                        fs.unlinkSync(req.file.path);
+                        sendResponse(res, errors);
+                    } catch (error) {
+                        console.error('Error processing books:', error.message);
+                        return res.status(500).json({ error: 'Failed to process books.', details: error.message });
+                    }
+                })
+                .on('error', (error) => {
+                    console.error('Error parsing CSV:', error);
+                    return res.status(400).json({ error: 'Error parsing CSV file.' });
+                });
+        } catch (error) {
+            console.error('Error handling file upload:', error.message);
+            return res.status(500).json({ error: 'Error handling file upload.', details: error.message });
+        }
     } else if (req.body.books) {
-        // Handle JSON input
-        await processBooks(req.body.books, errors);
-        sendResponse(res, errors);
+        try {
+            await processBooks(req.body.books, errors);
+            sendResponse(res, errors);
+        } catch (error) {
+            console.error('Error processing books from JSON:', error.message);
+            return res.status(500).json({ error: 'Failed to process books from JSON.', details: error.message });
+        }
     } else {
-        // No valid input provided
         return res.status(400).json({ error: 'No valid input provided. Please upload a file or provide JSON.' });
     }
 });
 
-function newFunction() {
-    return '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';
-}
 
 async function processBooks(books, errors) {
     const userId = 'defaultUserId'; // Replace with a valid user ID if needed
 
     for (const book of books) {
-        const {
-            googleId,
-            title,
-            authors,
-            publisher,
-            publishedDate,
-            description,
-            pageCount,
-            categories,
-            language,
-            coverImage,
-            copies // This should be a string of copies
-        } = book;
-
-        // Validate required fields
-        if (!title) {
-            errors.push({ error: 'Missing title for a book.', book });
-            continue;
-        }
-
-        // Validate publishedDate
-        if (!isValidDate(publishedDate)) {
-            errors.push({ error: 'Invalid published date for a book.', book });
-            continue;
-        }
-
-        // Prepare copies array from CSV or JSON data
-        const copiesArray = (copies || '').split(';').map(copy => {
-            const details = copy.split(',');
-            if (details.length !== 4) {
-                errors.push({ error: 'Invalid copies format.', book });
-                return null; // Skip this copy
-            }
-            return {
-                copyId: details[0],
-                bookLocation: details[1],
-                locationId: details[2],
-                availability: details[3] === 'true',
-            };
-        }).filter(copy => copy !== null); // Remove null entries
-
-        // Create a new purchase record using the book details
-        const purchase = new BookBuy({
-            userId,
-            googleId,
-            industryIdentifier: book.industryIdentifier ? [book.industryIdentifier] : [],
-            title,
-            authors: authors ? authors.split(',') : ['Unknown Author'],
-            publisher,
-            publishedDate,
-            description,
-            pageCount: pageCount ? Number(pageCount) : undefined,
-            categories: categories ? categories.split(',') : [],
-            language,
-            coverImage,
-            purchaseDate: new Date(),
-            copies: copiesArray
-        });
-
-        // Save the purchase to the database
         try {
-            await purchase.save();
-        } catch (saveError) {
-            console.error('Error saving book:', saveError.message);
-            errors.push({ error: 'Failed to save book.', book, details: saveError.message });
+            const {
+                googleId,
+                title,
+                authors,
+                publisher,
+                publishedDate,
+                description,
+                pageCount,
+                categories,
+                language,
+                coverImage,
+                industryIdentifier, // ISBN
+            } = book;
+
+            // Validate required fields
+            if (!title || !authors || !industryIdentifier) {
+                errors.push({ error: 'Missing required fields (title, authors, or ISBN) for a book.', book });
+                continue;
+            }
+
+            // Check if the book already exists in the database
+            const existingBook = await BookBuy.findOne({
+                title,
+                authors: { $all: authors.split(',') },
+                industryIdentifier: { $in: [industryIdentifier] },
+            });
+
+            if (existingBook) {
+                // Increment the quantity of the existing book
+                existingBook.quantity += 1;
+
+                // Save the updated book
+                await existingBook.save();
+            } else {
+                // Create a new book entry
+                const newBook = new BookBuy({
+                    userid: userId,
+                    googleId,
+                    industryIdentifier: [industryIdentifier],
+                    title,
+                    authors: authors.split(','), // Ensure authors is stored as an array
+                    publisher,
+                    publishedDate,
+                    description,
+                    pageCount: pageCount ? Number(pageCount) : undefined,
+                    categories: categories ? categories.split(',') : [],
+                    language,
+                    coverImage,
+                    purchaseDate: new Date(),
+                    quantity: 1, // Start with quantity 1 for a new book
+                    copies: [], // No copies are added in this case
+                });
+
+                // Save the new book
+                await newBook.save();
+            }
+        } catch (error) {
+            console.error('Error processing book:', error.message);
+            errors.push({ error: 'Failed to process book.', book, details: error.message });
         }
     }
 }
-
+// Validate date format
 function isValidDate(dateString) {
     const date = new Date(dateString);
     return !isNaN(date.getTime()); // Check if date is valid
 }
 
+// Send response to the client
 function sendResponse(res, errors) {
     res.status(201).json({
         message: 'Books imported successfully!',
-        errors: errors.length > 0 ? errors : undefined
+        errors: errors.length > 0 ? errors : undefined,
     });
 }
-
 // API endpoint to export all purchases to CSV
-app.get('/api/exportBooks', async(req, res) => {
+// API endpoint to export all purchases to CSV
+app.get('/api/exportBooks', async (req, res) => {
     try {
         // Fetch all purchases from the database
         const purchases = await BookBuy.find();
@@ -1789,7 +1793,9 @@ app.get('/api/exportBooks', async(req, res) => {
                 bookLocation: copy.bookLocation || 'N/A',
                 locationId: copy.locationId || 'N/A',
                 availability: copy.availability,
-                copyId: copy.copyId || 'N/A'
+                copyId: copy.copyId || 'N/A',
+                epc: copy.epc || 'N/A', // Include the EPC field
+                quantity: copy.quantity || 0 // Include the quantity field
             }))
         );
 
@@ -1806,7 +1812,6 @@ app.get('/api/exportBooks', async(req, res) => {
         return res.status(500).json({ error: 'Error exporting books' });
     }
 });
-
 // API endpoint to get all purchases
 app.get('/api/allPurchases', async(req, res) => {
     try {
@@ -1825,131 +1830,86 @@ app.get('/api/allPurchases', async(req, res) => {
 });
 
 // API endpoint to delete a purchase by ObjectId
-app.delete('/api/deletePurchase/:id', async(req, res) => {
-    const { id } = req.params;
 
-    // Validate ObjectId format
-    if (!mongoose.Types.ObjectId.isValid(id)) {
-        return res.status(400).json({ error: 'Invalid ObjectId format.' });
-    }
+// Delete a specific book copy
+// Delete a specific book copy
+// Delete a specific book copy by its unique ObjectId
 
-    try {
-        const result = await BookBuy.deleteOne({ _id: id });
-
-        if (result.deletedCount === 0) {
-            return res.status(404).json({ error: 'Purchase not found.' });
+    app.delete('/api/deleteCopy/:id', async (req, res) => {
+        const { id } = req.params;
+        console.log(`Received request to delete copy with id: ${id}`);
+    
+        if (!mongoose.Types.ObjectId.isValid(id)) {
+            return res.status(400).json({ error: 'Invalid ObjectId format for id.' });
         }
-
-        return res.status(200).json({ message: 'Purchase deleted successfully.' });
-    } catch (error) {
-        console.error('Error deleting purchase:', error);
-        return res.status(500).json({ error: 'Failed to delete purchase.' });
-    }
-});
-
-
-// API endpoint to save user details
-app.post('/api/userDetails', authenticateToken, async (req, res) => {
-    const { userId, name, email, phone, libraryCard } = req.body;
-
-    if (!userId || !name || !email || !phone || !libraryCard) {
-        return res.status(400).json({ error: 'All fields are required.' });
-    }
-
-    try {
-        let userDetails = await UserDetails.findOne({ userId });
-
-        if (userDetails) {
-            // Update user details
-            userDetails.name = name;
-            userDetails.email = email;
-            userDetails.phone = phone;
-            userDetails.libraryCard = libraryCard;
-
-            // Optionally, if you want to update currentLoans from UserBorrow
-            const borrows = await UserBorrow.find({ userid: userId, returned: false });
-            userDetails.currentLoans = borrows.map(borrow => ({
-                borrowId: borrow._id,
-                details: {
-                    title: borrow.title,
-                    authors: borrow.authors,
-                    availability: borrow.availability,
-                    borrowDate: borrow.borrowDate,
-                    dueDate: borrow.dueDate,
-                    comments: borrow.comments,
-                    copyId: borrow.copyId,
-                    googleId: borrow.googleId,
-                    industryIdentifier: borrow.industryIdentifier,
-                    publishedDate: borrow.publishedDate,
-                    publisher: borrow.publisher,
-                    returned: borrow.returned
-                }
-            }));
-
-            await userDetails.save();
-            return res.status(200).json({ message: 'User details updated successfully.' });
-        } else {
-            // Create new user details
-            userDetails = new UserDetails({
-                userId,
-                name,
-                email,
-                phone,
-                libraryCard,
-            });
-
-            await userDetails.save();
-            return res.status(201).json({ message: 'User details saved successfully.' });
-        }
-    } catch (error) {
-        console.error('Error saving user details:', error.message);
-        return res.status(500).json({ error: error.message });
-    }
-});
-
-// Get userDetails
-// Get userDetails
-app.get('/api/userDetails', authenticateToken, async (req, res) => {
-    const { userid } = req.query;
-
-    if (!userid) {
-        return res.status(400).json({ error: 'User ID is required.' });
-    }
-
-    try {
-        // Check if UserDetails exists for the provided userid
-        let userDetails = await UserDetails.findOne({ userId: userid }).populate('currentLoans.borrowId');
-
-        // If UserDetails does not exist, create a new one with default values
-        if (!userDetails) {
-            console.log(`[INFO] UserDetails not found for userId: ${userid}. Creating a new document with default values.`);
-
-            // Create new UserDetails with default empty values
-            userDetails = new UserDetails({
-                userId: userid,
-                name: '',
-                email: '',
-                phone: '',
-                libraryCard: '',
-                currentLoans: [],
-            });
-
-            try {
-                await userDetails.save(); // Save the newly created UserDetails
-                console.log('[INFO] New UserDetails document created successfully.');
-            } catch (error) {
-                console.error('[ERROR] Failed to create UserDetails:', error.message);
-                return res.status(500).json({ error: 'Failed to create UserDetails.' });
+    
+        try {
+            // Find the book containing the copy and remove the copy
+            const book = await BookBuy.findOne({ 'copies._id': id });
+    
+            if (!book) {
+                return res.status(404).json({ error: 'Book or copy not found.' });
             }
+    
+            // Remove the copy
+            book.copies = book.copies.filter(copy => copy._id.toString() !== id);
+    
+            // Save the updated book
+            await book.save();
+    
+            // If no copies remain, delete the entire book
+            if (book.copies.length === 0) {
+                await BookBuy.deleteOne({ _id: book._id });
+            }
+    
+            return res.status(200).json({ message: 'Book copy deleted successfully.', book });
+        } catch (error) {
+            console.error(`Error deleting book copy: ${error}`);
+            return res.status(500).json({ error: 'Failed to delete book copy.' });
+        }
+    });
+// API endpoint to edit a book copy's quantity and EPC
+
+
+app.put('/api/editBookCopy/:id', async (req, res) => {
+    const { id } = req.params; // Extract the id from the URL
+    console.log(`Received request to edit copy with id: ${id}`);
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid ObjectId format for id.' });
+    }
+
+    try {
+        // Find and update the specific copy in the BookBuy collection
+        const book = await BookBuy.findOne({ 'copies._id': id });
+
+        if (!book) {
+            return res.status(404).json({ error: 'Book or copy not found.' });
         }
 
-        // Return the UserDetails (existing or newly created)
-        return res.status(200).json(userDetails);
+        const copy = book.copies.id(id);
+        if (!copy) {
+            return res.status(404).json({ error: 'Copy not found in the book.' });
+        }
+
+        // Update the copy fields
+        const { copyId, bookLocation, availability, epc, quantity } = req.body;
+        copy.copyId = copyId;
+        copy.bookLocation = bookLocation;
+        copy.availability = availability;
+        copy.epc = epc;
+        copy.quantity = quantity;
+
+        // Save the updated book
+        await book.save();
+
+        return res.status(200).json({ message: 'Book copy updated successfully.', book });
     } catch (error) {
-        console.error('[ERROR] Error fetching user details:', error.message);
-        return res.status(500).json({ error: error.message });
+        console.error(`Error updating book copy: ${error}`);
+        return res.status(500).json({ error: 'Failed to update book copy.' });
     }
 });
+
 // API endpoint to get loan details for a specific user
 app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query;

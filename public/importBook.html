@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Upload CSV for Book Import</title>
+    <title>Book Management</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -13,7 +13,7 @@
             background-color: #eef2f3;
             color: #333;
         }
-        
+
         header {
             background: linear-gradient(to right, #1e88e5, #1565c0);
             color: #fff;
@@ -22,28 +22,28 @@
             border-bottom: 5px solid #388e3c;
             border-radius: 8px;
         }
-        
+
         h1 {
             margin: 0;
             font-size: 2.5em;
         }
-        
+
         .upload-container {
             margin: 20px auto;
             width: 300px;
             text-align: center;
         }
-        
+
         .error-message {
             color: red;
             margin: 20px 0;
         }
-        
+
         .success-message {
             color: green;
             margin: 20px 0;
         }
-        
+
         .upload-button,
         .export-button {
             background-color: #388e3c;
@@ -55,29 +55,43 @@
             transition: background-color 0.3s;
             margin-top: 10px;
         }
-        
+
         .upload-button:hover,
         .export-button:hover {
             background-color: #2e7d32;
         }
-        
+
         .book-table {
             margin-top: 20px;
             width: 100%;
             border-collapse: collapse;
         }
-        
+
         .book-table th,
         .book-table td {
             border: 1px solid #ddd;
             padding: 8px;
             text-align: left;
         }
-        
+
         .book-table th {
             background-color: #f2f2f2;
         }
-        
+
+        .save-button {
+            background-color: #1976d2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 5px 10px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .save-button:hover {
+            background-color: #1565c0;
+        }
+
         .delete-button {
             background-color: #d32f2f;
             color: white;
@@ -87,23 +101,23 @@
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        
+
         .delete-button:hover {
             background-color: #c62828;
         }
-        
+
         .total-count {
             margin: 20px 0;
             font-weight: bold;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 
 <body>
 
     <header>
-        <h1>Upload CSV for Book Import</h1>
+        <h1>Book Management</h1>
     </header>
 
     <div id="errorMessage" class="error-message"></div>
@@ -126,6 +140,12 @@
                 <th>Title</th>
                 <th>Author(s)</th>
                 <th>Purchase Date</th>
+                <th>Copy ID</th>
+                <th>Book Location</th>
+                <th>Location ID</th>
+                <th>Availability</th>
+                <th>EPC</th>
+                <th>Quantity</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -133,57 +153,31 @@
     </table>
 
     <script>
-        document.getElementById('uploadButton').addEventListener('click', async function() {
-            const fileInput = document.getElementById('csvFile');
-            const file = fileInput.files[0];
-
-            if (!file) {
-                displayError('Please select a CSV file to upload.');
-                return;
-            }
-
-            // Use PapaParse to parse the CSV file
-            Papa.parse(file, {
-                header: true,
-                complete: async(results) => {
-                    await uploadBooks(results.data, file);
-                },
-                error: (error) => {
-                    displayError('Error parsing CSV: ' + error.message);
-                }
-            });
-        });
-
-        async function uploadBooks(books, file) {
-            const formData = new FormData();
-            formData.append('file', file); // Append the CSV file
-
-            try {
-                const response = await fetch('https://comp-fyp.onrender.com/api/importBooks', {
-                    method: 'POST',
-                    body: formData // Use FormData to send the file
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    displayError(errorData || 'Failed to import books.');
-                    return;
-                }
-
-                const result = await response.json();
-                console.log(result);
-                displaySuccess(result.message || 'Books imported successfully!');
-                fetchAllPurchases(); // Fetch all purchases after import
-            } catch (error) {
-                displayError('An error occurred while importing books: ' + error.message);
-            }
+        function generateLocationId(isbn, title, authors, publishedDate, category, index = 0) {
+            const lccCodes = {
+                "Juvenile Fiction": "PZ",
+                "Fiction": "PS",
+                "History": "D",
+                "Science": "Q",
+                "Mathematics": "QA",
+                "Biography": "CT",
+                "Philosophy": "B",
+                "Technology": "T",
+                "Unknown": "UNKNOWN"
+            };
+            const lccCode = lccCodes[category] || "UNKNOWN";
+            const titleCode = title.substring(0, 2).toUpperCase().padEnd(2, "X");
+            const authorCode = authors.length > 0
+                ? authors[0].substring(0, 2).toUpperCase().padEnd(2, "X")
+                : "XX";
+            const year = new Date(publishedDate).getFullYear();
+            const suffix = (index + 1).toString().padStart(2, "0");
+            return `${lccCode} ${titleCode} ${authorCode} ${year}.${suffix}`;
         }
 
         async function fetchAllPurchases() {
             try {
-                const response = await fetch('/api/allPurchases', {
-                    method: 'GET'
-                });
+                const response = await fetch('/api/allPurchases', { method: 'GET' });
 
                 if (!response.ok) {
                     const errorData = await response.text();
@@ -193,133 +187,121 @@
 
                 const purchases = await response.json();
                 displayBooks(purchases);
-                updateBookCount(purchases.length); // Update the total count
+                updateBookCount(purchases.length);
             } catch (error) {
                 displayError('An error occurred while fetching purchases: ' + error.message);
             }
         }
 
-        function displayError(message) {
-            document.getElementById('errorMessage').innerHTML = message;
-            document.getElementById('successMessage').innerHTML = '';
-        }
-
-        function displaySuccess(message) {
-            document.getElementById('successMessage').innerHTML = message;
-            document.getElementById('errorMessage').innerHTML = '';
-        }
-
         function displayBooks(purchases) {
             const tableBody = document.getElementById('bookTableBody');
-            tableBody.innerHTML = ''; // Clear previous entries
+            tableBody.innerHTML = '';
 
             purchases.forEach(purchase => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td>${purchase.googleId || 'N/A'}</td>
-                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-                    <td>${purchase.title || 'Unknown Title'}</td>
-                    <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-                    <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-                    <td><button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete</button></td>
-                `;
-                tableBody.appendChild(row);
+                let isFirstRow = true;
+
+                purchase.copies.forEach((copy, index) => {
+                    const locationId = generateLocationId(
+                        purchase.industryIdentifier.join(', '),
+                        purchase.title,
+                        purchase.authors,
+                        purchase.purchaseDate,
+                        purchase.categories[0] || "Unknown",
+                        index
+                    );
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        ${isFirstRow ? `
+                            <td rowspan="${purchase.copies.length}">${purchase.googleId || 'N/A'}</td>
+                            <td rowspan="${purchase.copies.length}">${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+                            <td rowspan="${purchase.copies.length}">${purchase.title || 'N/A'}</td>
+                            <td rowspan="${purchase.copies.length}">${purchase.authors.join(', ') || 'N/A'}</td>
+                            <td rowspan="${purchase.copies.length}">${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+                        ` : ''}
+                        <td><input type="text" value="${copy.copyId || ''}" class="copy-id" /></td>
+                        <td>
+                            <select class="book-location">
+                                <option value="Stanley Ho Library" ${copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''}>Stanley Ho Library</option>
+                                <option value="Main Library" ${copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''}>Ho Sik Yee Library</option>
+                            </select>
+                        </td>
+                        <td><input type="text" value="${locationId}" disabled /></td>
+                        <td><input type="checkbox" ${copy.availability ? 'checked' : ''} class="availability" /></td>
+                        <td><input type="text" value="${copy.epc || ''}" class="epc" /></td>
+                        ${isFirstRow ? `<td rowspan="${purchase.copies.length}">${purchase.copies.length}</td>` : ''}
+                        <td>
+                            <button class="save-button" onclick="saveChanges('${copy._id}', this)">Save</button>
+                            <button class="delete-button" onclick="deleteCopy('${copy._id}')">Delete</button>
+                        </td>
+                    `;
+
+                    tableBody.appendChild(row);
+                    isFirstRow = false;
+                });
             });
         }
 
-        async function deleteBook(id) {
-            try {
-                const response = await fetch(`/api/deletePurchase/${id}`, {
-                    method: 'DELETE'
-                });
+        function saveChanges(copyId, button) {
+            const row = button.closest('tr');
 
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    displayError(errorData || 'Failed to delete the book.');
-                    return;
-                }
+            const updatedData = {
+                copyId: row.querySelector('.copy-id').value,
+                bookLocation: row.querySelector('.book-location').value,
+                availability: row.querySelector('.availability').checked,
+                epc: row.querySelector('.epc').value,
+                quantity: 1
+            };
 
-                // Refresh the book list after deletion
-                fetchAllPurchases();
-            } catch (error) {
-                displayError('An error occurred while trying to delete the book.');
-            }
-        }
-
-        document.getElementById('exportButton').addEventListener('click', exportToCSV);
-
-        function exportToCSV() {
-            fetch('/api/allPurchases', {
-                    method: 'GET'
-                })
+            fetch(`/api/editBookCopy/${copyId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(updatedData)
+            })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to fetch purchases for export.');
+                        return response.json().then(error => {
+                            throw new Error(error.message || 'Failed to save changes.');
+                        });
                     }
                     return response.json();
                 })
-                .then(purchases => {
-                    const csvData = purchases.flatMap(purchase =>
-                        (purchase.copies && purchase.copies.length > 0 ?
-                            purchase.copies.map(copy => ({
-                                userid: purchase.userId,
-                                googleId: purchase.googleId,
-                                industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
-                                title: purchase.title || 'Unknown Title',
-                                authors: purchase.authors.join(', ') || 'Unknown Author',
-                                publisher: purchase.publisher || 'Unknown Publisher',
-                                publishedDate: purchase.publishedDate || 'Unknown Date',
-                                description: purchase.description || 'No Description',
-                                categories: purchase.categories.join(', ') || 'N/A',
-                                language: purchase.language || 'en',
-                                coverImage: purchase.coverImage || '',
-                                purchaseDate: new Date(purchase.purchaseDate).toLocaleString(),
-                                copyId: copy.copyId || 'N/A',
-                                bookLocation: copy.bookLocation || 'N/A',
-                                locationId: copy.locationId || 'N/A',
-                                availability: copy.availability || 'N/A'
-                            })) : [{
-                                userid: purchase.userId,
-                                googleId: purchase.googleId,
-                                industryIdentifier: purchase.industryIdentifier.join(', ') || 'N/A',
-                                title: purchase.title || 'Unknown Title',
-                                authors: purchase.authors.join(', ') || 'Unknown Author',
-                                publisher: purchase.publisher || 'Unknown Publisher',
-                                publishedDate: purchase.publishedDate || 'Unknown Date',
-                                description: purchase.description || 'No Description',
-                                categories: purchase.categories.join(', ') || 'N/A',
-                                language: purchase.language || 'en',
-                                coverImage: purchase.coverImage || '',
-                                purchaseDate: new Date(purchase.purchaseDate).toLocaleString(),
-                                copyId: 'N/A',
-                                bookLocation: 'N/A',
-                                locationId: 'N/A',
-                                availability: 'N/A'
-                            }]
-                        ));
-
-                    // Create CSV
-                    const csv = Papa.unparse(csvData);
-                    const blob = new Blob([csv], {
-                        type: 'text/csv;charset=utf-8;'
-                    });
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.setAttribute('download', 'purchased_books.csv');
-                    document.body.appendChild(link);
-                    link.click();
-                    document.body.removeChild(link);
+                .then(() => {
+                    alert('Changes saved successfully!');
+                    fetchAllPurchases();
                 })
                 .catch(error => {
-                    displayError('Error exporting to CSV: ' + error.message);
+                    alert('Error saving changes: ' + error.message);
                 });
+        }
+
+        function deleteCopy(copyId) {
+            if (!confirm('Are you sure you want to delete this copy?')) return;
+
+            fetch(`/api/deleteCopy/${copyId}`, { method: 'DELETE' })
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(error => {
+                            throw new Error(error.message || 'Failed to delete copy.');
+                        });
+                    }
+                    alert('Copy deleted successfully!');
+                    fetchAllPurchases();
+                })
+                .catch(error => {
+                    alert('Error deleting copy: ' + error.message);
+                });
+        }
+
+        function displayError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('successMessage').textContent = '';
         }
 
         function updateBookCount(count) {
             document.getElementById('bookCount').textContent = count;
         }
 
-        // Fetch all purchases when the page loads
         window.onload = fetchAllPurchases;
     </script>
 
