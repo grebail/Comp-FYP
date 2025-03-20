@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Contact Us - Smart Library</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Open Sans', sans-serif;
+            background-color: #e8f5e9; /* Light green background */
+            height: 100%;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(to right, #55ba59, #27732b);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 5px solid #388e3c; /* Slightly lighter green border */
+        }
+
+        header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .main {
+            flex: 1; 
+            padding: 45px; 
+        }
+
+        /* Contact Info Section */
+        .contact-info {
+            padding: 20px;
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff; /* White background for the contact info */
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .contact-info h2 {
+            color: #1e88e5; /* Blue color for the heading */
+            margin-bottom: 15px;
+        }
+
+        .contact-info p {
+            margin: 10px 0;
+            font-size: 16px;
+        }
+
+        /* Contact Section */
+        .contact-container {
+            padding: 20px;
+            max-width: 600px;
+            margin: 20px auto;
+            background-color: #fff; /* White background for the contact form */
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .contact-container h2 {
+            text-align: center;
+            color: #1e88e5; /* Blue color for the heading */
+            margin-bottom: 20px;
+        }
+
+        .contact-container label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .contact-container input,
+        .contact-container textarea {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 2px solid #4caf50; /* Green border */
+            border-radius: 5px;
+            transition: border-color 0.3s;
+        }
+
+        .contact-container input:focus,
+        .contact-container textarea:focus {
+            outline: none;
+            border-color: #66bb6a; /* Lighter green on focus */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .contact-container button {
+            background-color: #1e88e5; /* Blue background */
+            color: #fff;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            width: 100%;
+        }
+
+        .contact-container button:hover {
+            background-color: #1565c0; /* Darker blue on hover */
+        }
+
+        /* Back to Home Button */
+        .back-home {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .back-home a {
+            background-color: #55ba59; /* Green background */
+            color: white;
+            padding: 10px 20px;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+
+        .back-home a:hover {
+            background-color: #45a049; /* Darker green on hover */
+        }
+
+        /* Footer */
+        footer {
+            background: linear-gradient(to left, #55ba59, #27732b);
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            clear: both;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Contact Us</h1>
+</header>
+
+<div class="main">
+    <div class="contact-info">
+        <h2>Contact Information</h2>
+        <p>Email: info@smart-library.com</p>
+        <p>Phone: (852) 2345-6789</p>
+        <p>Address: 123 Library Lane, City, Country</p>
+    </div>
+
+    <div class="contact-container">
+    <h2>Get in Touch with the library</h2>
+    <form id="contact-form">
+        <label for="name">Name:</label>
+        <input type="text" id="name" name="name" required>
+
+        <label for="email">Email:</label>
+        <input type="email" id="email" name="email" required>
+
+        <label for="message">Message:</label>
+        <textarea id="message" name="message" rows="5" placeholder="Let us know about your opinion!" required></textarea>
+
+        <button type="submit">Send Message</button>
+    </form>
+    </div>
+</div>
+
+<!-- Back to Home Button -->
+<div class="back-home">
+    <a id="home-link" href="#">Back to Home</a>
+</div>
+
+<footer>
+    <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
+</footer>
+
+</body>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; 
+        });
+    });    
+</script>
+</html>
