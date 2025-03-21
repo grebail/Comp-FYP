@@ -21,11 +21,30 @@
             text-align: center;
             border-bottom: 5px solid #388e3c;
             border-radius: 8px;
+            position: relative;
         }
 
         h1 {
             margin: 0;
             font-size: 2.5em;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 20px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+            font-size: 1em;
+        }
+
+        .back-button:hover {
+            background-color: #2e7d32;
         }
 
         .upload-container {
@@ -44,8 +63,7 @@
             margin: 20px 0;
         }
 
-        .upload-button,
-        .export-button {
+        .upload-button {
             background-color: #388e3c;
             color: white;
             border: none;
@@ -56,8 +74,7 @@
             margin-top: 10px;
         }
 
-        .upload-button:hover,
-        .export-button:hover {
+        .upload-button:hover {
             background-color: #2e7d32;
         }
 
@@ -111,12 +128,12 @@
             font-weight: bold;
         }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 
 <body>
 
     <header>
+        <button class="back-button" id="backToCatalogButton">Back to Catalog</button>
         <h1>Book Management</h1>
     </header>
 
@@ -127,7 +144,6 @@
         <label for="csvFile">Select CSV File:</label>
         <input type="file" id="csvFile" accept=".csv" aria-label="CSV file input" />
         <button class="upload-button" id="uploadButton">Upload CSV</button>
-        <button class="export-button" id="exportButton">Export to CSV</button>
     </div>
 
     <div id="totalCount" class="total-count">Total Purchased Books: <span id="bookCount">0</span></div>
@@ -145,7 +161,6 @@
                 <th>Location ID</th>
                 <th>Availability</th>
                 <th>EPC</th>
-                <th>Quantity</th>
                 <th>Action</th>
             </tr>
         </thead>
@@ -156,13 +171,13 @@
         function generateLocationId(isbn, title, authors, publishedDate, category, index = 0) {
             const lccCodes = {
                 "Juvenile Fiction": "PZ",
+                "Juvenile Nonfiction": "PZ",
                 "Fiction": "PS",
-                "History": "D",
+                "Nonfiction": "PN",
                 "Science": "Q",
                 "Mathematics": "QA",
-                "Biography": "CT",
-                "Philosophy": "B",
-                "Technology": "T",
+                "History": "D",
+                "Biography & Autobiography": "CT",
                 "Unknown": "UNKNOWN"
             };
             const lccCode = lccCodes[category] || "UNKNOWN";
@@ -175,13 +190,45 @@
             return `${lccCode} ${titleCode} ${authorCode} ${year}.${suffix}`;
         }
 
+        document.getElementById('uploadButton').addEventListener('click', async () => {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                displayError('Please select a CSV file to upload.');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/api/importBooks', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    displayError(errorData.error || 'Failed to import books.');
+                    return;
+                }
+
+                const result = await response.json();
+                displaySuccess(result.message || 'Books imported successfully!');
+                fetchAllPurchases();
+            } catch (error) {
+                displayError('An error occurred: ' + error.message);
+            }
+        });
+
         async function fetchAllPurchases() {
             try {
                 const response = await fetch('/api/allPurchases', { method: 'GET' });
 
                 if (!response.ok) {
-                    const errorData = await response.text();
-                    displayError(errorData || 'Failed to fetch purchases.');
+                    const errorData = await response.json();
+                    displayError(errorData.error || 'Failed to fetch purchases.');
                     return;
                 }
 
@@ -197,9 +244,12 @@
             const tableBody = document.getElementById('bookTableBody');
             tableBody.innerHTML = '';
 
-            purchases.forEach(purchase => {
-                let isFirstRow = true;
+            if (purchases.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center;">No books available</td></tr>`;
+                return;
+            }
 
+            purchases.forEach((purchase) => {
                 purchase.copies.forEach((copy, index) => {
                     const locationId = generateLocationId(
                         purchase.industryIdentifier.join(', '),
@@ -212,32 +262,27 @@
 
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        ${isFirstRow ? `
-                            <td rowspan="${purchase.copies.length}">${purchase.googleId || 'N/A'}</td>
-                            <td rowspan="${purchase.copies.length}">${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-                            <td rowspan="${purchase.copies.length}">${purchase.title || 'N/A'}</td>
-                            <td rowspan="${purchase.copies.length}">${purchase.authors.join(', ') || 'N/A'}</td>
-                            <td rowspan="${purchase.copies.length}">${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-                        ` : ''}
+                        <td>${purchase.googleId || 'N/A'}</td>
+                        <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+                        <td>${purchase.title || 'Unknown Title'}</td>
+                        <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                        <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
                         <td><input type="text" value="${copy.copyId || ''}" class="copy-id" /></td>
                         <td>
                             <select class="book-location">
                                 <option value="Stanley Ho Library" ${copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''}>Stanley Ho Library</option>
-                                <option value="Main Library" ${copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''}>Ho Sik Yee Library</option>
+                                <option value="Ho Sik Yee Library" ${copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''}>Ho Sik Yee Library</option>
                             </select>
                         </td>
                         <td><input type="text" value="${locationId}" disabled /></td>
                         <td><input type="checkbox" ${copy.availability ? 'checked' : ''} class="availability" /></td>
                         <td><input type="text" value="${copy.epc || ''}" class="epc" /></td>
-                        ${isFirstRow ? `<td rowspan="${purchase.copies.length}">${purchase.copies.length}</td>` : ''}
                         <td>
                             <button class="save-button" onclick="saveChanges('${copy._id}', this)">Save</button>
                             <button class="delete-button" onclick="deleteCopy('${copy._id}')">Delete</button>
                         </td>
                     `;
-
                     tableBody.appendChild(row);
-                    isFirstRow = false;
                 });
             });
         }
@@ -249,8 +294,7 @@
                 copyId: row.querySelector('.copy-id').value,
                 bookLocation: row.querySelector('.book-location').value,
                 availability: row.querySelector('.availability').checked,
-                epc: row.querySelector('.epc').value,
-                quantity: 1
+                epc: row.querySelector('.epc').value
             };
 
             fetch(`/api/editBookCopy/${copyId}`, {
@@ -298,9 +342,26 @@
             document.getElementById('successMessage').textContent = '';
         }
 
+        function displaySuccess(message) {
+            document.getElementById('successMessage').textContent = message;
+            document.getElementById('errorMessage').textContent = '';
+        }
+
         function updateBookCount(count) {
             document.getElementById('bookCount').textContent = count;
         }
+
+        // Add functionality for the Back to Catalog button
+        document.getElementById('backToCatalogButton').addEventListener('click', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const userId = urlParams.get('userid');
+
+            if (userId) {
+                window.location.href = `http://localhost:10000/books-catalog.html?userid=${userId}`;
+            } else {
+                alert('User ID is missing in the URL.');
+            }
+        });
 
         window.onload = fetchAllPurchases;
     </script>
