@@ -156,31 +156,6 @@
             margin: 20px 0;
             font-weight: bold;
         }
-        .search-container {
-            margin: 20px auto;
-            text-align: center;
-        }
-    
-        #searchInput {
-            padding: 8px;
-            width: 200px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-        }
-    
-        .search-container button {
-            padding: 8px 16px;
-            background-color: #388e3c;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-    
-        .search-container button:hover {
-            background-color: #2e7d32;
-        }
     </style>
 </head>
 
@@ -199,13 +174,8 @@
         <input type="file" id="csvFile" accept=".csv" aria-label="CSV file input" />
         <button class="upload-button" id="uploadButton">Upload CSV</button>
         <button class="export-button" id="exportButton">Export CSV</button>
-
     </div>
-<div class="search-container">
-    <label for="searchInput">Search by ISBN:</label>
-    <input type="text" id="searchInput" placeholder="Enter ISBN" />
-    <button onclick="searchByISBN()">Search</button>
-</div>
+
     <div id="totalCount" class="total-count">Total Purchased Books: <span id="bookCount">0</span></div>
 
     <table id="bookTable" class="book-table">
@@ -446,37 +416,7 @@
                 alert('User ID is missing in the URL.');
             }
         });
-        function searchByISBN() {
-            const searchInput = document.getElementById('searchInput').value.trim();
-            if (!searchInput) {
-                displayError('Please enter an ISBN to search.');
-                return;
-            }
-        
-            fetch('/api/allPurchases', { method: 'GET' })
-                .then((response) => {
-                    if (!response.ok) {
-                        throw new Error('Failed to fetch purchases.');
-                    }
-                    return response.json();
-                })
-                .then((purchases) => {
-                    const filteredPurchases = purchases.filter((purchase) =>
-                        purchase.industryIdentifier.includes(searchInput)
-                    );
-        
-                    if (filteredPurchases.length === 0) {
-                        displayError('No records found with the given ISBN.');
-                    } else {
-                        displayBooks(filteredPurchases);
-                        displaySuccess(`Found ${filteredPurchases.length} record(s) with ISBN: ${searchInput}`);
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error searching records:', error.message);
-                    displayError('Error searching records: ' + error.message);
-                });
-        }
+
         window.onload = fetchAllPurchases;
     </script>
 
