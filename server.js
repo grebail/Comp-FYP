@@ -2247,6 +2247,179 @@ app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
 app.get('/google56342aab9c608962.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'google56342aab9c608962.html'));
 });
+// API endpoint to save user details
+
+const updateCurrentLoans = async (userId) => {
+    try {
+        // Fetch borrow records where at least one copy is not returned
+        const borrows = await UserBorrow.find({ userid: userId, "copies.returned": false });
+
+        console.log(`[DEBUG] Fetched borrows for userId ${userId}:`, borrows);
+
+        // Flatten the `copies` array and map relevant data
+        const currentLoans = borrows.flatMap(borrow => {
+            return borrow.copies
+                .filter(copy => !copy.returned) // Include only non-returned copies
+                .map(copy => ({
+                    borrowId: borrow._id,
+                    details: {
+                        title: borrow.title,
+                        authors: borrow.authors,
+                        copyId: copy.copyId,
+                        bookLocation: copy.bookLocation || 'Unknown',
+                        locationId: copy.locationId || 'Unknown',
+                        availability: copy.availability || false,
+                        borrowDate: copy.borrowedDate,
+                        dueDate: copy.dueDate,
+                        returned: copy.returned,
+                        industryIdentifier: borrow.industryIdentifier,
+                        publishedDate: borrow.publishedDate,
+                        publisher: borrow.publisher,
+                    },
+                }));
+        });
+
+        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
+
+        return currentLoans;
+    } catch (error) {
+        console.error('[ERROR] Failed to fetch or map borrows:', error.message);
+        throw new Error('Failed to update current loans.');
+    }
+};
+// API endpoint to save user details
+app.post('/api/userDetails', authenticateToken, async (req, res) => {
+    const { userId, name, email, phone, libraryCard } = req.body;
+
+    if (!userId || !name || !email || !phone || !libraryCard) {
+        return res.status(400).json({ error: 'All fields are required.' });
+    }
+
+    try {
+        let userDetails = await UserDetails.findOne({ userId });
+
+        if (userDetails) {
+            // Fetch current loans and update existing user details
+            const currentLoans = await updateCurrentLoans(userId);
+
+            console.log(`[DEBUG] Updating currentLoans for userId ${userId}:`, currentLoans);
+
+            userDetails.name = name;
+            userDetails.email = email;
+            userDetails.phone = phone;
+            userDetails.libraryCard = libraryCard;
+            userDetails.currentLoans = currentLoans;
+
+            await userDetails.save();
+            return res.status(200).json({ message: 'User details updated successfully.' });
+        } else {
+            // Fetch current loans for a new userDetails document
+            const currentLoans = await updateCurrentLoans(userId);
+
+            console.log(`[DEBUG] Creating new userDetails with currentLoans for userId ${userId}:`, currentLoans);
+
+            // Create new user details
+            userDetails = new UserDetails({
+                userId,
+                name,
+                email,
+                phone,
+                libraryCard,
+                currentLoans, // Assign current loans fetched from UserBorrow
+            });
+
+            await userDetails.save();
+            return res.status(201).json({ message: 'User details saved successfully.', userDetails });
+        }
+    } catch (error) {
+        console.error('[ERROR] Failed to save user details:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+});
+// Get userDetails
+// Get userDetails
+app.get('/api/userDetails', authenticateToken, async (req, res) => {
+    const { userid } = req.query;
+
+    if (!userid) {
+        return res.status(400).json({ error: 'User ID is required.' });
+    }
+
+    try {
+        let userDetails = await UserDetails.findOne({ userId: userid }).populate('currentLoans.borrowId');
+
+        // If UserDetails does not exist, create a new one
+        if (!userDetails) {
+            console.log(`[INFO] UserDetails not found for userId: ${userid}. Creating a new document.`);
+
+            userDetails = new UserDetails({
+                userId: userid,
+                name: '',
+                email: '',
+                phone: '',
+                libraryCard: '',
+                currentLoans: [],
+            });
+
+            await userDetails.save();
+        }
+
+        // Update the currentLoans field
+        userDetails.currentLoans = await updateCurrentLoans(userid);
+        await userDetails.save();
+
+        console.log(`[DEBUG] Updated currentLoans for userId ${userid}:`, userDetails.currentLoans);
+
+        return res.status(200).json(userDetails);
+    } catch (error) {
+        console.error('[ERROR] Failed to fetch user details:', error.message);
+        return res.status(500).json({ error: error.message });
+    }
+});
+// API endpoint to get loan details for a specific user
+// API endpoint to get loan details for a specific user
+app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
+    const { userid } = req.query;
+
+    // Validate the user ID and permissions
+    if (!userid || userid !== req.user.id) {
+        return res.status(403).json({ error: 'You do not have permission to view this borrow history.' });
+    }
+
+    try {
+        // Fetch all borrow records for the user where copies are not returned
+        const borrows = await UserBorrow.find({ userid, "copies.returned": false });
+
+        console.log(`[DEBUG] Fetched borrows for userId ${userid}:`, borrows);
+
+        // Map the borrow records to include relevant details
+        const detailedBorrows = borrows.flatMap(borrow => {
+            return borrow.copies
+                .filter(copy => !copy.returned) // Only include copies that are not returned
+                .map(copy => ({
+                    _id: borrow._id,
+                    title: borrow.title,
+                    authors: borrow.authors,
+                    copyId: copy.copyId,
+                    bookLocation: copy.bookLocation || 'Unknown',
+                    locationId: copy.locationId || 'Unknown',
+                    borrowedDate: copy.borrowedDate,
+                    dueDate: copy.dueDate,
+                    returned: copy.returned,
+                    industryIdentifier: borrow.industryIdentifier,
+                    publishedDate: borrow.publishedDate,
+                    publisher: borrow.publisher,
+                    userid: borrow.userid,
+                }));
+        });
+
+        // Return the detailed borrow records
+        return res.json(detailedBorrows);
+    } catch (error) {
+        console.error('[ERROR] Failed to fetch borrow history:', error.message);
+        return res.status(500).json({ error: 'Failed to fetch borrow history.' });
+    }
+});
 
 // Route to redirect to the Privacy Policy URL
 app.get('/privacy-policy', (req, res) => {

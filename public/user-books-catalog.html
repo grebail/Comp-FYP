@@ -215,6 +215,7 @@
             background-color: #d32f2f; /* Darker red on hover */
         }
         /* Chatbot Toggle Button */
+/* Chatbot Bubble Icon */
 .chatbot-toggle {
     position: fixed;
     bottom: 20px;
@@ -229,29 +230,15 @@
     cursor: pointer;
     box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
     transition: background-color 0.3s, transform 0.2s;
-}
-
-/* Chatbot Toggle Button */
-.chatbot-toggle {
-    position: fixed;
-    bottom: 20px;
-    right: 20px;
-    width: 50px;
-    height: 50px;
-    background-color: #1565c0;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    font-size: 24px;
-    cursor: pointer;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    transition: background-color 0.3s, transform 0.2s;
+    z-index: 1000;
 }
 
 .chatbot-toggle:hover {
     background-color: #1e88e5;
     transform: scale(1.1);
 }
+
+
 
 /* Adjust Chatbot Container for Toggle */
 .chatbot-container {
@@ -398,6 +385,7 @@
 <button id="chatbotToggle" onclick="toggleChatbot()" class="chatbot-toggle"> 💬</button>
 <div class="chatbot-container" id="chatbot">
     <div class="chat-header">Book Assistant</div>
+    <button onclick="closeChatbot()">❌</button>
     <div class="chat-content" id="chatContent"></div>
     <div class="chat-input">
         <input type="text" id="chatInput" placeholder="Ask me about books...">
