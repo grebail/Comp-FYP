@@ -133,6 +133,70 @@ async function getAccessToken() {
         throw error; // Re-throw to handle it upstream
     }
 }
+//evening booking email api
+async function sendBookingConfirmationEmail(bookingDetails) {
+    try {
+        const { eventName, userName, userEmail } = bookingDetails;
+
+        if (!userName || !userEmail || !eventName) {
+            throw new Error('Missing booking details.');
+        }
+
+        const fromAddress = 'abbichiu@gmail.com'; // Replace with your email
+        const toAddress = userEmail;
+
+        const emailContent = `
+Hello ${userName},
+
+Thank you for booking the event "${eventName}" with us!
+
+We are excited to have you join us. Here are the event details:
+
+Event: ${eventName}
+
+Please contact us if you have any questions.
+
+Best regards,
+Smart Library Team`;
+
+        const msg = {
+            to: toAddress,
+            from: fromAddress,
+            subject: `Booking Confirmation: ${eventName}`,
+            text: emailContent,
+            html: `<pre>${emailContent}</pre>`, // Optional: HTML formatting
+        };
+
+        const response = await sgMail.send(msg);
+        console.log(`Booking confirmation email sent to ${toAddress}`);
+        return response;
+    } catch (error) {
+        console.error('Error sending booking confirmation email:', error.response ? error.response.body : error.message);
+        throw new Error('Error sending booking confirmation email');
+    }
+}
+
+app.post('/api/bookEvent', async (req, res) => {
+    try {
+        const { eventName, userName, userEmail } = req.body;
+
+        if (!eventName || !userName || !userEmail) {
+            return res.status(400).json({ error: 'Missing booking details.' });
+        }
+
+        // Log the booking details
+        console.log(`Booking received for event: ${eventName}, User: ${userName}, Email: ${userEmail}`);
+
+        // Send booking confirmation email
+        await sendBookingConfirmationEmail({ eventName, userName, userEmail });
+
+        res.status(200).json({ message: 'Booking confirmed and email sent.' });
+    } catch (error) {
+        console.error('Error handling booking:', error.message);
+        res.status(500).json({ error: 'Failed to confirm booking.' });
+    }
+});
+
 // Utility function to format date in UTC
 function formatDateToUTC(date) {
     return new Date(date).toUTCString(); // Converts date to UTC string format

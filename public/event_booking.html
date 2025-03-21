@@ -360,6 +360,7 @@
 
     function openModal(eventName) {
         document.getElementById('event-name').innerText = "You are booking: " + eventName;
+        document.getElementById('myModal').dataset.eventName = eventName; // Save the event name in modal
         document.getElementById('myModal').style.display = "block";
     }
 
@@ -367,24 +368,47 @@
         document.getElementById('myModal').style.display = "none";
     }
 
-    document.getElementById('booking-form').addEventListener('submit', function(event) {
+    document.getElementById('booking-form').addEventListener('submit', async function(event) {
         event.preventDefault();
-        alert('Booking confirmed for ' + document.getElementById('event-name').innerText);
-        closeModal();
+
+        const eventName = document.getElementById('myModal').dataset.eventName;
+        const userName = document.getElementById('name').value.trim();
+        const userEmail = document.getElementById('email').value.trim();
+
+        if (!userName || !userEmail) {
+            alert('Please fill out all fields.');
+            return;
+        }
+
+        // Send booking details to the server
+        try {
+            const response = await fetch('/api/bookEvent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    eventName,
+                    userName,
+                    userEmail
+                })
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to confirm booking.');
+            }
+
+            alert(`Booking confirmed for "${eventName}"! A confirmation email has been sent to: ${userEmail}`);
+            closeModal();
+        } catch (error) {
+            console.error('Error confirming booking:', error.message);
+            alert('Error confirming booking. Please try again.');
+        }
     });
 
     window.onclick = function(event) {
         if (event.target == document.getElementById('myModal')) {
             closeModal();
         }
-    }
-
-    document.addEventListener('DOMContentLoaded', function() {    
-        document.getElementById('home-link').addEventListener('click', function() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
-        });
-    });    
+    };
 </script>
 
 <footer>
