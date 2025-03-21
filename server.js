@@ -1635,19 +1635,42 @@ app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
     }
 });
 
+// Update locationId for a specific book copy
+app.put('/api/updateLocationId/:copyId', async (req, res) => {
+    const { copyId } = req.params;
+    const { locationId } = req.body;
 
+    if (!locationId) {
+        return res.status(400).json({ error: 'locationId is required' });
+    }
 
+    try {
+        const book = await BookBuy.findOne({ 'copies._id': copyId });
+        if (!book) {
+            return res.status(404).json({ error: 'Book or copy not found' });
+        }
+
+        const copy = book.copies.id(copyId);
+        if (!copy) {
+            return res.status(404).json({ error: 'Copy not found in the book' });
+        }
+
+        copy.locationId = locationId;
+        await book.save();
+
+        res.status(200).json({ message: 'locationId updated successfully', book });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update locationId' });
+    }
+});
 // Configure multer for temporary file storage
 const upload = multer({ dest: 'uploads/' });
 
-// API endpoint to import books from CSV
-// API endpoint to import books from CSV
 // API endpoint to import books from CSV
 app.post('/api/importBooks', upload.single('file'), async (req, res) => {
     const results = [];
     const errors = [];
     const csvHeaders = [
-        'googleId',
         'title',
         'authors',
         'publisher',
@@ -1671,40 +1694,40 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
             const fileStream = fs.createReadStream(req.file.path, { encoding: 'utf8' });
 
             fileStream
-                .pipe(csv({ headers: csvHeaders }))
-                .on('data', (data) => {
-                    const trimmedData = Object.fromEntries(
-                        Object.entries(data).map(([key, value]) => [key, value?.trim() || ''])
-                    );
-
-                    // Skip rows where all fields are empty
-                    if (Object.values(trimmedData).some((value) => value)) {
-                        results.push(trimmedData);
-                    }
-                })
-                .on('end', async () => {
-                    try {
-                        console.log('Parsed CSV Data:', results);
-                        await processBooks(results, errors);
-
-                        fs.unlinkSync(req.file.path); // Delete the uploaded file
-
-                        sendResponse(res, errors); // Send response with errors (if any)
-                    } catch (error) {
-                        console.error('Error processing books:', error.message);
-                        res.status(500).json({
-                            error: 'Failed to process books.',
-                            details: error.message,
-                        });
-                    }
-                })
-                .on('error', (error) => {
-                    console.error('Error parsing CSV:', error.message);
-                    res.status(400).json({
-                        error: 'Error parsing CSV file.',
+            .pipe(csv({ headers: csvHeaders }))
+            .on('data', (data) => {
+                const trimmedData = Object.fromEntries(
+                    Object.entries(data).map(([key, value]) => [key, value?.trim() || ''])
+                );
+        
+                // Skip rows where all fields are empty
+                if (Object.values(trimmedData).some((value) => value)) {
+                    results.push(trimmedData);
+                }
+            })
+            .on('end', async () => {
+                try {
+                    console.log('Parsed CSV Data:', results);
+                    await processBooks(results, errors);
+        
+                    fs.unlinkSync(req.file.path); // Delete the uploaded file
+        
+                    res.status(201).json({ message: 'Books imported successfully!', errors });
+                } catch (error) {
+                    console.error('Error processing books:', error.message);
+                    res.status(500).json({
+                        error: 'Failed to process books.',
                         details: error.message,
                     });
+                }
+            })
+            .on('error', (error) => {
+                console.error('Error parsing CSV:', error.message);
+                res.status(400).json({
+                    error: 'Error parsing CSV file.',
+                    details: error.message,
                 });
+            });
         } catch (error) {
             console.error('Error handling file upload:', error.message);
             res.status(500).json({
@@ -1718,7 +1741,31 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
         });
     }
 });
+function generateLocationId(isbn, title, authors, publishedDate, category, copyIndex = 1) {
+    const lccCodes = {
+        "Juvenile Fiction": "PZ",
+        "Fiction": "PS",
+        "History": "D",
+        "Science": "Q",
+        "Mathematics": "QA",
+        "Biography": "CT",
+        "Philosophy": "B",
+        "Technology": "T",
+        "Unknown": "UNKNOWN"
+    };
 
+    const lccCode = lccCodes[category] || "UNKNOWN";
+    const titleCode = title?.substring(0, 2).toUpperCase().padEnd(2, "X") || "XX";
+    const authorCode = authors?.length > 0
+        ? authors[0]?.substring(0, 2).toUpperCase().padEnd(2, "X")
+        : "XX";
+    const year = publishedDate ? publishedDate.trim().split('-')[0] : "0000";
+    const suffix = copyIndex.toString().padStart(2, "0"); // Suffix for copy index
+
+    const locationId = `${lccCode}.${titleCode}.${authorCode}.${year}.${suffix}`;
+    console.log("Generated locationId:", locationId); // Debug log
+    return locationId;
+}
 
 // Process books from parsed CSV data
 async function processBooks(books, errors) {
@@ -1726,29 +1773,7 @@ async function processBooks(books, errors) {
 
     for (const book of books) {
         try {
-            const requiredFields = [
-                'googleId',
-                'title',
-                'authors',
-                'industryIdentifier',
-                'copyId',
-                'bookLocation',
-            ];
-
-            // Check for missing fields
-            const missingFields = requiredFields.filter((field) => !book[field] || book[field].trim() === '');
-            if (missingFields.length > 0) {
-                console.warn('Missing required fields:', book, 'Missing:', missingFields);
-                errors.push({
-                    error: 'Missing required fields',
-                    book,
-                    missingFields,
-                });
-                continue;
-            }
-
             const {
-                googleId,
                 title,
                 authors,
                 publisher,
@@ -1761,86 +1786,75 @@ async function processBooks(books, errors) {
                 industryIdentifier,
                 copyId,
                 bookLocation,
-                locationId,
                 availability,
                 status,
                 epc,
             } = book;
 
-            const isAvailable = availability?.toLowerCase() === 'true';
-            const bookStatus = status?.trim() || 'in library';
-
-            // Check if the book already exists in the database
+            // Find existing book in the database
             const existingBook = await BookBuy.findOne({
                 title: title.trim(),
                 authors: { $all: authors.split(',').map((a) => a.trim()) },
                 industryIdentifier: { $in: [industryIdentifier.trim()] },
             });
 
+            // Determine the copy index
+            const copyIndex = existingBook ? existingBook.copies.length + 1 : 1;
+
+            // Generate a new locationId with the copy index
+            const newLocationId = generateLocationId(
+                industryIdentifier,
+                title,
+                authors.split(',').map((a) => a.trim()),
+                publishedDate,
+                categories.split(',')[0], // Use the first category
+                copyIndex
+            );
+
+            const copy = {
+                copyId: copyId?.trim(),
+                bookLocation: bookLocation?.trim(),
+                locationId: newLocationId, // Use the newly generated locationId
+                availability: availability?.toLowerCase() === 'true',
+                status: status?.trim() || 'in library',
+                epc: epc?.trim(),
+            };
+
             if (existingBook) {
                 console.log(`Book found: ${existingBook.title}`);
-
-                // Increment the quantity of the existing book
-                existingBook.quantity += 1;
-
-                // Check if the copy already exists
-                const existingCopy = existingBook.copies.find((copy) => copy.copyId === copyId);
+                const existingCopy = existingBook.copies.find((c) => c.copyId === copy.copyId);
                 if (!existingCopy) {
-                    console.log(`Adding new copy to existing book: ${title}`);
-                    existingBook.copies.push({
-                        copyId: copyId?.trim(),
-                        bookLocation: bookLocation?.trim(),
-                        locationId: locationId?.trim(),
-                        availability: isAvailable,
-                        status: bookStatus,
-                        epc: epc?.trim(),
-                    });
+                    existingBook.copies.push(copy);
+                    existingBook.quantity += 1;
+                    await existingBook.save();
+                } else {
+                    console.log(`Copy with ID ${copy.copyId} already exists.`);
                 }
-
-                // Save the updated book
-                await existingBook.save();
             } else {
                 console.log(`Creating a new book entry: ${title}`);
                 const newBook = new BookBuy({
                     userid: userId,
-                    googleId: googleId?.trim() || '',
                     industryIdentifier: [industryIdentifier.trim()],
                     title: title.trim(),
                     authors: authors.split(',').map((a) => a.trim()),
-                    publisher: publisher?.trim() || '',
-                    publishedDate: isValidDate(publishedDate) ? publishedDate.trim() : '',
-                    description: description?.trim() || '',
-                    pageCount: pageCount ? Number(pageCount) : undefined,
-                    categories: categories ? categories.split(',').map((c) => c.trim()) : [],
-                    language: language?.trim() || '',
-                    coverImage: coverImage?.trim() || '',
-                    purchaseDate: new Date(),
+                    publisher,
+                    publishedDate,
+                    description,
+                    pageCount,
+                    categories: categories.split(',').map((c) => c.trim()),
+                    language,
+                    coverImage,
+                    copies: [copy],
                     quantity: 1,
-                    copies: [
-                        {
-                            copyId: copyId?.trim(),
-                            bookLocation: bookLocation?.trim(),
-                            locationId: locationId?.trim(),
-                            availability: isAvailable,
-                            status: bookStatus,
-                            epc: epc?.trim(),
-                        },
-                    ],
                 });
-
                 await newBook.save();
             }
         } catch (error) {
             console.error('Error processing book:', book, error.message);
-            errors.push({
-                error: 'Failed to process book.',
-                book,
-                details: error.message,
-            });
+            errors.push({ error: 'Failed to process book.', book, details: error.message });
         }
     }
 }
-
 // Function to validate date format
 function isValidDate(dateString) {
     const date = new Date(dateString);
@@ -1856,6 +1870,8 @@ function sendResponse(res, errors) {
 }
 
 // API endpoint to export all purchases to CSV
+const { Parser } = require('json2csv'); // Import the Parser from json2csv
+
 app.get('/api/exportBooks', async (req, res) => {
     try {
         const purchases = await BookBuy.find();
@@ -1887,8 +1903,8 @@ app.get('/api/exportBooks', async (req, res) => {
             }))
         );
 
-        const json2csvParser = new Parser();
-        const csv = json2csvParser.parse(csvData);
+        const json2csvParser = new Parser(); // Create a new instance of Parser
+        const csv = json2csvParser.parse(csvData); // Convert JSON to CSV
 
         res.header('Content-Type', 'text/csv');
         res.attachment('purchases.csv');
@@ -1898,6 +1914,7 @@ app.get('/api/exportBooks', async (req, res) => {
         res.status(500).json({ error: 'Error exporting books' });
     }
 });
+
 // API endpoint to get all purchases
 app.get('/api/allPurchases', async (req, res) => {
     try {
