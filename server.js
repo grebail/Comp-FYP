@@ -1744,13 +1744,51 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
 function generateLocationId(isbn, title, authors, publishedDate, category, copyIndex = 1) {
     const lccCodes = {
         "Juvenile Fiction": "PZ",
+        "Juvenile Nonfiction": "PZ",
         "Fiction": "PS",
-        "History": "D",
+        "Nonfiction": "PN",
         "Science": "Q",
         "Mathematics": "QA",
-        "Biography": "CT",
+        "History": "D",
+        "Biography & Autobiography": "CT",
+        "Self-Help": "BF",
+        "Religion": "BL",
         "Philosophy": "B",
-        "Technology": "T",
+        "Psychology": "BF",
+        "Health & Fitness": "RA",
+        "Computers": "QA76",
+        "Business & Economics": "HF",
+        "Education": "L",
+        "Music": "M",
+        "Art": "N",
+        "Drama": "PN",
+        "Poetry": "PN",
+        "Travel": "G",
+        "Sports & Recreation": "GV",
+        "Cooking": "TX",
+        "Crafts & Hobbies": "TT",
+        "Gardening": "SB",
+        "Medical": "R",
+        "Law": "K",
+        "Political Science": "J",
+        "Social Science": "H",
+        "True Crime": "HV",
+        "Humor": "PN",
+        "Fantasy": "PZ",
+        "Science Fiction": "PZ",
+        "Horror": "PZ",
+        "Romance": "PS",
+        "Mystery": "PS",
+        "Thriller": "PS",
+        "Adventure": "PZ",
+        "Comics & Graphic Novels": "PN6728",
+        "Parenting": "HQ",
+        "Foreign Language Study": "P",
+        "Reference": "Z",
+        "Technology & Engineering": "T",
+        "Performing Arts": "NX",
+        "Philosophy & Religion": "B",
+        "Pets": "SF",
         "Unknown": "UNKNOWN"
     };
 
@@ -1759,14 +1797,18 @@ function generateLocationId(isbn, title, authors, publishedDate, category, copyI
     const authorCode = authors?.length > 0
         ? authors[0]?.substring(0, 2).toUpperCase().padEnd(2, "X")
         : "XX";
-    const year = publishedDate ? publishedDate.trim().split('-')[0] : "0000";
+
+    // Extract the year from the publishedDate
+    const year = publishedDate
+        ? (publishedDate.match(/\d{4}/)?.[0] || "0000") // Use regex to extract the year
+        : "0000";
+
     const suffix = copyIndex.toString().padStart(2, "0"); // Suffix for copy index
 
     const locationId = `${lccCode}.${titleCode}.${authorCode}.${year}.${suffix}`;
     console.log("Generated locationId:", locationId); // Debug log
     return locationId;
 }
-
 // Process books from parsed CSV data
 async function processBooks(books, errors) {
     const userId = 'defaultUserId'; // Replace with a valid user ID if needed

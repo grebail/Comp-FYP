@@ -181,6 +181,20 @@
         .search-container button:hover {
             background-color: #2e7d32;
         }
+        #resetSearchButton {
+            padding: 8px;
+            background-color: #d32f2f;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-left: 5px;
+            transition: background-color 0.3s;
+        }
+    
+        #resetSearchButton:hover {
+            background-color: #c62828;
+        }
     </style>
 </head>
 
@@ -205,6 +219,7 @@
     <label for="searchInput">Search by ISBN:</label>
     <input type="text" id="searchInput" placeholder="Enter ISBN" />
     <button onclick="searchByISBN()">Search</button>
+    <button id="resetSearchButton" style="display: none;" onclick="resetSearch()">❌</button>
 </div>
     <div id="totalCount" class="total-count">Total Purchased Books: <span id="bookCount">0</span></div>
 
@@ -305,15 +320,15 @@
         async function fetchAllPurchases() {
             try {
                 const response = await fetch('/api/allPurchases', { method: 'GET' });
-    
+        
                 if (!response.ok) {
                     const errorData = await response.json();
                     displayError(errorData.error || 'Failed to fetch purchases.');
                     return;
                 }
-    
+        
                 const purchases = await response.json();
-                displayBooks(purchases);
+                displayBooks(purchases); // Display all books
                 updateBookCount(purchases.length);
             } catch (error) {
                 displayError('An error occurred: ' + error.message);
@@ -448,6 +463,8 @@
         });
         function searchByISBN() {
             const searchInput = document.getElementById('searchInput').value.trim();
+            const resetButton = document.getElementById('resetSearchButton');
+        
             if (!searchInput) {
                 displayError('Please enter an ISBN to search.');
                 return;
@@ -467,15 +484,27 @@
         
                     if (filteredPurchases.length === 0) {
                         displayError('No records found with the given ISBN.');
+                        resetButton.style.display = 'none'; // Hide reset button if no results are found
                     } else {
                         displayBooks(filteredPurchases);
                         displaySuccess(`Found ${filteredPurchases.length} record(s) with ISBN: ${searchInput}`);
+                        resetButton.style.display = 'inline-block'; // Show the reset button
                     }
                 })
                 .catch((error) => {
                     console.error('Error searching records:', error.message);
                     displayError('Error searching records: ' + error.message);
+                    resetButton.style.display = 'none'; // Hide reset button on error
                 });
+        }
+        function resetSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const resetButton = document.getElementById('resetSearchButton');
+        
+            searchInput.value = ''; // Clear the search input
+            resetButton.style.display = 'none'; // Hide the reset button
+            displaySuccess('Search reset.'); // Optional: Show a success message
+            fetchAllPurchases(); // Reload all purchases
         }
         window.onload = fetchAllPurchases;
     </script>
