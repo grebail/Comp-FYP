@@ -407,23 +407,12 @@
         }
     });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('home-link').addEventListener('click', function(event) {
-            event.preventDefault(); // Prevent default anchor behavior
-    
-            // Extract `userid` from the current URL
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
             const userId = new URLSearchParams(window.location.search).get('userid');
-    
-            // Check if `userid` exists
-            if (userId) {
-                // Redirect to the home page with the `userid` parameter
-                window.location.href = `index_userlogined.html?userid=${userId}`;
-            } else {
-                // Redirect to a default home page if `userid` is missing
-                window.location.href = 'index.html'; // Adjust to your default home page
-            }
+            window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to books catalog with user ID
         });
-    });   
+    });    
 
     window.onclick = function(event) {
         if (event.target == document.getElementById('myModal')) {
