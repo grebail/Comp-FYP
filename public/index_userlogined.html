@@ -261,7 +261,7 @@
         </div>
         <div class="card">
             <img src="booking_img.png" alt="Book Room">
-            <a href=".html">Room Booking</a>
+            <a id="room-booking-link" href="#">Room Booking</a>
         </div>
         <div class="card">
             <img src="event_img.png" alt="Event">
@@ -391,7 +391,17 @@
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to account profile with user ID
         });
-        
+    // Room Booking link redirect
+document.getElementById('room-booking-link').addEventListener('click', function () {
+    const userId = new URLSearchParams(window.location.search).get('userid');
+    if (userId) {
+        // Redirect to room booking with user ID
+        window.location.href = `room_booking.html?userid=${userId}`;
+    } else {
+        console.error('No user ID found in URL. Redirecting to login...');
+        window.location.href = 'login.html'; // Redirect to login if user ID is missing
+    }
+});
         // Event booking and promo link redirect
         document.getElementById('event-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
