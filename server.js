@@ -35,6 +35,7 @@ const AdminBook = require('./models/adminBookSchema');
 const BookBuy = require('./models/buyBookSchema');
 const UserDetails = require('./models/userDetailsSchema');
 const EPC = require('./models/epcSchema');
+const Event = require('./models/eventSchema');
 const app = express();
 const PORT = process.env.PORT || 10000
 const SECRET_KEY = 'your_secure_secret_key';
@@ -134,6 +135,7 @@ async function getAccessToken() {
     }
 }
 //evening booking email api
+// Function to send booking confirmation email 
 async function sendBookingConfirmationEmail(bookingDetails) {
     try {
         const { eventName, userName, userEmail } = bookingDetails;
@@ -142,7 +144,7 @@ async function sendBookingConfirmationEmail(bookingDetails) {
             throw new Error('Missing booking details.');
         }
 
-        const fromAddress = 'abbichiu@gmail.com'; // Replace with your email
+        const fromAddress = 'abbichiu@gmail.com'; // Replace with your verified email
         const toAddress = userEmail;
 
         const emailContent = `
@@ -163,39 +165,120 @@ Smart Library Team`;
             to: toAddress,
             from: fromAddress,
             subject: `Booking Confirmation: ${eventName}`,
-            text: emailContent,
-            html: `<pre>${emailContent}</pre>`, // Optional: HTML formatting
+            text: emailContent, // Send as plain text
         };
 
+        console.log('Sending email with the following details:', msg);
+
         const response = await sgMail.send(msg);
-        console.log(`Booking confirmation email sent to ${toAddress}`);
+        console.log('Email sent successfully. SendGrid response:', response[0].statusCode, response[0].headers);
+
         return response;
     } catch (error) {
         console.error('Error sending booking confirmation email:', error.response ? error.response.body : error.message);
         throw new Error('Error sending booking confirmation email');
     }
 }
-
+ // Define events to populate in the database
+ const events = [
+    {
+        eventId: 'event-gatsby',
+        title: 'The Great Gatsby',
+        venue: 'Central Library, Room 101',
+        time: 'March 15, 2025, 3:00 PM',
+        eventLink: 'https://example.com/gatsby-reading',
+    },
+    {
+        eventId: 'event-writing-workshop',
+        title: 'Writing Workshop',
+        venue: 'Central Library, Room 202',
+        time: 'March 20, 2025, 1:00 PM',
+        eventLink: 'https://example.com/writing-workshop',
+    },
+    {
+        eventId: 'event-author-meet',
+        title: 'Author Meet and Greet',
+        venue: 'Central Library, Room 303',
+        time: 'April 10, 2025, 5:00 PM',
+        eventLink: 'https://example.com/author-meet',
+    },
+    {
+        eventId: 'event-digital-literacy',
+        title: 'Digital Literacy Workshop',
+        venue: 'Central Library, Room 404',
+        time: 'April 15, 2025, 2:00 PM',
+        eventLink: 'https://example.com/digital-literacy',
+    },
+];
+    
+    // Function to populate the database
+    async function populateEvents() {
+    try {
+        // Clear the existing events
+        await Event.deleteMany({});
+        console.log('Existing events cleared.');
+    
+        // Add new events
+        await Event.insertMany(events);
+        console.log('Events added successfully.');
+    
+      
+    } catch (error) {
+        console.error('Error populating events:', error);
+       
+    }
+    }
+    
+// API to handle booking
 app.post('/api/bookEvent', async (req, res) => {
     try {
         const { eventName, userName, userEmail } = req.body;
 
         if (!eventName || !userName || !userEmail) {
+            console.log('Missing booking details');
             return res.status(400).json({ error: 'Missing booking details.' });
         }
 
-        // Log the booking details
-        console.log(`Booking received for event: ${eventName}, User: ${userName}, Email: ${userEmail}`);
+        console.log(`Searching for event: ${eventName}`);
 
-        // Send booking confirmation email
+        // Find the event in the database
+        const event = await Event.findOne({ title: eventName });
+
+        if (!event) {
+            console.log('Event not found in the database');
+            return res.status(404).json({ error: 'Event not found.' });
+        }
+
+        console.log(`Event found: ${event.title}`);
+
+        // Sanitize the email address for use as a key in the Map
+        const sanitizedEmail = userEmail.replace(/\./g, '[dot]');
+
+        // Check if the user is already registered
+        if (event.registeredUsers.has(sanitizedEmail)) {
+            return res.status(400).json({ error: 'User already registered for this event.' });
+        }
+
+        // Add the sanitized email and user name to the registeredUsers map
+        event.registeredUsers.set(sanitizedEmail, userName);
+
+        // Save the updated event
+        await event.save();
+
+        console.log(`User ${userName} registered for event ${event.title}`);
+
+        // Send confirmation email
         await sendBookingConfirmationEmail({ eventName, userName, userEmail });
 
-        res.status(200).json({ message: 'Booking confirmed and email sent.' });
+        res.status(200).json({ message: 'Booking confirmed, email sent, and user saved to the database.' });
     } catch (error) {
-        console.error('Error handling booking:', error.message);
-        res.status(500).json({ error: 'Failed to confirm booking.' });
+        console.error('Error in /api/bookEvent:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
     }
 });
+
+// Run the function
+populateEvents();
 
 // Utility function to format date in UTC
 function formatDateToUTC(date) {

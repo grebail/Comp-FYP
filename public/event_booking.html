@@ -325,6 +325,7 @@
 </div>
 
 <script>
+   
     let currentIndex = 0;
     const slides = document.querySelectorAll('.promo-slide');
     const totalSlides = slides.length;
@@ -370,16 +371,16 @@
 
     document.getElementById('booking-form').addEventListener('submit', async function(event) {
         event.preventDefault();
-
+    
         const eventName = document.getElementById('myModal').dataset.eventName;
         const userName = document.getElementById('name').value.trim();
         const userEmail = document.getElementById('email').value.trim();
-
+    
         if (!userName || !userEmail) {
             alert('Please fill out all fields.');
             return;
         }
-
+    
         // Send booking details to the server
         try {
             const response = await fetch('/api/bookEvent', {
@@ -391,11 +392,13 @@
                     userEmail
                 })
             });
-
+    
+            const result = await response.json();
+    
             if (!response.ok) {
-                throw new Error('Failed to confirm booking.');
+                throw new Error(result.error || 'Failed to confirm booking.');
             }
-
+    
             alert(`Booking confirmed for "${eventName}"! A confirmation email has been sent to: ${userEmail}`);
             closeModal();
         } catch (error) {
