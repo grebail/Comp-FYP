@@ -1987,23 +1987,17 @@ async function processBooks(books, errors) {
                 industryIdentifier: { $in: [industryIdentifier.trim()] },
             });
 
-            // Determine the copy index
-            const copyIndex = existingBook ? existingBook.copies.length + 1 : 1;
-
-            // Generate a new locationId with the copy index
-            const newLocationId = generateLocationId(
-                industryIdentifier,
-                title,
-                authors.split(',').map((a) => a.trim()),
-                publishedDate,
-                categories.split(',')[0], // Use the first category
-                copyIndex
-            );
-
             const copy = {
                 copyId: copyId?.trim(),
                 bookLocation: bookLocation?.trim(),
-                locationId: newLocationId, // Use the newly generated locationId
+                locationId: generateLocationId(
+                    industryIdentifier,
+                    title,
+                    authors.split(',').map((a) => a.trim()),
+                    publishedDate,
+                    categories.split(',')[0], // Use the first category
+                    1 // Copy index is irrelevant for updates
+                ),
                 availability: availability?.toLowerCase() === 'true',
                 status: status?.trim() || 'in library',
                 epc: epc?.trim(),
@@ -2011,14 +2005,34 @@ async function processBooks(books, errors) {
 
             if (existingBook) {
                 console.log(`Book found: ${existingBook.title}`);
-                const existingCopy = existingBook.copies.find((c) => c.copyId === copy.copyId);
-                if (!existingCopy) {
+
+                // Check if the copy already exists
+                const existingCopyIndex = existingBook.copies.findIndex(c => c.copyId === copy.copyId);
+
+                if (existingCopyIndex > -1) {
+                    // Update the existing copy with new values
+                    console.log(`Updating existing copy with ID ${copy.copyId}`);
+                    existingBook.copies[existingCopyIndex] = {
+                        ...existingBook.copies[existingCopyIndex],
+                        ...copy, // Merge existing values with updated ones
+                    };
+                } else {
+                    // Add a new copy if it doesn't exist
+                    console.log(`Adding new copy with ID ${copy.copyId}`);
                     existingBook.copies.push(copy);
                     existingBook.quantity += 1;
-                    await existingBook.save();
-                } else {
-                    console.log(`Copy with ID ${copy.copyId} already exists.`);
                 }
+
+                // Update the book's general information with the latest values
+                existingBook.publisher = publisher;
+                existingBook.publishedDate = publishedDate;
+                existingBook.description = description;
+                existingBook.pageCount = pageCount;
+                existingBook.categories = categories.split(',').map((c) => c.trim());
+                existingBook.language = language;
+                existingBook.coverImage = coverImage;
+
+                await existingBook.save();
             } else {
                 console.log(`Creating a new book entry: ${title}`);
                 const newBook = new BookBuy({

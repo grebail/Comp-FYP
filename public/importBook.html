@@ -195,6 +195,27 @@
         #resetSearchButton:hover {
             background-color: #c62828;
         }
+       
+            .pagination-button {
+                background-color: #1e88e5;
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px 20px;
+                cursor: pointer;
+                transition: background-color 0.3s;
+                margin: 5px;
+            }
+        
+            .pagination-button:disabled {
+                background-color: #ccc;
+                cursor: not-allowed;
+            }
+        
+            .pagination-button:hover:not(:disabled) {
+                background-color: #1565c0;
+            }
+        
     </style>
 </head>
 
@@ -241,8 +262,15 @@
         </thead>
         <tbody id="bookTableBody"></tbody>
     </table>
-
+    <div id="paginationControls" style="text-align: center; margin-top: 20px;">
+        <button id="prevPageButton" class="pagination-button" disabled>⬅ Previous</button>
+        <span id="currentPage" style="margin: 0 10px;">Page 1</span>
+        <button id="nextPageButton" class="pagination-button">Next ➡</button>
+    </div>
     <script>
+        let currentPage = 1; // Current page number
+        const recordsPerPage = 5; // Number of records per page
+        let allPurchases = []; // Array to store all records        
         
         // Function to update locationId in the database for a specific copy
         async function updateLocationId(copyId, locationId) {
@@ -317,76 +345,118 @@
             }
         });
 
-        async function fetchAllPurchases() {
-            try {
-                const response = await fetch('/api/allPurchases', { method: 'GET' });
-        
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    displayError(errorData.error || 'Failed to fetch purchases.');
-                    return;
-                }
-        
-                const purchases = await response.json();
-                displayBooks(purchases); // Display all books
-                updateBookCount(purchases.length);
-            } catch (error) {
-                displayError('An error occurred: ' + error.message);
-            }
+        // Fetch all purchases and initialize pagination
+async function fetchAllPurchases() {
+    try {
+        const response = await fetch('/api/allPurchases', { method: 'GET' });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            displayError(errorData.error || 'Failed to fetch purchases.');
+            return;
         }
+
+        allPurchases = await response.json(); // Store all records
+        updateBookCount(allPurchases.length);
+        displayPaginatedRecords(); // Display records for the first page
+    } catch (error) {
+        displayError('An error occurred: ' + error.message);
+    }
+}
+// Display paginated records based on the current page
+function displayPaginatedRecords() {
+    const startIndex = (currentPage - 1) * recordsPerPage;
+    const endIndex = startIndex + recordsPerPage;
+
+    const currentRecords = allPurchases.slice(startIndex, endIndex);
+
+    displayBooks(currentRecords); // Display only the current page's records
+    updatePaginationControls();
+}
+
+// Update pagination controls (enable/disable buttons)
+function updatePaginationControls() {
+    const totalPages = Math.ceil(allPurchases.length / recordsPerPage);
+
+    document.getElementById('prevPageButton').disabled = currentPage === 1;
+    document.getElementById('nextPageButton').disabled = currentPage === totalPages;
+
+    document.getElementById('currentPage').textContent = `Page ${currentPage}`;
+}
+
+// Event listener for "Previous" button
+document.getElementById('prevPageButton').addEventListener('click', () => {
+    if (currentPage > 1) {
+        currentPage--;
+        displayPaginatedRecords();
+    }
+});
+
+// Event listener for "Next" button
+document.getElementById('nextPageButton').addEventListener('click', () => {
+    const totalPages = Math.ceil(allPurchases.length / recordsPerPage);
+
+    if (currentPage < totalPages) {
+        currentPage++;
+        displayPaginatedRecords();
+    }
+});
+
     
 
-        function displayBooks(purchases) {
-            const tableBody = document.getElementById('bookTableBody');
-            tableBody.innerHTML = '';
-    
-            if (purchases.length === 0) {
-                tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center;">No books available</td></tr>`;
-                return;
-            }
-    
-            purchases.forEach((purchase) => {
-                const bookRow = document.createElement('tr');
-                bookRow.innerHTML = `
-                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-                    <td>${purchase.title || 'Unknown Title'}</td>
-                    <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-                    <td class="quantity-column">${purchase.quantity || 0}</td>
-                    <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-                    <td colspan="6"></td>
-                `;
-                tableBody.appendChild(bookRow);
-    
-                purchase.copies.forEach((copy) => {
-                    const copyRow = document.createElement('tr');
-                    copyRow.classList.add('copy-row');
-                    copyRow.innerHTML = `
-                        <td colspan="5"></td>
-                        <td><input type="text" value="${copy.copyId || ''}" class="copy-id" /></td>
-                        <td>
-                            <select class="book-location">
-                                <option value="Stanley Ho Library" ${
-                                    copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''
-                                }>Stanley Ho Library</option>
-                                <option value="Ho Sik Yee Library" ${
-                                    copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''
-                                }>Ho Sik Yee Library</option>
-                            </select>
-                        </td>
-                        <td>
-                            <input type="text" value="${copy.locationId || ''}" class="location-id" disabled />
-                        </td>
-                        <td><input type="checkbox" ${copy.availability ? 'checked' : ''} class="availability" /></td>
-                        <td><input type="text" value="${copy.epc || ''}" class="epc" /></td>
-                        <td>
-                            <button class="save-button" onclick="saveChanges('${copy._id}', this)">Save</button>
-                            <button class="delete-button" onclick="deleteCopy('${copy._id}')">Delete</button>
-                        </td>
-                    `;
-                    tableBody.appendChild(copyRow);
-                });
-            });
-        }
+        // Display books (updated to handle limited records)
+function displayBooks(purchases) {
+    const tableBody = document.getElementById('bookTableBody');
+    tableBody.innerHTML = '';
+
+    if (purchases.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center;">No books available</td></tr>`;
+        return;
+    }
+
+    purchases.forEach((purchase) => {
+        const bookRow = document.createElement('tr');
+        bookRow.innerHTML = `
+            <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+            <td>${purchase.title || 'Unknown Title'}</td>
+            <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+            <td class="quantity-column">${purchase.quantity || 0}</td>
+            <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+            <td colspan="6"></td>
+        `;
+        tableBody.appendChild(bookRow);
+
+        purchase.copies.forEach((copy) => {
+            const copyRow = document.createElement('tr');
+            copyRow.classList.add('copy-row');
+            copyRow.innerHTML = `
+                <td colspan="5"></td>
+                <td><input type="text" value="${copy.copyId || ''}" class="copy-id" /></td>
+                <td>
+                    <select class="book-location">
+                        <option value="Stanley Ho Library" ${
+                            copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''
+                        }>Stanley Ho Library</option>
+                        <option value="Ho Sik Yee Library" ${
+                            copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''
+                        }>Ho Sik Yee Library</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="text" value="${copy.locationId || ''}" class="location-id" disabled />
+                </td>
+                <td><input type="checkbox" ${copy.availability ? 'checked' : ''} class="availability" /></td>
+                <td><input type="text" value="${copy.epc || ''}" class="epc" /></td>
+                <td>
+                    <button class="save-button" onclick="saveChanges('${copy._id}', this)">Save</button>
+                    <button class="delete-button" onclick="deleteCopy('${copy._id}')">Delete</button>
+                </td>
+            `;
+            tableBody.appendChild(copyRow);
+        });
+    });
+}
+
         function saveChanges(copyId, button) {
             const row = button.closest('tr');
 

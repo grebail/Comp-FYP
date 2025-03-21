@@ -188,8 +188,8 @@
         <h1>Books Catalog</h1>
         <div class="nav-bar">
             <button onclick="viewHistory(userId)">Purchase History</button>
-            <button onclick="ImportBook()">Import Book</button>
-            <button onclick="Admin_Book()">Book inventory</button>
+            <button onclick="ImportBook()">Book Inventory</button>
+            
 
 
             <button onclick="viewAccount()">My Account</button>
@@ -346,9 +346,6 @@
             window.location.href = `http://localhost:10000/importBook.html?userid=${userId}`;
         }
 
-        function Admin_Book() {
-            window.location.href = `http://localhost:10000/book_admin.html?userid=${userId}`;
-        }
 
         function debouncedSearch() {
             clearTimeout(searchTimeout);

@@ -214,7 +214,131 @@
         .reset-button:hover {
             background-color: #d32f2f; /* Darker red on hover */
         }
+        /* Chatbot Toggle Button */
+.chatbot-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s, transform 0.2s;
+}
 
+/* Chatbot Toggle Button */
+.chatbot-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 50px;
+    height: 50px;
+    background-color: #1565c0;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 24px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s, transform 0.2s;
+}
+
+.chatbot-toggle:hover {
+    background-color: #1e88e5;
+    transform: scale(1.1);
+}
+
+/* Adjust Chatbot Container for Toggle */
+.chatbot-container {
+    position: fixed;
+    bottom: 80px; /* Above the button */
+    right: 20px;
+    width: 300px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+        .chat-header {
+            background-color: #1565c0;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .chat-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+            max-height: 300px;
+        }
+        
+        .chat-message {
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .user-message {
+            background-color: #e6f7ff;
+            text-align: right;
+        }
+        
+        .bot-message {
+            background-color: #f9f9f9;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid #ddd;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        
+        .chat-input button {
+            margin-left: 10px;
+            padding: 10px;
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .chat-input button:hover {
+            background-color: #1e88e5;
+        }
+        .default-question-button {
+            padding: 10px 15px;
+            background-color: #ffcc00;
+            color: black;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-top: 10px;
+            transition: background-color 0.3s;
+        }
+        
+        .default-question-button:hover {
+            background-color: #e6b800;
+        }
         footer {
             background: linear-gradient(to left, #55ba59, #27732b);
             color: #fff;
@@ -269,6 +393,21 @@
             </div>
             <button class="nav-button next-button" onclick="nextBooks()">&#10095;</button>
         </section>
+        <!-- Chatbot UI -->
+<!-- Chatbot Toggle Button -->
+<button id="chatbotToggle" onclick="toggleChatbot()" class="chatbot-toggle"> 💬</button>
+<div class="chatbot-container" id="chatbot">
+    <div class="chat-header">Book Assistant</div>
+    <div class="chat-content" id="chatContent"></div>
+    <div class="chat-input">
+        <input type="text" id="chatInput" placeholder="Ask me about books...">
+        <button onclick="handleChat()">Send</button>
+    </div>
+    <!-- Default Question Button -->
+<div class="search-container">
+    <button onclick="askDefaultQuestion()" class="default-question-button">Recommend Me a Book</button>
+</div>
+</div>
     </main>
 
     <footer>
@@ -486,7 +625,94 @@
                 displayBooks(currentStartIndex);
             }
         }
+        let searchHistory = []; // To store search history
 
+        async function naturalLanguageSearch() {
+            const query = document.getElementById('searchInput').value.toLowerCase().trim();
+            showLoader();
+        
+            if (!query) {
+                currentStartIndex = 0;
+                displayBooks(currentStartIndex);
+                hideLoader();
+                return;
+            }
+        
+            // Save the query in search history
+            saveSearchHistory(query);
+        
+            // Extract keywords from the query
+            const keywords = extractKeywords(query);
+            console.log('Extracted keywords:', keywords);
+        
+            // Filter books based on keywords
+            const filteredBooks = allBooks.filter(book => {
+                const title = book.title ? book.title.toLowerCase() : '';
+                const authors = book.authors ? book.authors.join(', ').toLowerCase() : '';
+                const categories = book.categories ? book.categories.join(', ').toLowerCase() : '';
+        
+                return keywords.some(keyword =>
+                    title.includes(keyword) || authors.includes(keyword) || categories.includes(keyword)
+                );
+            });
+        
+            currentStartIndex = 0; // Reset to the first page
+            if (filteredBooks.length > 0) {
+                displayBooks(currentStartIndex, filteredBooks); // Display filtered books
+            } else {
+                document.getElementById('bookCatalog').innerHTML = '<p>No books found for your search.</p>';
+            }
+        
+            hideLoader();
+        }
+        
+        // Function to extract keywords from a natural language query
+        function extractKeywords(input) {
+            return input.split(/\s+/).filter(word => word.length > 2); // Split into words and filter out short words
+        }
+        
+        // Function to save search query in history
+        function saveSearchHistory(query) {
+            searchHistory.push(query);
+            updateSearchHistoryUI();
+            localStorage.setItem('searchHistory', JSON.stringify(searchHistory)); // Save history to local storage
+        }
+        
+        // Function to update the search history UI
+        function updateSearchHistoryUI() {
+            const historyList = document.getElementById('searchHistoryList');
+            historyList.innerHTML = ''; // Clear existing history
+        
+            searchHistory.forEach(query => {
+                const listItem = document.createElement('li');
+                listItem.textContent = query;
+                listItem.onclick = () => {
+                    document.getElementById('searchInput').value = query;
+                    naturalLanguageSearch(); // Re-run the search when a history item is clicked
+                };
+                historyList.appendChild(listItem);
+            });
+        
+            document.getElementById('clearHistoryButton').style.display = searchHistory.length > 0 ? 'block' : 'none';
+        }
+        
+        // Function to clear search history
+        function clearSearchHistory() {
+            if (confirm('Are you sure you want to clear your search history?')) {
+                searchHistory = [];
+                updateSearchHistoryUI();
+                localStorage.removeItem('searchHistory'); // Clear from local storage
+            }
+        }
+        
+        // Load search history from local storage on page load
+        window.onload = function () {
+            const savedHistory = localStorage.getItem('searchHistory');
+            if (savedHistory) {
+                searchHistory = JSON.parse(savedHistory);
+            }
+            updateSearchHistoryUI();
+        };
         async function searchBooks() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
             showLoader();
@@ -626,6 +852,141 @@
         
        
         }
+// Toggle Chatbot Visibility
+function toggleChatbot() {
+    const chatbot = document.getElementById('chatbot');
+    const chatbotToggle = document.getElementById('chatbotToggle');
+
+    if (chatbot.style.display === 'none' || chatbot.style.display === '') {
+        chatbot.style.display = 'flex';
+        chatbotToggle.textContent = '❌'; // Change button icon to close
+    } else {
+        chatbot.style.display = 'none';
+        chatbotToggle.textContent = '💬'; // Change button icon back to chat
+    }
+}
+        // Add a message to the chat
+function addMessage(content, isUser = true) {
+    const chatContent = document.getElementById('chatContent');
+    const message = document.createElement('div');
+    message.className = `chat-message ${isUser ? 'user-message' : 'bot-message'}`;
+    message.textContent = content;
+    chatContent.appendChild(message);
+    chatContent.scrollTop = chatContent.scrollHeight; // Scroll to bottom
+}
+
+// Handle user input in the chatbot
+function handleChat() {
+    const chatInput = document.getElementById('chatInput');
+    const userMessage = chatInput.value.trim();
+    if (!userMessage) return;
+
+    // Add user message to chat
+    addMessage(userMessage);
+
+    // Clear input field
+    chatInput.value = '';
+
+    // Process the input
+    processChatMessage(userMessage);
+}
+
+// Process chatbot commands
+// Handle default question when the button is clicked
+function askDefaultQuestion() {
+    const defaultQuestion = "Can you recommend me a book?";
+    document.getElementById('chatInput').value = defaultQuestion; // Pre-fill the input field
+    handleChat(); // Trigger the chatbot response
+}
+
+// Process chatbot commands
+async function processChatMessage(message) {
+    const lowerMessage = message.toLowerCase();
+
+    if (lowerMessage.includes('recommend')) {
+        // Recommend a book from the BookBuy collection
+        try {
+            const response = await fetch('/api/allPurchases', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // Add token for authentication
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch books for recommendation.');
+            }
+
+            const purchases = await response.json();
+
+            if (purchases.length > 0) {
+                // Randomly select a book from the purchases
+                const randomBook = purchases[Math.floor(Math.random() * purchases.length)];
+                const title = randomBook.title || 'N/A';
+                const authors = randomBook.authors ? randomBook.authors.join(', ') : 'N/A';
+
+                // Send the recommendation to the chat
+                addMessage(`I recommend: ${title} by ${authors}`, false);
+            } else {
+                addMessage('Sorry, no books are available for recommendation.', false);
+            }
+        } catch (error) {
+            console.error('Error fetching recommendations:', error);
+            addMessage('Sorry, I could not fetch a recommendation at this time.', false);
+        }
+    } else if (lowerMessage.includes('do you have') || lowerMessage.includes('category')) {
+        // Search for books by category
+        const keywords = extractKeywords(message);
+
+        try {
+            const response = await fetch('/api/allPurchases', {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to fetch books for category search.');
+            }
+
+            const purchases = await response.json();
+
+            // Filter books by title, author, or categories
+            const filteredBooks = purchases.filter(book => {
+                const title = book.title ? book.title.toLowerCase() : '';
+                const authors = book.authors ? book.authors.join(', ').toLowerCase() : '';
+                const categories = book.categories ? book.categories.join(', ').toLowerCase() : '';
+
+                return keywords.some(keyword => 
+                    title.includes(keyword) || 
+                    authors.includes(keyword) || 
+                    categories.includes(keyword)
+                );
+            });
+
+            if (filteredBooks.length > 0) {
+                const bookList = filteredBooks.map(book => `${book.title} by ${book.authors.join(', ')}`).join('\n');
+                addMessage(`Here are some books matching your request:\n${bookList}`, false);
+            } else {
+                addMessage('Sorry, no books matched your category request.', false);
+            }
+        } catch (error) {
+            console.error('Error searching by category:', error);
+            addMessage('Sorry, I could not search for books at this time.', false);
+        }
+    } else {
+        // Default response for unrecognized commands
+        addMessage('I am here to help! You can ask me to recommend books, show books in specific categories, or search for specific books.', false);
+    }
+}
+
+// Extract keywords from user input
+function extractKeywords(input) {
+    return input.split(/\s+/).filter(word => word.length > 2); // Split into words and filter out short words
+}
+// Extract keywords from user input
+function extractKeywords(input) {
+    return input.split(/\s+/).filter(word => word.length > 2);
+}
         window.onload = async function () {
             try {
                 await fetchAllCategories(); // Fetch and populate all categories
