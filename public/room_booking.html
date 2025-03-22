@@ -214,184 +214,200 @@
     </footer>
 
     <script>
-        // Room data with study room names and timeslots
-        const rooms = [
-            {
-                id: 1,
-                name: "Study Room 1",
-                type: "Small",
-                maxGuests: 4,
-                bookedTimeslots: [
-                    { date: "2025-03-25", timeslot: "09:00–10:00" }
-                ]
-            },
-            {
-                id: 2,
-                name: "Study Room 2",
-                type: "Medium",
-                maxGuests: 10,
-                bookedTimeslots: [
-                    { date: "2025-03-28", timeslot: "10:00–11:00" }
-                ]
-            },
-            {
-                id: 3,
-                name: "Study Room 3",
-                type: "Medium",
-                maxGuests: 10,
-                bookedTimeslots: [
-                    { date: "2025-04-01", timeslot: "11:00–12:00" }
-                ]
-            },
-            {
-                id: 4,
-                name: "DIY Studio",
-                type: "Other",
-                maxGuests: 8,
-                bookedTimeslots: [
-                    { date: "2025-04-05", timeslot: "13:00–14:00" }
-                ]
+      
+            // Room data with study room names and timeslots
+            const rooms = [
+                {
+                    id: 1,
+                    name: "Study Room 1",
+                    type: "Small",
+                    maxGuests: 4,
+                    bookedTimeslots: [
+                        { date: "2025-03-25", timeslot: "09:00–10:00" }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: "Study Room 2",
+                    type: "Medium",
+                    maxGuests: 10,
+                    bookedTimeslots: [
+                        { date: "2025-03-28", timeslot: "10:00–11:00" }
+                    ]
+                },
+                {
+                    id: 3,
+                    name: "Study Room 3",
+                    type: "Medium",
+                    maxGuests: 10,
+                    bookedTimeslots: [
+                        { date: "2025-04-01", timeslot: "11:00–12:00" }
+                    ]
+                },
+                {
+                    id: 4,
+                    name: "DIY Studio",
+                    type: "Other",
+                    maxGuests: 8,
+                    bookedTimeslots: [
+                        { date: "2025-04-05", timeslot: "13:00–14:00" }
+                    ]
+                }
+            ];
+        
+            let userBookings = []; // Store current bookings for the user
+        
+            // Function to check room availability for a date and timeslot
+            function isRoomAvailable(room, date, timeslot) {
+                return !room.bookedTimeslots.some(booked =>
+                    booked.date === date && booked.timeslot === timeslot
+                );
             }
-        ];
-
-        let userBookings = [];
-
-        // Function to check room availability for a date and timeslot
-        function isRoomAvailable(room, date, timeslot) {
-            return !room.bookedTimeslots.some(booked => 
-                booked.date === date && booked.timeslot === timeslot
-            );
-        }
-
-        // Function to filter rooms based on search criteria
-        function filterRooms(rooms, date, timeslot, guests, roomType) {
-            return rooms.filter(room => {
-                const matchesType = roomType === "any" || room.type.toLowerCase() === roomType;
-                const matchesGuests = room.maxGuests >= guests;
-                const isAvailable = isRoomAvailable(room, date, timeslot);
-                return matchesType && matchesGuests && isAvailable;
-            });
-        }
-
-        // Function to generate a random booking ID
-        function generateBookingId() {
-            const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-            let bookingId = "";
-            for (let i = 0; i < 6; i++) {
-                bookingId += characters.charAt(Math.floor(Math.random() * characters.length));
-            }
-            return bookingId;
-        }
-
-        // Function to book a room
-        function bookRoom(roomId, date, timeslot) {
-            const room = rooms.find(r => r.id === roomId);
-            if (room && isRoomAvailable(room, date, timeslot)) {
-                room.bookedTimeslots.push({ date, timeslot });
-                const bookingId = generateBookingId();
-                userBookings.push({
-                    roomName: room.name,
-                    date: date,
-                    timeslot: timeslot,
-                    bookingId: bookingId
+        
+            // Function to filter rooms based on search criteria
+            function filterRooms(rooms, date, timeslot, guests, roomType) {
+                return rooms.filter(room => {
+                    const matchesType = roomType === "any" || room.type.toLowerCase() === roomType;
+                    const matchesGuests = room.maxGuests >= guests;
+                    const isAvailable = isRoomAvailable(room, date, timeslot);
+                    return matchesType && matchesGuests && isAvailable;
                 });
-                alert(`Room "${room.name}" booked successfully for ${date} at ${timeslot}! Your Booking ID is: ${bookingId}`);
+            }
+        
+            // Function to book a room
+            async function bookRoom(roomId, date, timeslot) {
+                const room = rooms.find(r => r.id === roomId);
+                if (room && isRoomAvailable(room, date, timeslot)) {
+                    const userId = new URLSearchParams(window.location.search).get('userid');
+                    const response = await fetch('/api/bookRoom', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            roomName: room.name,
+                            date,
+                            timeslot,
+                            userId,
+                        }),
+                    });
+        
+                    const data = await response.json();
+        
+                    if (response.ok) {
+                        alert(`Room "${room.name}" booked successfully! Your Booking ID is: ${data.bookingId}`);
+                        room.bookedTimeslots.push({ date, timeslot }); // Update local room data
+                        fetchCurrentBookings(); // Fetch and render updated bookings
+                    } else {
+                        alert(data.error || 'Failed to book room.');
+                    }
+                } else {
+                    alert('This room is no longer available for the selected date and timeslot.');
+                }
+            }
+        
+            // Function to render current bookings
+            function renderCurrentBookings() {
+                const bookingList = document.getElementById("bookingList");
+                bookingList.innerHTML = ""; // Clear the booking list
+        
+                if (userBookings.length === 0) {
+                    bookingList.innerHTML = "<p>You have no current bookings.</p>";
+                } else {
+                    userBookings.forEach(booking => {
+                        const bookingElement = document.createElement("div");
+                        bookingElement.className = "booking-card";
+                        bookingElement.innerHTML = `
+                            <h3>${booking.roomName}</h3>
+                            <p>Date: ${new Date(booking.date).toLocaleDateString()}</p>
+                            <p>Timeslot: ${booking.timeslot}</p>
+                            <p>Booking ID: ${booking.bookingId}</p>
+                        `;
+                        bookingList.appendChild(bookingElement);
+                    });
+                }
+            }
+        
+            // Function to fetch current bookings from the backend
+            async function fetchCurrentBookings() {
+                const userId = new URLSearchParams(window.location.search).get('userid');
+                const response = await fetch(`/api/userBookings?userId=${userId}`);
+                const data = await response.json();
+        
+                if (response.ok) {
+                    userBookings = data.bookings; // Update local bookings
+                    renderCurrentBookings(); // Render the current bookings
+                } else {
+                    alert(data.error || 'Failed to fetch bookings.');
+                }
+            }
+        
+            // Function to render filtered rooms with booking buttons
+            function renderRooms(filteredRooms, date, timeslot) {
+                const roomList = document.getElementById("roomList");
+                roomList.innerHTML = "";
+        
+                if (filteredRooms.length === 0) {
+                    roomList.innerHTML = "<p>No study rooms available for the selected criteria.</p>";
+                } else {
+                    filteredRooms.forEach(room => {
+                        const roomElement = document.createElement("div");
+                        roomElement.className = "room-card";
+                        roomElement.innerHTML = `
+                            <h3>${room.name}</h3>
+                            <p>Type: ${room.type}</p>
+                            <p>Max Guests: ${room.maxGuests}</p>
+                            <p>Date: ${date}</p>
+                            <p>Timeslot: ${timeslot}</p>
+                            <button class="book-btn" data-room-id="${room.id}">Book Now</button>
+                        `;
+                        roomList.appendChild(roomElement);
+                    });
+        
+                    document.querySelectorAll(".book-btn").forEach(button => {
+                        button.addEventListener("click", () => {
+                            const roomId = parseInt(button.getAttribute("data-room-id"));
+                            const confirmation = confirm(`Are you sure you want to book this room?`);
+                            if (confirmation) {
+                                bookRoom(roomId, date, timeslot); // Proceed only if confirmed
+                            }
+                        });
+                    });
+                }
+            }
+        
+            // Handle form submission (search for rooms)
+            document.getElementById("bookingForm").addEventListener("submit", (e) => {
+                e.preventDefault();
+                const date = document.getElementById("bookingDate").value;
+                const timeslot = document.getElementById("timeslot").value;
                 const guests = parseInt(document.getElementById("guests").value);
                 const roomType = document.getElementById("roomtype").value;
                 const filteredRooms = filterRooms(rooms, date, timeslot, guests, roomType);
                 renderRooms(filteredRooms, date, timeslot);
-            } else {
-                alert("This room is no longer available for the selected date and timeslot.");
+            });
+        
+            // Navigation button event listeners
+            document.querySelector(".nav-current-booking").addEventListener("click", () => {
+                document.querySelector(".search-container").style.display = "none";
+                document.querySelector(".room-listings").style.display = "none";
+                document.querySelector(".current-bookings").style.display = "block";
+                fetchCurrentBookings(); // Fetch and render current bookings
+            });
+        
+            document.querySelector(".nav-search").addEventListener("click", () => {
+                document.querySelector(".search-container").style.display = "block";
+                document.querySelector(".room-listings").style.display = "block";
+                document.querySelector(".current-bookings").style.display = "none";
+                document.getElementById("roomList").innerHTML = "<p>Please enter your search criteria to find available study rooms.</p>";
+            });
+        
+            // Function to navigate back to home
+            function backHome() {
+                const userId = new URLSearchParams(window.location.search).get('userid');
+                window.location.href = `index_userlogined.html?userid=${userId}`;
             }
-        }
-
-        // Function to display filtered rooms with booking buttons
-        function renderRooms(filteredRooms, date, timeslot) {
-            const roomList = document.getElementById("roomList");
-            roomList.innerHTML = "";
-
-            if (filteredRooms.length === 0) {
-                roomList.innerHTML = "<p>No study rooms available for the selected criteria.</p>";
-            } else {
-                filteredRooms.forEach(room => {
-                    const roomElement = document.createElement("div");
-                    roomElement.className = "room-card";
-                    roomElement.innerHTML = `
-                        <h3>${room.name}</h3>
-                        <p>Type: ${room.type}</p>
-                        <p>Max Guests: ${room.maxGuests}</p>
-                        <p>Date: ${date}</p>
-                        <p>Timeslot: ${timeslot}</p>
-                        <button class="book-btn" data-room-id="${room.id}">Book Now</button>
-                    `;
-                    roomList.appendChild(roomElement);
-                });
-
-				document.querySelectorAll(".book-btn").forEach(button => {
-    				button.addEventListener("click", () => {
-        				const roomId = parseInt(button.getAttribute("data-room-id"));
-        				const room = rooms.find(r => r.id === roomId); // Assume 'rooms' is your array of room objects
-        				const confirmation = confirm(`Are you sure you want to book "${room.name}" on ${date} at ${timeslot}?`);
-        				if (confirmation) {
-            				bookRoom(roomId, date, timeslot); // Proceed only if confirmed
-        				}
-    				});
-				});
-            }
-        }
-
-        // Function to display current bookings
-        function renderCurrentBookings() {
-            const bookingList = document.getElementById("bookingList");
-            bookingList.innerHTML = "";
-            if (userBookings.length === 0) {
-                bookingList.innerHTML = "<p>You have no current bookings.</p>";
-            } else {
-                userBookings.forEach(booking => {
-                    const bookingElement = document.createElement("div");
-                    bookingElement.className = "booking-card";
-                    bookingElement.innerHTML = `
-                        <h3>${booking.roomName}</h3>
-                        <p>Date: ${booking.date}</p>
-                        <p>Timeslot: ${booking.timeslot}</p>
-                        <p>Booking ID: ${booking.bookingId}</p>
-                    `;
-                    bookingList.appendChild(bookingElement);
-                });
-            }
-        }
-
-        // Handle form submission
-        document.getElementById("bookingForm").addEventListener("submit", (e) => {
-            e.preventDefault();
-            const date = document.getElementById("bookingDate").value;
-            const timeslot = document.getElementById("timeslot").value;
-            const guests = parseInt(document.getElementById("guests").value);
-            const roomType = document.getElementById("roomtype").value;
-            const filteredRooms = filterRooms(rooms, date, timeslot, guests, roomType);
-            renderRooms(filteredRooms, date, timeslot);
-        });
-
-        // Nav button event listeners
-
-        document.querySelector(".nav-current-booking").addEventListener("click", () => {
-            document.querySelector(".search-container").style.display = "none";
-            document.querySelector(".room-listings").style.display = "none";
-            document.querySelector(".current-bookings").style.display = "block";
-            renderCurrentBookings();
-        });
-
-        document.querySelector(".nav-search").addEventListener("click", () => {
-            document.querySelector(".search-container").style.display = "block";
-            document.querySelector(".room-listings").style.display = "block";
-            document.querySelector(".current-bookings").style.display = "none";
-            document.getElementById("roomList").innerHTML = "<p>Please enter your search criteria to find available study rooms.</p>";
-        });
-
-        function backHome (){
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `index_userlogined.html?userid=${userId}`;
-        };
+        
     </script>
 </body>
 </html>

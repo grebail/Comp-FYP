@@ -27,6 +27,8 @@
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            position: relative; /* Ensure the container is a positioning context */
+            min-height: 300px; /* Ensure enough height to accommodate the button */
         }
 
         h2 {
@@ -71,6 +73,22 @@
             background-color: #388e3c;
         }
         
+        delete-expired-button {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background-color: #1565c0;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            border: none;
+            transition: background-color 0.3s;
+        }
+        
+        .delete-expired-button:hover {
+            background-color: #1e88e5;
+        }
                 /* Back to Home Button */
         .back-home {
             text-align: center;
@@ -171,7 +189,12 @@
             </tbody>
         </table>
     </div>
+    
+   <!-- Delete Expired Bookings Button -->
+   <button class="delete-expired-button" onclick="deleteExpiredBookings()">Delete Expired Bookings</button>  
 </div>
+    
+
 
 <!-- Edit Modal -->
 <div id="edit-modal">
@@ -194,9 +217,12 @@
         <div style="margin-top:20px; text-align:right;">
             <button type="button" onclick="saveEdit()">Save</button>
             <button type="button" onclick="closeModal()">Cancel</button>
+            
         </div>
     </form>
+   
 </div>
+
 <div id="overlay" onclick="closeModal()"></div>
 
 <div class="back-home">
@@ -235,6 +261,7 @@
                         <button class="edit-button" onclick="editBooking('${booking.bookingId}', '${booking.date}', '${booking.timeslot}')">Edit</button>
                         <button class="delete-button" onclick="deleteBooking('${booking.bookingId}')">Delete</button>
                     </td>
+                    
                 `;
                 tableBody.appendChild(row);
             });
@@ -328,6 +355,27 @@
             window.location.href = `index_logined.html?userid=${userId}`;
         });
     });
+    // Delete expired bookings
+async function deleteExpiredBookings() {
+    if (confirm('Are you sure you want to delete all expired bookings?')) {
+        try {
+            const response = await fetch('/api/bookings/expired', {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete expired bookings.');
+            }
+
+            const result = await response.json();
+            alert(result.message); // Display the number of deleted bookings
+            fetchBookings(); // Refresh the booking table
+        } catch (error) {
+            console.error('Error deleting expired bookings:', error.message);
+            alert('Error deleting expired bookings. Please try again.');
+        }
+    }
+}
 </script>
 
 </body>
