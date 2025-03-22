@@ -36,6 +36,7 @@ const BookBuy = require('./models/buyBookSchema');
 const UserDetails = require('./models/userDetailsSchema');
 const EPC = require('./models/epcSchema');
 const Event = require('./models/eventSchema');
+const RoomBooking = require('./models/roomSchema');
 const app = express();
 const PORT = process.env.PORT || 10000
 const SECRET_KEY = 'your_secure_secret_key';
@@ -405,6 +406,99 @@ app.delete('/api/deleteExpiredEvents', async (req, res) => {
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
+
+// API to book a room
+app.post('/api/bookRoom', async (req, res) => {
+    try {
+        const { roomName, date, timeslot, userId } = req.body;
+
+        // Validate user
+        const user = await UserDetails.findOne({ userId });
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        // Check if the room is already booked for the selected date and timeslot
+        const existingBooking = await RoomBooking.findOne({ roomName, date, timeslot });
+        if (existingBooking) {
+            return res.status(400).json({ error: 'Room is already booked for this timeslot' });
+        }
+
+        // Generate a unique booking ID
+        const bookingId = `BOOK-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        // Create the booking
+        const newBooking = new RoomBooking({
+            bookingId,
+            roomName,
+            date,
+            timeslot,
+            userEmail: user.email,
+            username: user.name,
+            userId: user._id,
+        });
+
+        await newBooking.save();
+
+        // Add the booking to the user's room bookings
+        user.roomBookings.push(newBooking._id);
+        await user.save();
+
+        res.status(201).json({ message: 'Room booked successfully', bookingId });
+    } catch (error) {
+        console.error('Error booking room:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// API to fetch user's bookings
+app.get('/api/userBookings', async (req, res) => {
+    try {
+        const { userId } = req.query;
+
+        // Validate user
+        const user = await UserDetails.findOne({ userId }).populate('roomBookings');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+
+        res.status(200).json({ bookings: user.roomBookings });
+    } catch (error) {
+        console.error('Error fetching user bookings:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+// to fetach all users booking
+app.get('/api/bookings', async (req, res) => {
+    const bookings = await RoomBooking.find();
+    res.json(bookings);
+    
+});
+//librarian to edit booking
+app.put('/api/bookings/:id', async (req, res) => {
+    const { date, timeslot } = req.body;
+    await RoomBooking.findByIdAndUpdate(req.params.id, { date, timeslot });
+    res.json({ message: 'Booking updated successfully' });
+});
+//librarian to delete booking
+app.delete('/api/bookings/:id', async (req, res) => {
+    await RoomBooking.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Booking deleted successfully' });
+});
+// Delete expired bookings
+app.delete('/api/bookings/expired', async (req, res) => {
+    try {
+        const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+        const result = await RoomBooking.deleteMany({ date: { $lt: today } }); // Delete bookings with a date earlier than today
+        res.json({ message: `${result.deletedCount} expired bookings deleted successfully.` });
+    } catch (error) {
+        console.error('Error deleting expired bookings:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+});
+
+
 // Utility function to format date in UTC
 function formatDateToUTC(date) {
     return new Date(date).toUTCString(); // Converts date to UTC string format
@@ -1430,6 +1524,24 @@ app.get('/api/booksWithRatings', async (req, res) => {
     } catch (error) {
         console.error('Error fetching books:', error);
         res.status(500).json({ error: 'Failed to fetch books with ratings.' });
+    }
+});
+
+// API to get books purchased in the last 3 days
+app.get('/api/newArrivals', async (req, res) => {
+    try {
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3); // Calculate the date 3 days ago
+
+        // Query books purchased within the last 3 days
+        const newBooks = await BookBuy.find({
+            purchaseDate: { $gte: threeDaysAgo },
+        });
+
+        res.status(200).json({ data: newBooks });
+    } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+        res.status(500).json({ error: 'Failed to fetch new arrivals.' });
     }
 });
 async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {

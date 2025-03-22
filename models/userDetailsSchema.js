@@ -25,7 +25,8 @@ const userDetailsSchema = new mongoose.Schema({
     email: { type: String, },
     phone: { type: String, },
     libraryCard: { type: String},
-    currentLoans: [loanDetailsSchema] // Updated to store detailed loan information
+    currentLoans: [loanDetailsSchema] ,// Updated to store detailed loan information
+    roomBookings: [{ type: mongoose.Schema.Types.ObjectId, ref: 'RoomBooking' }]
 });
 
 const UserDetails = mongoose.model('UserDetails', userDetailsSchema, 'userDetails'); // Create the UserDetails model
