@@ -179,61 +179,13 @@ Smart Library Team`;
         throw new Error('Error sending booking confirmation email');
     }
 }
- // Define events to populate in the database
- const events = [
-    {
-        eventId: 'event-gatsby',
-        title: 'The Great Gatsby',
-        venue: 'Central Library, Room 101',
-        time: 'March 15, 2025, 3:00 PM',
-        eventLink: 'https://example.com/gatsby-reading',
-    },
-    {
-        eventId: 'event-writing-workshop',
-        title: 'Writing Workshop',
-        venue: 'Central Library, Room 202',
-        time: 'March 20, 2025, 1:00 PM',
-        eventLink: 'https://example.com/writing-workshop',
-    },
-    {
-        eventId: 'event-author-meet',
-        title: 'Author Meet and Greet',
-        venue: 'Central Library, Room 303',
-        time: 'April 10, 2025, 5:00 PM',
-        eventLink: 'https://example.com/author-meet',
-    },
-    {
-        eventId: 'event-digital-literacy',
-        title: 'Digital Literacy Workshop',
-        venue: 'Central Library, Room 404',
-        time: 'April 15, 2025, 2:00 PM',
-        eventLink: 'https://example.com/digital-literacy',
-    },
-];
-    
-    // Function to populate the database
-    async function populateEvents() {
-    try {
-        // Clear the existing events
-        await Event.deleteMany({});
-        console.log('Existing events cleared.');
-    
-        // Add new events
-        await Event.insertMany(events);
-        console.log('Events added successfully.');
-    
-      
-    } catch (error) {
-        console.error('Error populating events:', error);
-       
-    }
-    }
-    
+ 
 // API to handle booking
 app.post('/api/bookEvent', async (req, res) => {
     try {
         const { eventName, userName, userEmail } = req.body;
 
+        // Validate inputs
         if (!eventName || !userName || !userEmail) {
             console.log('Missing booking details');
             return res.status(400).json({ error: 'Missing booking details.' });
@@ -251,35 +203,208 @@ app.post('/api/bookEvent', async (req, res) => {
 
         console.log(`Event found: ${event.title}`);
 
+        // Ensure `registeredUsers` is a Map
+        if (!event.registeredUsers || !(event.registeredUsers instanceof Map)) {
+            event.registeredUsers = new Map();
+        }
+
         // Sanitize the email address for use as a key in the Map
         const sanitizedEmail = userEmail.replace(/\./g, '[dot]');
 
         // Check if the user is already registered
         if (event.registeredUsers.has(sanitizedEmail)) {
+            console.log(`User ${userName} is already registered for event ${event.title}`);
             return res.status(400).json({ error: 'User already registered for this event.' });
         }
 
-        // Add the sanitized email and user name to the registeredUsers map
+        // Add the sanitized email and user name to the `registeredUsers` map
         event.registeredUsers.set(sanitizedEmail, userName);
 
         // Save the updated event
         await event.save();
 
-        console.log(`User ${userName} registered for event ${event.title}`);
+        console.log(`User ${userName} successfully registered for event ${event.title}`);
 
         // Send confirmation email
         await sendBookingConfirmationEmail({ eventName, userName, userEmail });
 
-        res.status(200).json({ message: 'Booking confirmed, email sent, and user saved to the database.' });
+        // Respond to the client
+        res.status(200).json({
+            message: `Booking confirmed for "${eventName}". A confirmation email has been sent to: ${userEmail}`,
+        });
     } catch (error) {
         console.error('Error in /api/bookEvent:', error.message);
+
+        // Handle specific errors for better feedback
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ error: 'Invalid input data.' });
+        }
+
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
-// Run the function
-populateEvents();
 
+
+
+// API to fetch all registered users for each event
+app.get('/api/events', async (req, res) => {
+    try {
+        // Fetch all events from the database
+        const events = await Event.find({});
+
+        // Map the event data to include registered users
+        const eventData = events.map(event => {
+            // Convert the registeredUsers map to a regular object for easy handling
+            const registeredUsers = {};
+            for (const [email, name] of event.registeredUsers.entries()) {
+                registeredUsers[email.replace(/\[dot\]/g, '.')] = name; // Replace '[dot]' back to '.'
+            }
+
+            return {
+                eventId: event.eventId,
+                title: event.title,
+                venue: event.venue,
+                time: event.time,
+                registeredUsers, // Object with emails as keys and user names as values
+                eventLink: event.eventLink,
+            };
+        });
+
+        // Send the formatted event data as a JSON response
+        res.status(200).json(eventData);
+    } catch (error) {
+        console.error('Error fetching events:', error.message);
+        res.status(500).json({ error: 'Internal server error while fetching events.' });
+    }
+});
+
+// Configure multer for file upload
+const upload = multer({ dest: 'uploads/' }); // Temporary storage for uploaded files
+const { v4: uuidv4 } = require('uuid');
+
+app.post('/api/uploadCsv', upload.single('csv'), async (req, res) => {
+    try {
+        const filePath = req.file.path; // Path to the uploaded file
+        const rows = []; // Array to collect rows for processing later
+
+        // Parse the CSV file
+        fs.createReadStream(filePath)
+            .pipe(csv({ headers: ['title', 'venue', 'time', 'eventLink'], skipEmptyLines: true }))
+            .on('data', (row) => {
+                rows.push(row); // Collect rows for processing later
+            })
+            .on('end', async () => {
+                try {
+                    for (const row of rows) {
+                        // Sanitize and validate fields
+                        const title = row.title?.trim();
+                        const venue = row.venue?.trim();
+                        const timeRaw = row.time?.trim();
+                        const time = new Date(timeRaw); // Convert sanitized time to a Date object
+                        const eventLink = row.eventLink?.trim();
+
+                        // Validate required fields
+                        if (!title || !venue || isNaN(time.getTime()) || !eventLink) {
+                            console.error(`Invalid row data: ${JSON.stringify(row)}`);
+                            continue; // Skip invalid rows
+                        }
+
+                        // Check if the event already exists by title
+                        const existingEvent = await Event.findOne({ title });
+
+                        if (existingEvent) {
+                            // Update the existing event with new fields (excluding the title)
+                            existingEvent.venue = venue;
+                            existingEvent.time = time;
+                            existingEvent.eventLink = eventLink;
+                            await existingEvent.save();
+                            console.log(`Updated event: ${title}`);
+                        } else {
+                            // Create a new event if it doesn't already exist
+                            const newEvent = new Event({
+                                eventId: uuidv4(), // Generate a unique eventId
+                                title,
+                                venue,
+                                time,
+                                eventLink,
+                                registeredUsers: {}, // Initialize an empty map for registered users
+                            });
+                            await newEvent.save();
+                            console.log(`Created new event: ${title}`);
+                        }
+                    }
+
+                    res.status(200).json({ message: 'CSV processed successfully. Duplicate events were updated.' });
+                } catch (error) {
+                    console.error('Error processing rows:', error.message);
+                    res.status(500).json({ error: 'Failed to process events.' });
+                } finally {
+                    // Clean up temporary files
+                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+                }
+            })
+            .on('error', (error) => {
+                console.error('Error reading the CSV file:', error.message);
+                res.status(500).json({ error: 'Error processing the CSV file.' });
+                if (fs.existsSync(filePath)) fs.unlinkSync(filePath); // Clean up temporary file on error
+            });
+    } catch (error) {
+        console.error('Error in /api/uploadCsv:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+
+
+app.put('/api/events/:eventId', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+        const { time } = req.body;
+
+        const updatedFields = {};
+        if (time !== undefined) updatedFields.time = time ? new Date(time) : null;
+
+        const event = await Event.findOneAndUpdate({ eventId }, updatedFields, { new: true });
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found.' });
+        }
+
+        res.status(200).json({ message: 'Event updated successfully.', event });
+    } catch (error) {
+        console.error('Error updating event:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+app.delete('/api/events/:eventId', async (req, res) => {
+    try {
+        const { eventId } = req.params;
+
+        const event = await Event.findOneAndDelete({ eventId });
+
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found.' });
+        }
+
+        res.status(200).json({ message: 'Event deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting event:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+
+app.delete('/api/deleteExpiredEvents', async (req, res) => {
+    try {
+        const now = new Date();
+        const result = await Event.deleteMany({ time: { $lt: now } }); // Delete events with a time earlier than the current date
+        res.status(200).json({ message: `Deleted ${result.deletedCount} expired events.` });
+    } catch (error) {
+        console.error('Error deleting expired events:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
 // Utility function to format date in UTC
 function formatDateToUTC(date) {
     return new Date(date).toUTCString(); // Converts date to UTC string format
@@ -1810,8 +1935,7 @@ app.put('/api/updateLocationId/:copyId', async (req, res) => {
         res.status(500).json({ error: 'Failed to update locationId' });
     }
 });
-// Configure multer for temporary file storage
-const upload = multer({ dest: 'uploads/' });
+
 
 // API endpoint to import books from CSV
 app.post('/api/importBooks', upload.single('file'), async (req, res) => {

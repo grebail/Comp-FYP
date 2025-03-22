@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Event Management - Librarian</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f8f9fa;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 20px auto;
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #1565c0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+        }
+
+        table th {
+            background-color: #f1f1f1;
+        }
+
+        .upload-section {
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .upload-section input[type="file"] {
+            display: none;
+        }
+
+        .upload-label {
+            background-color: #1565c0;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .upload-label:hover {
+            background-color: #1e88e5;
+        }
+
+        .delete-button, .edit-button {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 7px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .edit-button {
+            background-color: #4caf50;
+        }
+
+        .delete-button:hover {
+            background-color: #d32f2f;
+        }
+
+        .edit-button:hover {
+            background-color: #388e3c;
+        }
+
+        footer {
+            background: linear-gradient(to left, #1565c0, #1e88e5);
+            color: white;
+            padding: 5px; /* Reduced padding */
+            text-align: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            font-size: 1px; /* Smaller font size */
+        }
+
+        /* Modal Styles */
+        #edit-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            width: 300px;
+        }
+
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        #edit-modal button {
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Event Management - Librarian</h1>
+</header>
+
+<div class="container">
+    <h2>Manage Event Bookings</h2>
+
+    <!-- Section to View Registered Users -->
+    <h3>Registered Users for Events</h3>
+    <div id="event-list">
+        <table>
+            <thead>
+                <tr>
+                    <th>Event Title</th>
+                    <th>Event Date</th>
+                    <th>Registered Users</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="event-table-body">
+                <!-- Rows will be dynamically populated -->
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Section to Upload CSV -->
+    <div class="upload-section">
+        <h3>Upload CSV for Bulk Registration</h3>
+        <label for="csv-upload" class="upload-label">Upload CSV</label>
+        <input type="file" id="csv-upload" accept=".csv">
+    </div>
+
+    <!-- Section to Delete Expired Events -->
+    <div>
+        <h3>Delete Expired Events</h3>
+        <button class="delete-button" onclick="deleteExpiredEvents()">Delete All Expired Events</button>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div id="edit-modal">
+    <h3>Edit Event Time</h3>
+    <form id="edit-form">
+        <label for="edit-time">Event Time:</label>
+        <input type="datetime-local" id="edit-time" name="edit-time">
+        <div style="margin-top:20px; text-align:right;">
+            <button type="button" onclick="saveEdit()">Save</button>
+            <button type="button" onclick="closeModal()">Cancel</button>
+        </div>
+    </form>
+</div>
+<div id="overlay" onclick="closeModal()"></div>
+
+<footer>
+    <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
+</footer>
+
+<script>
+    let currentEventId = null;
+
+    // Fetch and display all events
+    async function fetchEvents() {
+        try {
+            const response = await fetch('/api/events');
+            const events = await response.json();
+
+            if (!response.ok) {
+                throw new Error(events.error || 'Failed to fetch events.');
+            }
+
+            const tableBody = document.getElementById('event-table-body');
+            tableBody.innerHTML = ''; // Clear existing rows
+
+            events.forEach(event => {
+                const row = document.createElement('tr');
+                const registeredUsers = Object.entries(event.registeredUsers || {}).map(([email, name]) => `${name} (${email})`).join('<br>');
+
+                row.innerHTML = `
+                    <td>${event.title}</td>
+                    <td>${event.time ? new Date(event.time).toLocaleString() : 'No time set'}</td>
+                    <td>${registeredUsers || 'No users registered'}</td>
+                    <td>
+                        <button class="edit-button" onclick="editEvent('${event.eventId}', '${event.time || ''}')">Edit</button>
+                        <button class="delete-button" onclick="deleteEvent('${event.eventId}')">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        } catch (error) {
+            console.error('Error fetching events:', error.message);
+            alert('Error fetching events. Please try again later.');
+        }
+    }
+// Upload CSV file
+document.getElementById('csv-upload').addEventListener('change', async function (event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const formData = new FormData();
+    formData.append('csv', file);
+
+    try {
+        const response = await fetch('/api/uploadCsv', {
+            method: 'POST',
+            body: formData,
+        });
+
+        const result = await response.json();
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to upload CSV.');
+        }
+
+        alert(`${result.message}`);
+        fetchEvents(); // Refresh the event list
+    } catch (error) {
+        console.error('Error uploading CSV:', error.message);
+        alert('Error uploading CSV. Please check your file.');
+    }
+});
+    // Show the edit modal
+    function editEvent(eventId, currentTime) {
+        currentEventId = eventId;
+
+        const editModal = document.getElementById('edit-modal');
+        const overlay = document.getElementById('overlay');
+        const editTimeInput = document.getElementById('edit-time');
+
+        // Pre-fill the input with the current time if available
+        editTimeInput.value = currentTime ? new Date(currentTime).toISOString().slice(0, 16) : '';
+
+        editModal.style.display = 'block';
+        overlay.style.display = 'block';
+    }
+
+    // Save the edited time
+    async function saveEdit() {
+        const editTimeInput = document.getElementById('edit-time');
+        const newTime = editTimeInput.value ? new Date(editTimeInput.value).toISOString() : null;
+
+        try {
+            const response = await fetch(`/api/events/${currentEventId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ time: newTime }),
+            });
+
+            if (!response.ok) {
+                const result = await response.json();
+                throw new Error(result.error || 'Failed to edit the event.');
+            }
+
+            alert('Event updated successfully!');
+            fetchEvents(); // Refresh the event list
+            closeModal(); // Close the modal
+        } catch (error) {
+            console.error('Error editing event:', error.message);
+            alert('Error editing event. Please try again.');
+        }
+    }
+
+    // Close the modal
+    function closeModal() {
+        const editModal = document.getElementById('edit-modal');
+        const overlay = document.getElementById('overlay');
+        editModal.style.display = 'none';
+        overlay.style.display = 'none';
+    }
+
+    // Delete an event
+    async function deleteEvent(eventId) {
+        if (!confirm('Are you sure you want to delete this event?')) return;
+
+        try {
+            const response = await fetch(`/api/events/${eventId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to delete the event.');
+            }
+
+            alert('Event deleted successfully!');
+            fetchEvents(); // Refresh the event list
+        } catch (error) {
+            console.error('Error deleting event:', error.message);
+            alert('Error deleting event. Please try again.');
+        }
+    }
+
+    // Delete expired events
+    async function deleteExpiredEvents() {
+        try {
+            const response = await fetch('/api/deleteExpiredEvents', {
+                method: 'DELETE',
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to delete expired events.');
+            }
+
+            alert('Expired events deleted successfully!');
+            fetchEvents(); // Refresh the event list
+        } catch (error) {
+            console.error('Error deleting expired events:', error.message);
+            alert('Error deleting expired events. Please try again.');
+        }
+    }
+
+    // Fetch events on page load
+    document.addEventListener('DOMContentLoaded', fetchEvents);
+</script>
+
+</body>
+</html>
