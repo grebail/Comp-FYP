@@ -549,6 +549,8 @@
                                     <div class="action-buttons">
                                        
                                         <button onclick="viewDetails('${googleId}', '${isbn}')">View Details</button>
+                                        <button onclick="viewComments('${isbn}')">View Comments</button>
+
                                     </div>
                                 `;
                                 catalog.appendChild(card);
@@ -742,7 +744,10 @@
         function viewDetails(googleId, industryIdentifier) {
             window.location.href = `book_details.html?googleId=${googleId}&&userid=${userId}&isbn=${industryIdentifier}&token=${token}`;
         }
-
+        function viewComments(industryIdentifier) {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `book_comment.html?isbn=${industryIdentifier}&userid=${userId}`;
+        }
         function viewAccount() {
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `acc_profile.html?userid=${userId}`;

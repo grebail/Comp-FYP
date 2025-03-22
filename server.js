@@ -1390,6 +1390,26 @@ app.put('/api/comments/:id', authenticateToken, async(req, res) => {
     }
 });
 
+app.get('/api/comments', async (req, res) => {
+    const { isbn } = req.query;
+
+    if (!isbn) {
+        return res.status(400).json({ error: 'ISBN is required.' });
+    }
+
+    try {
+        const book = await UserBorrow.findOne({ 'industryIdentifier': isbn });
+
+        if (!book) {
+            return res.status(404).json({ error: 'Book not found.' });
+        }
+
+        res.status(200).json({ comments: book.comments });
+    } catch (error) {
+        console.error('Error fetching comments:', error);
+        res.status(500).json({ error: 'Failed to fetch comments.' });
+    }
+});
 
 async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
     try {
