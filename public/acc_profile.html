@@ -330,10 +330,25 @@
         // Implement actual renewal logic here
     }
 
+    document.getElementById('user-info-form').addEventListener('submit', function(event) {
+    event.preventDefault(); // Prevent default form submission
+    var name = document.getElementById('name').value;
+    localStorage.setItem('username', name);
+});
+
+document.getElementById('name').addEventListener('input', function() {
+    localStorage.setItem('username', this.value);
+});
+
     document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('home-link').addEventListener('click', function() {
             const userId = new URLSearchParams(window.location.search).get('userid');
+            const userName = new URLSearchParams(window.location.search).get('name');
             window.location.href = `index_userlogined.html?userid=${userId}`; // Redirect to home with user ID
+            var welcomeMessage = new URLSearchParams(window.location.search).get('welcome-msg');
+            if (userName) {
+                welcomeMessage.textContent = 'Welcome ' + userName;
+            }
         });
 
         fetchUserDetails(); // Fetch user details when the page loads

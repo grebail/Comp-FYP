@@ -25,21 +25,31 @@
             padding: 20px;
             text-align: center;
             border-bottom: 5px solid #388e3c;
-            /* Slightly lighter green border */
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        
+
         header h1 {
             font-size: 28px;
             margin-bottom: 10px;
+        }
+
+        header h4 {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            margin: 0;
         }
         /* Search */
         
         #search-form {
             display: flex;
             justify-content: center;
+            width: 200%;
             margin-top: 20px;
-            flex-wrap: wrap;
-            /* Allow wrapping on smaller screens */
+            flex-wrap: nowrap;
         }
         
         #search-input {
@@ -224,6 +234,7 @@
 
     <header>
         <h1>Welcome to Our Library</h1>
+        <h4 id="welcome-msg">Welcome user!</h4>
         <form id="search-form">
             <input type="search" id="search-input" placeholder="Search...">
             <button type="submit">Search</button>
@@ -314,6 +325,18 @@
 
  
  <script>
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Retrieve the username from local storage
+    const userName = new URLSearchParams(window.location.search).get('name');
+    
+    var welcomeMessage = document.getElementById('welcome-msg');
+    
+    // Check if a username exists and update the message
+    if (userName) {
+        welcomeMessage.textContent = 'Welcome ' + userName;
+    }
+});
    
         window.onload = function () {
             // Extract token and userid from the query parameters
@@ -392,16 +415,16 @@
             window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to account profile with user ID
         });
     // Room Booking link redirect
-document.getElementById('room-booking-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    if (userId) {
-        // Redirect to room booking with user ID
-        window.location.href = `room_booking.html?userid=${userId}`;
-    } else {
-        console.error('No user ID found in URL. Redirecting to login...');
-        window.location.href = 'login.html'; // Redirect to login if user ID is missing
-    }
-});
+        document.getElementById('room-booking-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            if (userId) {
+                // Redirect to room booking with user ID
+                window.location.href = `room_booking.html?userid=${userId}`;
+            } else {
+                console.error('No user ID found in URL. Redirecting to login...');
+                window.location.href = 'login.html'; // Redirect to login if user ID is missing
+            }
+        });
         // Event booking and promo link redirect
         document.getElementById('event-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');

@@ -25,21 +25,31 @@
             padding: 20px;
             text-align: center;
             border-bottom: 5px solid #388e3c;
-            /* Slightly lighter green border */
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        
+
         header h1 {
             font-size: 28px;
             margin-bottom: 10px;
+        }
+
+        header h4 {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            margin: 0;
         }
         /* Search */
         
         #search-form {
             display: flex;
             justify-content: center;
+            width: 200%;
             margin-top: 20px;
-            flex-wrap: wrap;
-            /* Allow wrapping on smaller screens */
+            flex-wrap: nowrap;
         }
         
         #search-input {
@@ -73,7 +83,6 @@
             cursor: pointer;
             transition: background-color 0.3s;
             margin-left: 10px;
-            /* Space between input and button */
         }
         
         #search-form button[type="submit"]:hover {
