@@ -151,11 +151,11 @@
 </head>
 <body>
     <header>
-        <h1>Study Room Booking</h1>
+        <h1>Library Room Booking</h1>
         <nav class="nav-bar">
-            <button class="nav-home">Home</button>
             <button class="nav-current-booking">Current Booking</button>
-            <button class="nav-contact">Contact</button>
+            <button class="nav-search">Room Search</button>
+            <button class="nav-home" id="homeButton" onclick="backHome()">Home</button>
         </nav>
     </header>
 
@@ -210,7 +210,7 @@
     </main>
 
     <footer>
-        <p>© 2025 Study Room Booking. All rights reserved.</p>
+        <p>© 2024-2025 Smart Library. All rights reserved.</p>
     </footer>
 
     <script>
@@ -373,12 +373,6 @@
         });
 
         // Nav button event listeners
-        document.querySelector(".nav-home").addEventListener("click", () => {
-            document.querySelector(".search-container").style.display = "block";
-            document.querySelector(".room-listings").style.display = "block";
-            document.querySelector(".current-bookings").style.display = "none";
-            document.getElementById("roomList").innerHTML = "<p>Please enter your search criteria to find available study rooms.</p>";
-        });
 
         document.querySelector(".nav-current-booking").addEventListener("click", () => {
             document.querySelector(".search-container").style.display = "none";
@@ -386,6 +380,18 @@
             document.querySelector(".current-bookings").style.display = "block";
             renderCurrentBookings();
         });
+
+        document.querySelector(".nav-search").addEventListener("click", () => {
+            document.querySelector(".search-container").style.display = "block";
+            document.querySelector(".room-listings").style.display = "block";
+            document.querySelector(".current-bookings").style.display = "none";
+            document.getElementById("roomList").innerHTML = "<p>Please enter your search criteria to find available study rooms.</p>";
+        });
+
+        function backHome (){
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`;
+        };
     </script>
 </body>
 </html>
