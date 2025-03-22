@@ -189,7 +189,32 @@
                 z-index: 1;
                 font-size: 0.9em;
             }
-       
+          
+            
+                .ranking-badge {
+                    color: #fff;
+                    font-weight: bold;
+                    text-align: center;
+                    padding: 5px 10px;
+                    border-radius: 8px;
+                    margin: 10px 0;
+                    font-size: 1em;
+                    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+                    display: inline-block;
+                }
+            
+                .ranking-badge:nth-child(1) {
+                    background-color: #ffcc00; /* Gold for Top 1 */
+                }
+            
+                .ranking-badge:nth-child(2) {
+                    background-color: #c0c0c0; /* Silver for Top 2 */
+                }
+            
+                .ranking-badge:nth-child(3) {
+                    background-color: #cd7f32; /* Bronze for Top 3 */
+                }
+           
         .advanced-search {
             display: flex; /* Always visible */
             flex-wrap: wrap;
@@ -562,21 +587,22 @@
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
         
-            // Group books by title and find the best-rated book in each group
-            const groupedBooks = {};
-            booksToDisplay.forEach(book => {
-                const title = book.title.toLowerCase();
-                if (!groupedBooks[title]) {
-                    groupedBooks[title] = [];
-                }
-                groupedBooks[title].push(book);
-            });
+            // Sort all books by their ratings in descending order
+            const sortedBooks = [...booksToDisplay].sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
         
-            const bestBooks = {}; // Store the best-rated book for each title
-            for (const title in groupedBooks) {
-                bestBooks[title] = groupedBooks[title].reduce((best, current) => {
-                    return (current.averageRating || 0) > (best.averageRating || 0) ? current : best;
-                });
+            // Assign rankings (Top 1, Top 2, Top 3)
+            const rankings = {};
+            for (let i = 0; i < sortedBooks.length; i++) {
+                const isbn = sortedBooks[i].industryIdentifier ? sortedBooks[i].industryIdentifier[0] : null;
+                if (!isbn) continue; // Skip books without ISBN
+        
+                if (i === 0) {
+                    rankings[isbn] = 'Top 1';
+                } else if (i === 1) {
+                    rankings[isbn] = 'Top 2';
+                } else if (i === 2) {
+                    rankings[isbn] = 'Top 3';
+                }
             }
         
             const booksToShow = booksToDisplay.slice(startIndex, startIndex + booksPerPage);
@@ -592,21 +618,20 @@
         
                 const totalCopies = book.copies ? book.copies.length : 0; // Get number of copies
                 const isbn = book.industryIdentifier ? book.industryIdentifier[0] : null; // Get the first ISBN
-                const googleId = book.googleId; // Get Google ID
                 const avgRating = book.averageRating || 0; // Average rating
         
-                // Check if this book is the best choice in its group
-                const isBestChoice = bestBooks[book.title.toLowerCase()] === book;
+                // Check if the book is in the top rankings
+                const ranking = rankings[isbn] || '';
         
-                let badgeHTML = '';
-                if (isBestChoice) {
-                    badgeHTML = `<div class="top-choice-badge">Best Choice</div>`;
+                let rankingHTML = '';
+                if (ranking) {
+                    rankingHTML = `<div class="ranking-badge">${ranking}</div>`;
                 }
         
                 const ratingStars = '★'.repeat(Math.round(avgRating)) + '☆'.repeat(5 - Math.round(avgRating));
         
                 card.innerHTML = `
-                    ${badgeHTML}
+                    ${rankingHTML} <!-- Badge for Top Rankings -->
                     <img src="${book.coverImage || 'default-cover.jpg'}" alt="${book.title} cover" class="book-cover" />
                     <div class="book-title">${book.title || 'N/A'}</div>
                     <div class="book-author">Author: ${book.authors?.join(', ') || 'N/A'}</div>
@@ -614,14 +639,13 @@
                     <div class="book-rating">Rating: ${ratingStars} (${avgRating.toFixed(1)})</div>
                     <div class="book-copies">Total Copies: ${totalCopies}</div>
                     <div class="action-buttons">
-                        <button onclick="viewDetails('${googleId}', '${isbn}')">View Details</button>
+                        <button onclick="viewDetails('${isbn}', '${isbn}')">View Details</button>
                         <button onclick="viewComments('${isbn}')">View Comments</button>
                     </div>
                 `;
                 catalog.appendChild(card);
             }
         }
-
         function nextBooks() {
             if (currentStartIndex + booksPerPage < allBooks.length) {
                 currentStartIndex += booksPerPage;
