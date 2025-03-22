@@ -117,7 +117,6 @@
         
         .logout-button:hover {
             background-color: #45a049;
-            /* Darker green on hover */
         }
         /* Content */
         
@@ -130,80 +129,69 @@
         
         .content section {
             background-color: #fff;
-            /* White background */
             padding: 20px;
             margin: 20px;
             border-radius: 10px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
             flex: 1 1 300px;
-            /* Allow sections to grow and shrink */
             max-width: 400px;
-            /* Limit width */
         }
         /* Slide Container */
         
         .slide-container {
-            width: 100%;
-            height: 80vh;
-            /* Allow height to adjust based on content */
-            background-color: #e1f5fe;
-            /* Light blue background */
-            text-align: center;
+            max-width: 200ex;
+            max-height: 60ex;
             position: relative;
-            margin: 10px 0;
+            overflow: hidden;
+            margin: 0 auto;
         }
-        /* Each Slide */
-        
+        .slider {
+            display: flex;
+            transition: transform 0.5s ease;
+            width: calc(100% * 3);
+        }
         .slide {
-            width: 100%;
-            height: auto;
-            /* Allow height to adjust based on content */
-            position: absolute;
-            top: 0;
+            min-width: 100%; 
+            box-sizing: border-box;
+            position: relative;
+            place-items: center;
             left: 0;
-            display: none;
-            /* Hide all slides by default */
         }
-        
-        .active {
-            display: block;
-            /* Show the active slide */
+        .slide img {
+            width: 35%; 
+            max-height: 60%; 
+            height: auto;
+            border-radius: 8px;
+            object-fit: contain;
         }
         /* Card Container */
         
         .card-container {
             display: flex;
             flex-wrap: wrap;
-            /* Allow wrapping on smaller screens */
             justify-content: center;
             padding: 20px;
         }
         
         .card {
             border: 1px solid #90caf9;
-            /* Light blue border */
             padding: 20px;
             text-align: center;
             width: 150px;
             border-radius: 10px;
             background-color: #fff;
-            /* White background for cards */
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin: 10px;
-            /* Space between cards */
         }
         
         .card img {
             width: 100%;
-            /* Responsive image */
             height: auto;
-            /* Maintain aspect ratio */
         }
         
         .card a {
             text-decoration: none;
             color: #1e88e5;
-            /* Blue text for links */
         }
         /* Footer */
         
@@ -219,19 +207,14 @@
         @media (max-width: 768px) {
             header h1 {
                 font-size: 24px;
-                /* Smaller font size for mobile */
             }
             nav a {
                 display: block;
-                /* Stack links vertically */
                 margin: 5px 0;
-                /* Space between links */
             }
             .card {
                 width: 80%;
-                /* Wider cards on mobile */
                 max-width: 300px;
-                /* Limit width */
             }
         }
     </style>
@@ -241,6 +224,7 @@
 
     <header>
         <h1>Welcome to Our Library</h1>
+        <h4>Welcome librarian!</h4>
         <form id="search-form">
             <input type="search" id="search-input" placeholder="Search...">
             <button type="submit">Search</button>
@@ -251,17 +235,19 @@
         <a href="#library-database">Library Database</a>
         <a id="books-link" href="#">Books</a>
         <a id="librarian-event-link" href="#">Event Booking</a>
+        <a id="librarian-room-link" href="#">Room Booking</a>
         <a href="#services">Services</a>
-        <a href="contact.html">Contact Us</a>
         <a href="#" class="logout-button" id="logout-button">Logout</a>
     </nav>
 
     <div class="slide-container">
-        <div class="slide active">
-            <img src="slide-image-test.jpg" alt="Slide Image1">
-        </div>
-        <div class="slide">
-            <img src="slide-image-test2.jpg" alt="Slide Image2">
+        <div class="slider" id="homeSlider">
+            <div class="slide">
+                <img src="slide-image-test.jpg" alt="Slide Image1">
+            </div>
+            <div class="slide">
+                <img src="slide-image-test2.jpg" alt="Slide Image2">
+            </div>
         </div>
     </div>
 
@@ -311,17 +297,15 @@
                 <h4>Ho Sik Yee Library</h4>
                 <p>Location: HKMU</p>
             </section>
-            <a id="contact-link" href="#" style="text-decoration: none; color: inherit;">
-                <section id="contact" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
-                    <h2>Contact Us</h2>
-                    <p>Email: info@smart-library.com</p>
-                    <p>Phone: (852) 2345-6789</p>
+            <a id="no-link" style="text-decoration: none; color: inherit;">
+                <section id="none" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
+                    <h2>Librarian Home Page</h2>
                 </section>
             </a>
     </div>
 
     <footer>
-        <p>&copy 2024 Smart Library. All rights reserved.</p>
+        <p>&copy 2024-2025 Smart Library. All rights reserved.</p><br>
         <a id="privacy-policy-link" href="#" style="text-decoration: none; color: inherit;">
             <b>Privacy Policy</b>
         </a>
@@ -405,20 +389,27 @@ document.getElementById('librarian-event-link').addEventListener('click', functi
     const userId = new URLSearchParams(window.location.search).get('userid');
     window.location.href = `librarian-event_booking.html?userid=${userId}`;
 });
+
+// Librarian Room Booking Link
+document.getElementById('librarian-room-link').addEventListener('click', function () {
+    const userId = new URLSearchParams(window.location.search).get('userid');
+    window.location.href = `librarian-room_booking.html?userid=${userId}`;
+});
+
 // Account profile link redirect
 document.getElementById('acc-link').addEventListener('click', function () {
     const userId = new URLSearchParams(window.location.search).get('userid');
     window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to account profile with user ID
 });
+
 // Room Booking link redirect
 document.getElementById('room-booking-link').addEventListener('click', function () {
-const userId = new URLSearchParams(window.location.search).get('userid');
-if (userId) {
-// Redirect to room booking with user ID
-window.location.href = `room_booking.html?userid=${userId}`;
+    const userId = new URLSearchParams(window.location.search).get('userid');
+    if (userId) {
+        window.location.href = `room_booking.html?userid=${userId}`;
 } else {
-console.error('No user ID found in URL. Redirecting to login...');
-window.location.href = 'login.html'; // Redirect to login if user ID is missing
+    console.error('No user ID found in URL. Redirecting to login...');
+    window.location.href = 'login.html'; // Redirect to login if user ID is missing
 }
 });
 // Event booking and promo link redirect
@@ -438,12 +429,6 @@ document.getElementById('lib-location-link').addEventListener('click', function 
     const userId = new URLSearchParams(window.location.search).get('userid');
     window.location.href = `lib-location_logined.html?userid=${userId}`;
 })
-
-// Contact link redirect
-document.getElementById('contact-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `contact_logined.html?userid=${userId}`;
-})
-    </script>
+</script>
 
 </html>
