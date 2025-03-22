@@ -181,7 +181,8 @@ Smart Library Team`;
     }
 }
  
-// API to handle booking
+// API to handle event booking
+// API to handle event booking
 app.post('/api/bookEvent', async (req, res) => {
     try {
         const { eventName, userName, userEmail } = req.body;
@@ -226,6 +227,22 @@ app.post('/api/bookEvent', async (req, res) => {
 
         console.log(`User ${userName} successfully registered for event ${event.title}`);
 
+        // Update the `eventBookings` in the `UserDetails` schema
+        const userDetails = await UserDetails.findOne({ email: userEmail });
+
+        if (userDetails) {
+            // Add the event to the user's `eventBookings` if not already present
+            if (!userDetails.eventBookings.includes(event._id)) {
+                userDetails.eventBookings.push(event._id);
+                await userDetails.save();
+
+                console.log(`Event ${eventName} added to user ${userName}'s bookings.`);
+            }
+        } else {
+            console.log(`UserDetails not found for email: ${userEmail}`);
+            return res.status(404).json({ error: 'User details not found. Please register the user first.' });
+        }
+
         // Send confirmation email
         await sendBookingConfirmationEmail({ eventName, userName, userEmail });
 
@@ -244,9 +261,6 @@ app.post('/api/bookEvent', async (req, res) => {
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
-
-
-
 
 // API to fetch all registered users for each event
 app.get('/api/events', async (req, res) => {
@@ -408,20 +422,26 @@ app.delete('/api/deleteExpiredEvents', async (req, res) => {
 });
 
 // API to book a room
+// API to book a room
 app.post('/api/bookRoom', async (req, res) => {
     try {
         const { roomName, date, timeslot, userId } = req.body;
 
+        // Validate inputs
+        if (!roomName || !date || !timeslot || !userId) {
+            return res.status(400).json({ error: 'Missing booking details.' });
+        }
+
         // Validate user
         const user = await UserDetails.findOne({ userId });
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'User not found.' });
         }
 
         // Check if the room is already booked for the selected date and timeslot
         const existingBooking = await RoomBooking.findOne({ roomName, date, timeslot });
         if (existingBooking) {
-            return res.status(400).json({ error: 'Room is already booked for this timeslot' });
+            return res.status(400).json({ error: 'Room is already booked for this timeslot.' });
         }
 
         // Generate a unique booking ID
@@ -440,32 +460,52 @@ app.post('/api/bookRoom', async (req, res) => {
 
         await newBooking.save();
 
-        // Add the booking to the user's room bookings
-        user.roomBookings.push(newBooking._id);
-        await user.save();
+        // Add the booking to the user's `roomBookings`
+        if (!user.roomBookings.includes(newBooking._id)) {
+            user.roomBookings.push(newBooking._id);
+            await user.save();
+        }
+
+        console.log(`Room "${roomName}" booked successfully by user "${user.name}" for ${date} at ${timeslot}.`);
 
         res.status(201).json({ message: 'Room booked successfully', bookingId });
     } catch (error) {
-        console.error('Error booking room:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error booking room:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
-// API to fetch user's bookings
+
+
+// API to fetch user's room bookings
 app.get('/api/userBookings', async (req, res) => {
     try {
         const { userId } = req.query;
 
+        // Validate the input
+        if (!userId) {
+            return res.status(400).json({ error: 'User ID is required.' });
+        }
+
         // Validate user
-        const user = await UserDetails.findOne({ userId }).populate('roomBookings');
+        const user = await UserDetails.findOne({ userId }).populate({
+            path: 'roomBookings',
+            select: 'bookingId roomName date timeslot userEmail username',
+        });
+
         if (!user) {
-            return res.status(404).json({ error: 'User not found' });
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // If no room bookings found, return an empty array
+        if (!user.roomBookings || user.roomBookings.length === 0) {
+            return res.status(200).json({ bookings: [] });
         }
 
         res.status(200).json({ bookings: user.roomBookings });
     } catch (error) {
-        console.error('Error fetching user bookings:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        console.error('Error fetching user bookings:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
@@ -1606,250 +1646,6 @@ async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
         console.error('Error assigning EPCs to existing copies:', error);
     }
 }
-// Create a new admin book
-// Create a new admin book
-app.post('/api/admin_books', authenticateToken, async (req, res) => {
-    const { isbn, bookLocation, locationId, availability, noOfCopy } = req.body;
-
-    // Input validation
-    if (!isbn || !bookLocation || !locationId || isNaN(noOfCopy) || noOfCopy < 1) {
-        return res.status(400).json({ error: 'Missing or invalid required fields' });
-    }
-
-    try {
-        // Fetch book details from Google Books API
-        const googleBooksResponse = await axios.get(
-            `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`
-        );
-        const bookData = googleBooksResponse.data;
-
-        if (bookData.totalItems === 0) {
-            return res.status(404).json({ error: 'Book not found in Google Books API' });
-        }
-
-        const bookInfo = bookData.items[0].volumeInfo;
-
-        // Create the new AdminBook entries
-        const adminBooks = [];
-        const copies = []; // Initialize copies array for BookBuy
-
-        for (let i = 0; i < noOfCopy; i++) {
-            const newAdminBook = new AdminBook({
-                industryIdentifier: [isbn],
-                googleId: bookInfo.id,
-                bookLocation,
-                locationId,
-                availability,
-                noOfCopy: 1, // Each copy is treated as a single entry
-                title: bookInfo.title,
-                authors: bookInfo.authors || [], // Ensure authors is stored as an array
-                publishedDate: bookInfo.publishedDate ? new Date(bookInfo.publishedDate) : null,
-                categories: bookInfo.categories || [] // Fetch categories from Google Books API
-            });
-
-            const savedAdminBook = await newAdminBook.save();
-            adminBooks.push({
-                copyId: savedAdminBook._id,
-                adminBook: savedAdminBook
-            });
-
-            // Add each copy's details to the copies array
-            copies.push({
-                copyId: savedAdminBook._id,
-                bookLocation,
-                locationId: `${locationId}.${i + 1}`, // Append copy index to location ID
-                availability,
-                status: 'in library', // Default status
-                epc: null // Initially set EPC to null
-            });
-        }
-
-        // Check if a corresponding entry exists in BookBuy
-        let bookBuy;
-        const existingBookBuy = await BookBuy.findOne({ industryIdentifier: { $in: [isbn] } });
-
-        if (existingBookBuy) {
-            // If the book already exists, add the new copies to the copies array
-            existingBookBuy.copies.push(...copies);
-            bookBuy = await existingBookBuy.save();
-        } else {
-            // Create a new corresponding entry in BookBuy with the copies array
-            bookBuy = await BookBuy.create({
-                userid: req.user.id, // Assuming you have user information in the request
-                googleId: bookInfo.id,
-                industryIdentifier: [isbn],
-                title: bookInfo.title,
-                authors: bookInfo.authors || [], // Ensure authors is stored as an array
-                publisher: bookInfo.publisher,
-                publishedDate: bookInfo.publishedDate,
-                description: bookInfo.description,
-                categories: bookInfo.categories || [],
-                coverImage: bookInfo.imageLinks ? bookInfo.imageLinks.thumbnail : null,
-                copies: copies, // Include copies array
-            });
-        }
-
-        // Invoke the assignEPCsToExistingCopies function
-        const bookTitle = bookBuy.title;
-        const bookAuthors = bookBuy.authors;
-        await assignEPCsToExistingCopies(bookTitle, bookAuthors);
-
-        // Return the created adminBooks in the response
-        res.status(201).json({
-            adminBooks: adminBooks.map(book => ({
-                industryIdentifier: book.adminBook.industryIdentifier,
-                copyId: book.copyId,
-                bookLocation: book.adminBook.bookLocation,
-                locationId: book.adminBook.locationId,
-                availability: book.adminBook.availability,
-                noOfCopy: book.adminBook.noOfCopy,
-                title: book.adminBook.title,
-                authors: book.adminBook.authors, // Return authors as an array
-                publishedDate: book.adminBook.publishedDate,
-                categories: book.adminBook.categories // Include categories in response
-            }))
-        });
-    } catch (error) {
-        console.error('Error adding admin book:', error);
-        res.status(500).json({ error: 'Failed to add admin book.', details: error.message });
-    }
-});
-  
-// Get all admin books
-app.get('/api/admin_books', authenticateToken, async(req, res) => {
-    try {
-        const adminBooks = await AdminBook.find();
-        res.status(200).json(adminBooks.map(book => ({
-            _id: book._id,
-            isbn: book.industryIdentifier[0] || 'N/A',
-            industryIdentifier: book.industryIdentifier,// Include the full array if needed
-            googleId: book.googleId,
-
-            bookLocation: book.bookLocation,
-            locationId: book.locationId,
-            availability: book.availability,
-            noOfCopy: book.noOfCopy,
-            title: book.title,
-            author: book.authors,
-            publishedDate: book.publishedDate,
-            categories: book.categories // Include categories in response
-        })));
-    } catch (error) {
-        console.error('Error retrieving admin books:', error);
-        res.status(500).json({ error: 'Failed to retrieve admin books.' });
-    }
-});
-
-
-
-// Update an admin book copy
-app.put('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const copyId = req.params.copyId.trim().replace(/\s+/g, '');
-    const { bookLocation, locationId, availability } = req.body;
-
-    // Input validation
-    if (!bookLocation || !locationId || availability === undefined) {
-        return res.status(400).json({ error: 'Missing required fields' });
-    }
-
-    try {
-        // Find the corresponding AdminBook by copyId
-        const adminBook = await AdminBook.findById(copyId);
-
-        if (!adminBook) {
-            return res.status(404).json({ error: 'Admin book not found' });
-        }
-
-        // Find the corresponding BookBuy entry for the specific copyId
-        const existingBookBuy = await BookBuy.findOne({ 'copies.copyId': copyId });
-
-        if (!existingBookBuy) {
-            return res.status(404).json({ error: 'Book copy not found in BookBuy' });
-        }
-
-        // Find the specific copy to update using the copyId
-        const copyToUpdate = existingBookBuy.copies.find(copy => copy.copyId === copyId);
-        if (copyToUpdate) {
-            // Update fields in the copy
-            copyToUpdate.bookLocation = bookLocation;
-            copyToUpdate.locationId = locationId;
-            copyToUpdate.availability = availability;
-
-            await existingBookBuy.save(); // Save the updated entry
-
-            // Update the AdminBook fields
-            adminBook.bookLocation = bookLocation;
-            adminBook.locationId = locationId;
-            adminBook.availability = availability;
-            await adminBook.save();
-
-            res.json(copyToUpdate); // Send back the updated copy
-        } else {
-            return res.status(404).json({ error: 'Copy not found in the BookBuy entry' });
-        }
-    } catch (error) {
-        console.error('Error updating admin book copy:', error.message);
-        res.status(500).json({ error: 'Failed to update admin book copy' });
-    }
-});
-
-// Delete an admin book copy
-app.delete('/api/admin_books/:copyId', authenticateToken, async(req, res) => {
-    const copyId = req.params.copyId.trim().replace(/\s+/g, '');
-
-    try {
-        // Find the corresponding AdminBook by copyId
-        const adminBook = await AdminBook.findById(copyId);
-
-        if (!adminBook) {
-            return res.status(404).json({ error: 'Admin book not found' });
-        }
-
-        // Find the corresponding BookBuy entry for the specific copyId
-        const existingBookBuy = await BookBuy.findOne({ 'copies.copyId': copyId });
-
-        if (!existingBookBuy) {
-            return res.status(404).json({ error: 'Book copy not found in BookBuy' });
-        }
-
-        // Remove the specific copy from the copies array
-        existingBookBuy.copies = existingBookBuy.copies.filter(copy => copy.copyId !== copyId);
-
-        await existingBookBuy.save(); // Save the updated entry
-
-        // Also delete the corresponding admin book entry
-        await AdminBook.deleteOne({ _id: copyId });
-
-        // Optionally, if no copies remain, you may choose to delete the BookBuy entry
-        if (existingBookBuy.copies.length === 0) {
-            await BookBuy.deleteOne({ industryIdentifier: existingBookBuy.industryIdentifier });
-        }
-
-        res.sendStatus(204); // No Content
-    } catch (error) {
-        console.error('Error deleting admin book copy:', error.message);
-        res.status(500).json({ error: 'Failed to delete admin book copy.' });
-    }
-});
-
-// Route to serve the book administration page
-app.get('/book_admin.html', authenticateToken, async(req, res) => {
-    try {
-        // Fetch the user role from the database
-        const user = await User.findById(req.user.id).select('role');
-
-        // Check if the user's role is 'librarian'
-        if (user.role !== 'librarian') {
-            return res.status(403).json({ message: 'Forbidden: You do not have access to this page.' });
-        }
-
-        // If the user is a librarian, send the book administration page
-        res.sendFile(path.join(__dirname, 'public', 'book_admin.html'));
-    } catch (error) {
-        console.error('Error fetching user role:', error);
-        res.status(500).json({ message: 'Server error' });
-    }
-});
 
 // Route to get user role
 app.get('/api/user-role', async(req, res) => {
@@ -2250,7 +2046,6 @@ async function processBooks(books, errors) {
                 language,
                 coverImage,
                 industryIdentifier,
-                copyId,
                 bookLocation,
                 availability,
                 status,
@@ -2264,8 +2059,15 @@ async function processBooks(books, errors) {
                 industryIdentifier: { $in: [industryIdentifier.trim()] },
             });
 
+            let copyIndex = 1; // Default copy index
+
+            // If the book already exists, calculate the next copy index
+            if (existingBook) {
+                copyIndex = existingBook.copies.length + 1; // Increment index based on existing copies
+            }
+
             const copy = {
-                copyId: copyId?.trim(),
+                copyId: `${industryIdentifier}-${copyIndex}`, // Generate unique copyId
                 bookLocation: bookLocation?.trim(),
                 locationId: generateLocationId(
                     industryIdentifier,
@@ -2273,7 +2075,7 @@ async function processBooks(books, errors) {
                     authors.split(',').map((a) => a.trim()),
                     publishedDate,
                     categories.split(',')[0], // Use the first category
-                    1 // Copy index is irrelevant for updates
+                    copyIndex // Pass the dynamically calculated copy index
                 ),
                 availability: availability?.toLowerCase() === 'true',
                 status: status?.trim() || 'in library',
@@ -2482,88 +2284,40 @@ app.put('/api/editBookCopy/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to update book copy.' });
     }
 });
-// API endpoint to get loan details for a specific user
-app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
-    const { userid } = req.query;
 
-    if (!userid || userid !== req.user.id) {
-        return res.status(403).json({ error: 'You do not have permission to view this borrow history.' });
-    }
-
+// Helper function to fetch and update current loans
+async function updateCurrentLoans(userId) {
     try {
-        // Fetch only the books that are currently borrowed (not returned)
-        const borrows = await UserBorrow.find({ userid: userid, returned: false });
+        // Fetch borrow records where copies have status "borrowed"
+        const userBorrows = await UserBorrow.find({ userid: userId, 'copies.status': 'borrowed' });
 
-        // Map the borrows to include additional details
-        const detailedBorrows = borrows.map(borrow => ({
-            _id: borrow._id,
-            title: borrow.title,
-            authors: borrow.authors,
-            availability: borrow.availability,
-            borrowDate: borrow.borrowDate,
-            dueDate: borrow.dueDate,
-            comments: borrow.comments,
-            copyId: borrow.copyId,
-            googleId: borrow.googleId,
-            industryIdentifier: borrow.industryIdentifier,
-            publishedDate: borrow.publishedDate,
-            publisher: borrow.publisher,
-            returned: borrow.returned,
-            userid: borrow.userid,
+        // Map the borrow records to match the loanDetailsSchema
+        const currentLoans = userBorrows.map(borrow => ({
+            borrowId: borrow._id,
+            details: {
+                title: borrow.title,
+                authors: borrow.authors,
+                publisher: borrow.publisher,
+                publishedDate: borrow.publishedDate,
+                industryIdentifier: borrow.industryIdentifier,
+                copies: borrow.copies.filter(copy => copy.status === 'borrowed'), // Only include borrowed copies
+                comments: borrow.comments.map(comment => ({
+                    rating: comment.rating,
+                    comment: comment.comment,
+                    date: comment.date,
+                })),
+                googleId: borrow.googleId,
+                returned: borrow.copies.every(copy => copy.status !== 'borrowed'), // True if all copies are returned
+            },
         }));
-
-        res.json(detailedBorrows);
-    } catch (error) {
-        console.error('Error fetching borrow history:', error);
-        res.status(500).json({ error: 'Failed to fetch borrow history.' });
-    }
-});
-
-
-// Route to serve the Google verification file
-app.get('/google56342aab9c608962.html', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'google56342aab9c608962.html'));
-});
-// API endpoint to save user details
-
-const updateCurrentLoans = async (userId) => {
-    try {
-        // Fetch borrow records where at least one copy is not returned
-        const borrows = await UserBorrow.find({ userid: userId, "copies.returned": false });
-
-        console.log(`[DEBUG] Fetched borrows for userId ${userId}:`, borrows);
-
-        // Flatten the `copies` array and map relevant data
-        const currentLoans = borrows.flatMap(borrow => {
-            return borrow.copies
-                .filter(copy => !copy.returned) // Include only non-returned copies
-                .map(copy => ({
-                    borrowId: borrow._id,
-                    details: {
-                        title: borrow.title,
-                        authors: borrow.authors,
-                        copyId: copy.copyId,
-                        bookLocation: copy.bookLocation || 'Unknown',
-                        locationId: copy.locationId || 'Unknown',
-                        availability: copy.availability || false,
-                        borrowDate: copy.borrowedDate,
-                        dueDate: copy.dueDate,
-                        returned: copy.returned,
-                        industryIdentifier: borrow.industryIdentifier,
-                        publishedDate: borrow.publishedDate,
-                        publisher: borrow.publisher,
-                    },
-                }));
-        });
-
-        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
 
         return currentLoans;
     } catch (error) {
-        console.error('[ERROR] Failed to fetch or map borrows:', error.message);
-        throw new Error('Failed to update current loans.');
+        console.error('[ERROR] Failed to update current loans:', error.message);
+        throw new Error('Failed to fetch current loans.');
     }
-};
+}
+
 // API endpoint to save user details
 app.post('/api/userDetails', authenticateToken, async (req, res) => {
     const { userId, name, email, phone, libraryCard } = req.body;
@@ -2613,7 +2367,7 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
-// Get userDetails
+
 // Get userDetails
 app.get('/api/userDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query;
@@ -2642,7 +2396,8 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
         }
 
         // Update the currentLoans field
-        userDetails.currentLoans = await updateCurrentLoans(userid);
+        const currentLoans = await updateCurrentLoans(userid);
+        userDetails.currentLoans = currentLoans;
         await userDetails.save();
 
         console.log(`[DEBUG] Updated currentLoans for userId ${userid}:`, userDetails.currentLoans);
@@ -2653,48 +2408,134 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
         return res.status(500).json({ error: error.message });
     }
 });
-// API endpoint to get loan details for a specific user
-// API endpoint to get loan details for a specific user
-app.get('/api/userBorrowsDetails', authenticateToken, async (req, res) => {
+// API to fetch and populate current loans for a user
+app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
+    const { userId } = req.params;
+
+    try {
+        // Fetch borrow records where copies have status "borrowed"
+        const userBorrows = await UserBorrow.find({ userid: userId, 'copies.status': 'borrowed' });
+
+        // Map the borrow records to the loanDetailsSchema structure
+        const currentLoans = userBorrows.map(borrow => ({
+            borrowId: borrow._id,
+            details: {
+                title: borrow.title,
+                authors: borrow.authors,
+                publisher: borrow.publisher,
+                publishedDate: borrow.publishedDate,
+                industryIdentifier: borrow.industryIdentifier,
+                copies: borrow.copies.filter(copy => copy.status === 'borrowed'), // Only include borrowed copies
+                comments: borrow.comments,
+                googleId: borrow.googleId,
+                returned: borrow.copies.every(copy => copy.status !== 'borrowed'), // True if all copies are returned
+            },
+        }));
+
+        // Update currentLoans in UserDetails
+        const userDetails = await UserDetails.findOneAndUpdate(
+            { userId },
+            { $set: { currentLoans } },
+            { new: true, upsert: true }
+        );
+
+        res.json(userDetails.currentLoans);
+    } catch (error) {
+        console.error('Error fetching and updating current loans:', error);
+        res.status(500).json({ error: 'Failed to fetch and update current loans.' });
+    }
+});
+
+// API to get room booking records for a specific user
+// API to get room booking records for a specific user
+app.get('/api/roomBookings', async (req, res) => {
     const { userid } = req.query;
 
-    // Validate the user ID and permissions
-    if (!userid || userid !== req.user.id) {
-        return res.status(403).json({ error: 'You do not have permission to view this borrow history.' });
+    // Validate the input
+    if (!userid) {
+        return res.status(400).json({ error: 'User ID is required.' });
     }
 
     try {
-        // Fetch all borrow records for the user where copies are not returned
-        const borrows = await UserBorrow.find({ userid, "copies.returned": false });
-
-        console.log(`[DEBUG] Fetched borrows for userId ${userid}:`, borrows);
-
-        // Map the borrow records to include relevant details
-        const detailedBorrows = borrows.flatMap(borrow => {
-            return borrow.copies
-                .filter(copy => !copy.returned) // Only include copies that are not returned
-                .map(copy => ({
-                    _id: borrow._id,
-                    title: borrow.title,
-                    authors: borrow.authors,
-                    copyId: copy.copyId,
-                    bookLocation: copy.bookLocation || 'Unknown',
-                    locationId: copy.locationId || 'Unknown',
-                    borrowedDate: copy.borrowedDate,
-                    dueDate: copy.dueDate,
-                    returned: copy.returned,
-                    industryIdentifier: borrow.industryIdentifier,
-                    publishedDate: borrow.publishedDate,
-                    publisher: borrow.publisher,
-                    userid: borrow.userid,
-                }));
+        // Find the user in the UserDetails collection
+        const user = await UserDetails.findOne({ userId: userid }).populate({
+            path: 'roomBookings',
+            select: 'bookingId roomName date timeslot userEmail username',
         });
 
-        // Return the detailed borrow records
-        return res.json(detailedBorrows);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // If the user has no room bookings, return an empty array
+        if (!user.roomBookings || user.roomBookings.length === 0) {
+            return res.status(200).json([]);
+        }
+
+        // Transform the room bookings to include only relevant information
+        const userRoomBookings = user.roomBookings.map(booking => ({
+            bookingId: booking.bookingId,
+            roomName: booking.roomName,
+            date: booking.date,
+            timeslot: booking.timeslot,
+            userEmail: booking.userEmail,
+            username: booking.username,
+        }));
+
+        res.status(200).json(userRoomBookings);
     } catch (error) {
-        console.error('[ERROR] Failed to fetch borrow history:', error.message);
-        return res.status(500).json({ error: 'Failed to fetch borrow history.' });
+        console.error('Error fetching room bookings:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
+// API to get event booking records for a specific user
+// API to fetch event bookings for a specific user
+app.get('/api/eventBookings', async (req, res) => {
+    const { userid } = req.query;
+
+    // Validate the input
+    if (!userid) {
+        return res.status(400).json({ error: 'User ID is required.' });
+    }
+
+    try {
+        // Find the user in the UserDetails collection
+        const user = await UserDetails.findOne({ userId: userid }).populate({
+            path: 'eventBookings',
+            select: 'eventId title venue time eventLink registeredUsers',
+        });
+
+        if (!user) {
+            console.log(`[INFO] User not found for userId: ${userid}`);
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // If the user has no event bookings, return an empty array
+        if (!user.eventBookings || user.eventBookings.length === 0) {
+            console.log(`[INFO] No event bookings found for userId: ${userid}`);
+            return res.status(200).json([]);
+        }
+
+        // Transform the event bookings to include relevant user-specific information
+        const userEventBookings = user.eventBookings.map(event => {
+            const registeredUsers = Object.fromEntries(event.registeredUsers); // Convert Map to an object
+
+            return {
+                eventId: event.eventId,
+                title: event.title,
+                venue: event.venue,
+                time: event.time,
+                eventLink: event.eventLink,
+                isUserRegistered: registeredUsers.hasOwnProperty(user.email), // Check if the user is registered
+                registeredUsers, // Include all registered users
+            };
+        });
+
+        // Respond with the user's event bookings
+        res.status(200).json(userEventBookings);
+    } catch (error) {
+        console.error('[ERROR] Error fetching event bookings:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
     }
 });
 
