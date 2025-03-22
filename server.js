@@ -1432,6 +1432,24 @@ app.get('/api/booksWithRatings', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch books with ratings.' });
     }
 });
+
+// API to get books purchased in the last 3 days
+app.get('/api/newArrivals', async (req, res) => {
+    try {
+        const threeDaysAgo = new Date();
+        threeDaysAgo.setDate(threeDaysAgo.getDate() - 3); // Calculate the date 3 days ago
+
+        // Query books purchased within the last 3 days
+        const newBooks = await BookBuy.find({
+            purchaseDate: { $gte: threeDaysAgo },
+        });
+
+        res.status(200).json({ data: newBooks });
+    } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+        res.status(500).json({ error: 'Failed to fetch new arrivals.' });
+    }
+});
 async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
     try {
         // Debug: Log the input parameters

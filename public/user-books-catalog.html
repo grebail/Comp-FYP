@@ -214,7 +214,24 @@
                 .ranking-badge:nth-child(3) {
                     background-color: #cd7f32; /* Bronze for Top 3 */
                 }
-           
+                
+               
+                    .new-arrival-tag {
+                        display: inline-block;
+                        background-color: #4caf50; /* Green color for new arrivals */
+                        color: white;
+                        font-size: 0.8em;
+                        font-weight: bold;
+                        padding: 3px 8px;
+                        border-radius: 5px;
+                        margin-top: 5px;
+                    }
+                
+                    .book-title + .new-arrival-tag {
+                        display: block;
+                        margin: 5px auto;
+                    }
+                
         .advanced-search {
             display: flex; /* Always visible */
             flex-wrap: wrap;
@@ -385,6 +402,7 @@
         <h1>Books Catalog</h1>
         <div class="nav-bar">
             <button onclick="viewHistory()">Borrow History</button>
+            <button onclick="showNewArrivals()">New Book Arrival</button>
             <button onclick="viewAccount()">My Account</button>
             <button class="return-button" onclick="window.location.href='login.html'">Logout</button>
             <button id="homeButton" onclick="backHome()">Home</button>
@@ -628,12 +646,24 @@
                     rankingHTML = `<div class="ranking-badge">${ranking}</div>`;
                 }
         
+                // Check if the book is a new arrival (added within the last 3 days)
+                const purchaseDate = new Date(book.purchaseDate);
+                const threeDaysAgo = new Date();
+                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+                const isNewArrival = purchaseDate >= threeDaysAgo;
+        
+                let newArrivalHTML = '';
+                if (isNewArrival) {
+                    newArrivalHTML = `<span class="new-arrival-tag">New Arrival</span>`;
+                }
+        
                 const ratingStars = '★'.repeat(Math.round(avgRating)) + '☆'.repeat(5 - Math.round(avgRating));
         
                 card.innerHTML = `
                     ${rankingHTML} <!-- Badge for Top Rankings -->
                     <img src="${book.coverImage || 'default-cover.jpg'}" alt="${book.title} cover" class="book-cover" />
                     <div class="book-title">${book.title || 'N/A'}</div>
+                    ${newArrivalHTML} <!-- New Arrival Tag inside the card -->
                     <div class="book-author">Author: ${book.authors?.join(', ') || 'N/A'}</div>
                     <div class="book-published">Published: ${book.publishedDate || 'N/A'}</div>
                     <div class="book-rating">Rating: ${ratingStars} (${avgRating.toFixed(1)})</div>
@@ -660,6 +690,42 @@
             }
         }
         let searchHistory = []; // To store search history
+
+
+        //show new book arrivals
+        async function showNewArrivals() {
+            showLoader();
+            try {
+                const response = await fetch('/api/newArrivals', {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                    },
+                });
+        
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Error fetching new arrivals:', errorText);
+                    alert('Failed to fetch new arrivals. Please check the console for details.');
+                    return;
+                }
+        
+                const result = await response.json();
+                if (result.data && Array.isArray(result.data)) {
+                    console.log('New Arrivals:', result.data);
+        
+                    // Display the books in the catalog
+                    displayBooks(0, result.data);
+                } else {
+                    alert('No new arrivals found.');
+                    console.error('Expected an array but got:', result.data);
+                }
+            } catch (error) {
+                console.error('Error fetching new arrivals:', error);
+                alert('Failed to fetch new arrivals. Please try again later.');
+            } finally {
+                hideLoader();
+            }
+        }
 
         async function naturalLanguageSearch() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
