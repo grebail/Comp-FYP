@@ -452,6 +452,13 @@
             closeModal();
         }
     };
+
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; 
+        });
+    });
 </script>
 
 <footer>

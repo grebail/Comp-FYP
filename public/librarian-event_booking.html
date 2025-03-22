@@ -190,6 +190,10 @@
 </div>
 <div id="overlay" onclick="closeModal()"></div>
 
+<div class="back-home">
+    <a id="home-link" href="#">Back to Home</a>
+</div>
+
 <footer>
     <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
 </footer>
@@ -351,6 +355,13 @@ document.getElementById('csv-upload').addEventListener('change', async function 
 
     // Fetch events on page load
     document.addEventListener('DOMContentLoaded', fetchEvents);
+
+    document.addEventListener('DOMContentLoaded', function() {    
+        document.getElementById('home-link').addEventListener('click', function() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `index_userlogined.html?userid=${userId}`; 
+        });
+    });
 </script>
 
 </body>
