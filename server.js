@@ -1125,6 +1125,29 @@ app.get('/auth/google/callback',
     }
 );
 
+// API to get the username based on userid
+app.get('/api/getUser', async (req, res) => {
+    const { userid } = req.query;
+
+    // Validate the input
+    if (!userid) {
+        return res.status(400).json({ error: 'User ID is required.' });
+    }
+
+    try {
+        // Find the user in the User schema
+        const user = await User.findById(userid).select('username');
+        if (!user) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Respond with the username
+        res.status(200).json({ username: user.username });
+    } catch (error) {
+        console.error('Error fetching user:', error.message);
+        res.status(500).json({ error: 'Internal server error.' });
+    }
+});
 
 // User Management (admin only)
 app.get('/users', authenticateToken, async(req, res) => {

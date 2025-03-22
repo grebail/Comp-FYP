@@ -326,47 +326,38 @@
  
  <script>
 
-document.addEventListener('DOMContentLoaded', function() {
-    // Retrieve the username from local storage
-    const userName = new URLSearchParams(window.location.search).get('name');
+    document.addEventListener('DOMContentLoaded', async function () {
+        // Extract userid from the query parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userid');
     
-    var welcomeMessage = document.getElementById('welcome-msg');
+        // Validate userId
+        if (!userId) {
+            console.error('No user ID found in URL. Redirecting to login...');
+            window.location.href = 'login.html'; // Redirect to login if no user ID is found
+            return;
+        }
     
-    // Check if a username exists and update the message
-    if (userName) {
-        welcomeMessage.textContent = 'Welcome ' + userName;
-    }
-});
-   
-        window.onload = function () {
-            // Extract token and userid from the query parameters
-            const urlParams = new URLSearchParams(window.location.search);
-            const token = urlParams.get('token');
-            const userId = urlParams.get('userid');
-        
-            if (token) {
-                // Save the token to localStorage for future requests
-                localStorage.setItem('token', token);
-                console.log('Token saved to localStorage:', token);
-            } else {
-                // Use the token from localStorage if available
-                const storedToken = localStorage.getItem('token');
-                if (!storedToken) {
-                    console.error('No token found in URL or localStorage. Redirecting to login...');
-                    window.location.href = 'login.html'; // Redirect to login if no token is found
-                    return; // Stop further execution
-                } else {
-                    console.log('Token found in localStorage:', storedToken);
-                }
+        // Fetch the username from the server
+        try {
+            const response = await fetch(`/api/getUser?userid=${userId}`);
+            if (!response.ok) {
+                console.error('Failed to fetch user information. Redirecting to login...');
+                window.location.href = 'login.html'; // Redirect to login on failure
+                return;
             }
-        
-            // Log the userId for debugging purposes
-            if (userId) {
-                console.log('User ID:', userId);
-            } else {
-                console.error('No user ID found in URL.');
-            }
-        };
+    
+            const data = await response.json();
+            const userName = data.username;
+    
+            // Update the welcome message with the username
+            const welcomeMessage = document.getElementById('welcome-msg');
+            welcomeMessage.textContent = `Welcome ${userName}`;
+        } catch (error) {
+            console.error('Error fetching user information:', error);
+            window.location.href = 'login.html'; // Redirect to login on error
+        }
+    });
         
         // Logout Button
         document.getElementById('logout-button').addEventListener('click', function (event) {
