@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Comments</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        header {
+            background: linear-gradient(to right, #1565c0, #1e88e5);
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .comments-container {
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            margin: 20px 0;
+        }
+
+        .average-rating {
+            margin-bottom: 20px;
+        }
+
+        .bar {
+            width: 100%;
+            background: #ddd;
+            height: 20px;
+            border-radius: 10px;
+            margin: 10px 0;
+            position: relative;
+        }
+
+        .bar-fill {
+            height: 100%;
+            border-radius: 10px;
+            background: linear-gradient(to right, #55ba59, #27732b);
+            position: absolute;
+        }
+
+        .comment-item {
+            margin-bottom: 15px;
+            border-bottom: 1px solid #ccc;
+            padding-bottom: 10px;
+        }
+
+        .comment-date {
+            color: #777;
+            font-size: 0.9em;
+        }
+
+        .comment-rating {
+            color: #f39c12;
+        }
+
+        .comment-text {
+            margin: 5px 0;
+        }
+
+        button {
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #1e88e5;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <h1>Book Comments</h1>
+    </header>
+
+    <div class="comments-container">
+        <div class="average-rating">
+            <h2>Average Rating</h2>
+            <div class="bar">
+                <div class="bar-fill" id="ratingBar" style="width: 0%;"></div>
+            </div>
+            <p id="averageRatingText">Average: 0.0 / 5</p>
+        </div>
+
+        <h2>Comments</h2>
+        <div id="commentsList">
+            <!-- Comments will be dynamically inserted here -->
+        </div>
+
+        <button onclick="goBack()">Back to Catalog</button>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const isbn = params.get('isbn'); 
+        const bookId = params.get('bookId');
+        const userId = params.get('userid'); 
+        
+
+        async function fetchComments() {
+            try {
+                const response = await fetch(`/api/comments?isbn=${isbn}`);
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch comments.');
+                }
+
+                const data = await response.json();
+                displayComments(data.comments);
+                calculateAndDisplayAverageRating(data.comments);
+            } catch (error) {
+                console.error('Error fetching comments:', error);
+                document.getElementById('commentsList').innerHTML = '<p>Failed to load comments.</p>';
+            }
+        }
+
+        function displayComments(comments) {
+            const commentsList = document.getElementById('commentsList');
+            commentsList.innerHTML = '';
+
+            if (comments.length === 0) {
+                commentsList.innerHTML = '<p>No comments available for this book.</p>';
+                return;
+            }
+
+            comments.forEach(comment => {
+                const commentItem = document.createElement('div');
+                commentItem.className = 'comment-item';
+
+                const ratingStars = '★'.repeat(comment.rating) + '☆'.repeat(5 - comment.rating);
+
+                commentItem.innerHTML = `
+                    <p class="comment-rating">${ratingStars}</p>
+                    <p class="comment-text">${comment.comment || 'No comment provided.'}</p>
+                    <p class="comment-date">${new Date(comment.date).toLocaleDateString()}</p>
+                `;
+
+                commentsList.appendChild(commentItem);
+            });
+        }
+
+        function calculateAndDisplayAverageRating(comments) {
+            if (comments.length === 0) return;
+
+            const totalRating = comments.reduce((sum, comment) => sum + comment.rating, 0);
+            const averageRating = (totalRating / comments.length).toFixed(1);
+
+            document.getElementById('averageRatingText').textContent = `Average: ${averageRating} / 5`;
+            document.getElementById('ratingBar').style.width = `${(averageRating / 5) * 100}%`;
+        }
+
+        function goBack() {
+              window.location.href = `user-books-catalog.html?userid=${userId}`;;
+        }
+
+        // Fetch comments on page load
+        fetchComments();
+    </script>
+</body>
+
+</html>

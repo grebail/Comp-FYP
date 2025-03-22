@@ -78,6 +78,122 @@
         .go-back-button:hover {
             background-color: #2e7d32;
         }
+        
+        
+       
+            /* Modal Styling */
+            .modal {
+                display: none; /* Hidden by default */
+                position: fixed;
+                z-index: 1;
+                left: 0;
+                top: 0;
+                width: 100%;
+                height: 100%;
+                overflow: auto;
+                background-color: rgba(0, 0, 0, 0.5); /* Black background with opacity */
+            }
+        
+            .modal-content {
+                background-color: #fefefe;
+                margin: 15% auto; /* Center the modal */
+                padding: 20px;
+                border: 1px solid #888;
+                width: 80%;
+                max-width: 400px;
+                border-radius: 10px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                animation: fadeIn 0.3s ease-in-out;
+            }
+        
+            .close {
+                color: #aaa;
+                float: right;
+                font-size: 28px;
+                font-weight: bold;
+                cursor: pointer;
+            }
+        
+            .close:hover,
+            .close:focus {
+                color: black;
+                text-decoration: none;
+            }
+        
+            .rating {
+                display: flex;
+                justify-content: center;
+                margin: 15px 0;
+            }
+        
+            .rating .star {
+                font-size: 30px;
+                cursor: pointer;
+                color: gray;
+                transition: color 0.3s;
+                margin: 0 5px;
+            }
+        
+            .rating .star:hover {
+                color: gold;
+            }
+        
+            textarea {
+                width: 100%;
+                height: 80px;
+                margin: 10px 0;
+                padding: 10px;
+                border: 1px solid #ddd;
+                border-radius: 5px;
+                font-size: 14px;
+            }
+        
+            button {
+                background-color: #388e3c;
+                color: white;
+                border: none;
+                padding: 10px 15px;
+                cursor: pointer;
+                border-radius: 5px;
+                transition: background-color 0.3s;
+                display: block;
+            }
+        
+            button:hover {
+                background-color: #2e7d32;
+            }
+        
+            .comment-button {
+                background-color: #007bff;
+                color: white;
+                border: none;
+                padding: 8px 12px;
+                cursor: pointer;
+                border-radius: 5px;
+                transition: background-color 0.3s;
+                margin-top: 10px;
+            }
+        
+            .comment-button:hover {
+                background-color: #0056b3;
+            }
+   
+       
+        
+    
+        button {
+            background-color: #388e3c;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+    
+        button:hover {
+            background-color: #2e7d32;
+        }
     </style>
 </head>
 
@@ -90,8 +206,24 @@
     <div id="historyContent" class="history-list"></div>
     <button class="go-back-button" id="BackHomeButton">Back to Home</button>
     <button class="go-back-button" id="BackCatalogButton">Back to Catalog</button>
+    <div id="historyContent" class="history-list"></div>
+    <!-- Comment Portal Modal -->
+<div id="commentModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h3>Rate and Comment on the Book</h3>
+        <div class="rating" id="modal-rating">
+            <!-- Stars will be dynamically generated here -->
+        </div>
+        <textarea id="modal-comment" placeholder="Write a comment..."></textarea>
+        <button onclick="submitComment()">Submit</button>
+    </div>
+</div>
 
     <script>
+        let currentBookId = null; // Store the current book ID for the modal
+        let currentRating = 0; // Store the current rating for the modal
+    
         const params = new URLSearchParams(window.location.search);
         const userid = params.get('userid');
         const token = localStorage.getItem('token');
@@ -130,13 +262,13 @@
                 document.getElementById('historyContent').innerHTML = '<p>No borrow history found.</p>';
                 return;
             }
-
+    
             const historyHTML = await Promise.all(history.map(async (borrowRecord) => {
                 const nonReturnedCopies = borrowRecord.copies.filter(copy => copy.status !== 'in return box');
                 if (nonReturnedCopies.length === 0) return ''; // Skip if no non-returned copies
-
+    
                 const coverImage = await fetchCoverImage(borrowRecord.industryIdentifier[0]);
-
+    
                 return `
                     <div class="book-item">
                         <img src="${coverImage}" alt="${borrowRecord.title} Cover" class="book-cover">
@@ -151,14 +283,90 @@
                                     <strong>Status:</strong> ${copy.status}<br>
                                 </div>
                             `).join('')}
+                            <!-- Comment Button -->
+                            <button class="comment-button" onclick="openModal('${borrowRecord._id}')">Comment</button>
                         </div>
                     </div>
                 `;
             }));
-
+    
             document.getElementById('historyContent').innerHTML = historyHTML.filter(html => html).join('');
         }
-
+    
+        function openModal(bookId) {
+            currentBookId = bookId; // Store the current book ID
+            currentRating = 0; // Reset the rating
+            document.getElementById('modal-comment').value = ''; // Clear the comment textarea
+            generateStars(); // Generate the stars dynamically
+            document.getElementById('commentModal').style.display = 'block'; // Show the modal
+        }
+    
+        function closeModal() {
+            document.getElementById('commentModal').style.display = 'none'; // Hide the modal
+            currentBookId = null; // Reset the current book ID
+        }
+    
+        function generateStars() {
+            const ratingContainer = document.getElementById('modal-rating');
+            ratingContainer.innerHTML = ''; // Clear existing stars
+            for (let i = 1; i <= 5; i++) {
+                const star = document.createElement('span');
+                star.classList.add('star');
+                star.dataset.rating = i;
+                star.textContent = '★';
+                star.onclick = () => setRating(i); // Set rating on click
+                ratingContainer.appendChild(star);
+            }
+        }
+    
+        function setRating(rating) {
+            currentRating = rating; // Set the current rating
+            const stars = document.querySelectorAll('#modal-rating .star');
+            stars.forEach(star => {
+                const starRating = parseInt(star.dataset.rating);
+                star.style.color = starRating <= rating ? 'gold' : 'gray'; // Highlight selected stars
+            });
+        }
+    
+        async function submitComment() {
+            if (!currentBookId || !currentRating) {
+                alert('Please provide both a rating and a comment.');
+                return;
+            }
+    
+            const comment = document.getElementById('modal-comment').value.trim();
+            if (!comment) {
+                alert('Please write a comment.');
+                return;
+            }
+    
+            try {
+                const response = await fetch('/api/comments', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}` // Assume `token` is already stored in localStorage
+                    },
+                    body: JSON.stringify({
+                        bookId: currentBookId,
+                        rating: currentRating,
+                        comment
+                    })
+                });
+    
+                const result = await response.json();
+    
+                if (!response.ok) {
+                    throw new Error(result.error || 'Failed to submit comment.');
+                }
+    
+                alert('Comment submitted successfully!');
+                closeModal();
+            } catch (error) {
+                console.error('Error submitting comment:', error.message);
+                alert('Failed to submit comment. Please try again.');
+            }
+        }
         function displayError(message) {
             document.getElementById('errorMessage').innerText = message;
         }
