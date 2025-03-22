@@ -1411,6 +1411,27 @@ app.get('/api/comments', async (req, res) => {
     }
 });
 
+const calculateAverageRating = (comments) => {
+    if (!comments || comments.length === 0) return 0;
+    const totalRating = comments.reduce((sum, comment) => sum + comment.rating, 0);
+    return totalRating / comments.length;
+};
+
+app.get('/api/booksWithRatings', async (req, res) => {
+    try {
+        const books = await UserBorrow.find();
+
+        const booksWithRatings = books.map(book => ({
+            ...book.toObject(),
+            averageRating: calculateAverageRating(book.comments), // Calculate average rating
+        }));
+
+        res.status(200).json({ data: booksWithRatings });
+    } catch (error) {
+        console.error('Error fetching books:', error);
+        res.status(500).json({ error: 'Failed to fetch books with ratings.' });
+    }
+});
 async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
     try {
         // Debug: Log the input parameters

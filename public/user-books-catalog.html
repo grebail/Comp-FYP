@@ -176,6 +176,20 @@
             text-align: center;
             margin: 20px;
         }
+       
+            .top-choice-badge {
+                background-color: #ffcc00;
+                color: #333;
+                font-weight: bold;
+                padding: 5px 10px;
+                border-radius: 5px;
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                z-index: 1;
+                font-size: 0.9em;
+            }
+       
         .advanced-search {
             display: flex; /* Always visible */
             flex-wrap: wrap;
@@ -413,23 +427,29 @@
         async function loadBooks() {
             showLoader();
             try {
+                // Fetch books from the main API
                 const response = await fetch('/api/allUserPurchases', {
                     headers: {
                         'Authorization': `Bearer ${localStorage.getItem('token')}`
                     }
                 });
-
+        
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error('Error loading books:', errorText);
                     alert('Failed to load books. Please check the console for details.');
                     return;
                 }
-
+        
                 const result = await response.json();
                 if (result.data && Array.isArray(result.data)) {
                     allBooks = result.data;
                     console.log('All Books:', allBooks);
+        
+                    // Fetch ratings for each book
+                    await fetchBookRatings();
+        
+                    // Display books after merging ratings
                     displayBooks(currentStartIndex);
                 } else {
                     alert('No books available.');
@@ -442,7 +462,39 @@
                 hideLoader();
             }
         }
-
+        async function fetchBookRatings() {
+            try {
+                // Iterate over all books and fetch ratings for each
+                const ratingPromises = allBooks.map(async (book) => {
+                    const isbn = book.industryIdentifier ? book.industryIdentifier[0] : null;
+                    if (!isbn) return null; // Skip books without ISBN
+        
+                    const response = await fetch(`/api/comments?isbn=${isbn}`);
+                    if (!response.ok) {
+                        console.warn(`Failed to fetch rating for ISBN: ${isbn}`);
+                        return null;
+                    }
+        
+                    const { comments } = await response.json();
+                    if (comments && comments.length > 0) {
+                        const totalRating = comments.reduce((sum, comment) => sum + comment.rating, 0);
+                        const averageRating = totalRating / comments.length;
+        
+                        // Add the average rating to the book object
+                        book.averageRating = averageRating;
+                    } else {
+                        // Add default rating if no comments exist
+                        book.averageRating = 0;
+                    }
+                });
+        
+                // Wait for all rating promises to resolve
+                await Promise.all(ratingPromises);
+                console.log('Updated Books with Ratings:', allBooks);
+            } catch (error) {
+                console.error('Error fetching book ratings:', error);
+            }
+        }
         function showLoader() {
             document.getElementById('loader').style.display = 'block';
         }
@@ -507,98 +559,66 @@
             return null; // Return null after exhausting retries
         }
         async function displayBooks(startIndex, booksToDisplay = allBooks) {
-           
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
-
-            const booksToShow =  booksToDisplay .slice(startIndex, startIndex + booksPerPage);
+        
+            // Group books by title and find the best-rated book in each group
+            const groupedBooks = {};
+            booksToDisplay.forEach(book => {
+                const title = book.title.toLowerCase();
+                if (!groupedBooks[title]) {
+                    groupedBooks[title] = [];
+                }
+                groupedBooks[title].push(book);
+            });
+        
+            const bestBooks = {}; // Store the best-rated book for each title
+            for (const title in groupedBooks) {
+                bestBooks[title] = groupedBooks[title].reduce((best, current) => {
+                    return (current.averageRating || 0) > (best.averageRating || 0) ? current : best;
+                });
+            }
+        
+            const booksToShow = booksToDisplay.slice(startIndex, startIndex + booksPerPage);
+        
             if (booksToShow.length === 0) {
                 catalog.innerHTML = '<p>No more books found.</p>';
                 return;
             }
-
+        
             for (const book of booksToShow) {
                 const card = document.createElement('div');
                 card.className = 'book-card';
-
+        
                 const totalCopies = book.copies ? book.copies.length : 0; // Get number of copies
                 const isbn = book.industryIdentifier ? book.industryIdentifier[0] : null; // Get the first ISBN
                 const googleId = book.googleId; // Get Google ID
-
-                let bookDetails = null;
-
-                // Fetch book details using ISBN
-                try {
-                    if (isbn) {
-                        bookDetails = await fetchBookDetails(`isbn:${isbn}`);
-                        if (bookDetails && bookDetails.items && bookDetails.items.length > 0) {
-                            const volumeInfo = bookDetails.items[0].volumeInfo; // Accessing the first item
-                            if (volumeInfo) {
-                                const title = volumeInfo.title || 'N/A';
-                                const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
-                                const publishedDate = volumeInfo.publishedDate || 'N/A';
-                                const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg';
-
-                                card.innerHTML = `
-                                    <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                                    <div class="book-title">${title}</div>
-                                    <div class="book-author">Author: ${authors}</div>
-                                    <div class="book-published">Published: ${publishedDate}</div>
-                                    <div class="book-isbn">ISBN: ${isbn || 'N/A'}</div>
-                                    <div class="book-copies">Total Copies: ${totalCopies}</div>
-                                    <div class="action-buttons">
-                                       
-                                        <button onclick="viewDetails('${googleId}', '${isbn}')">View Details</button>
-                                        <button onclick="viewComments('${isbn}')">View Comments</button>
-
-                                    </div>
-                                `;
-                                catalog.appendChild(card);
-                                continue; // Exit the loop early if ISBN details were found
-                            }
-                        } else {
-                            console.warn(`No volume info found for ISBN: ${isbn}`);
-                        }
-                    }
-
-                    // Fetch book details using Google ID
-                    if (googleId) {
-                        bookDetails = await fetchBookDetails(googleId);
-                        if (bookDetails && bookDetails.volumeInfo) {
-                            const volumeInfo = bookDetails.volumeInfo; // Accessing volumeInfo directly
-                            const title = volumeInfo.title || 'N/A';
-                            const authors = volumeInfo.authors ? volumeInfo.authors.join(', ') : 'N/A';
-                            const publishedDate = volumeInfo.publishedDate || 'N/A';
-                            const coverImage = volumeInfo.imageLinks ? volumeInfo.imageLinks.thumbnail : 'default-cover.jpg';
-
-                            card.innerHTML = `
-                                <img src="${coverImage}" alt="${title} cover" class="book-cover" />
-                                <div class="book-title">${title}</div>
-                                <div class="book-author">Author: ${authors}</div>
-                                <div class="book-published">Published: ${publishedDate}</div>
-                                <div class="book-isbn">ISBN: ${isbn || 'N/A'}</div>
-                                <div class="book-copies">Total Copies: ${totalCopies}</div>
-                                <div class="action-buttons">
-                                    
-                                    <button onclick="viewDetails('${googleId || isbn}', '${isbn}')">View Details</button>
-                                </div>
-                            `;
-                            catalog.appendChild(card);
-                            continue; // Exit the loop early if Google ID details were found
-                        } else {
-                            console.warn(`No volume info found for Google ID: ${googleId}`);
-                        }
-                    }
-
-                    // If both fetches failed or returned undefined volumeInfo
-                    card.innerHTML = `<p>No details found for ISBN: ${isbn || 'N/A'} and Google ID: ${googleId || 'N/A'}</p>`;
-                    catalog.appendChild(card);
-
-                } catch (error) {
-                    console.error('Error processing book:', error);
-                    card.innerHTML = `<p>Error processing book with ISBN: ${isbn || 'N/A'} and Google ID: ${googleId || 'N/A'}. Please try again later.</p>`;
-                    catalog.appendChild(card);
+                const avgRating = book.averageRating || 0; // Average rating
+        
+                // Check if this book is the best choice in its group
+                const isBestChoice = bestBooks[book.title.toLowerCase()] === book;
+        
+                let badgeHTML = '';
+                if (isBestChoice) {
+                    badgeHTML = `<div class="top-choice-badge">Best Choice</div>`;
                 }
+        
+                const ratingStars = '★'.repeat(Math.round(avgRating)) + '☆'.repeat(5 - Math.round(avgRating));
+        
+                card.innerHTML = `
+                    ${badgeHTML}
+                    <img src="${book.coverImage || 'default-cover.jpg'}" alt="${book.title} cover" class="book-cover" />
+                    <div class="book-title">${book.title || 'N/A'}</div>
+                    <div class="book-author">Author: ${book.authors?.join(', ') || 'N/A'}</div>
+                    <div class="book-published">Published: ${book.publishedDate || 'N/A'}</div>
+                    <div class="book-rating">Rating: ${ratingStars} (${avgRating.toFixed(1)})</div>
+                    <div class="book-copies">Total Copies: ${totalCopies}</div>
+                    <div class="action-buttons">
+                        <button onclick="viewDetails('${googleId}', '${isbn}')">View Details</button>
+                        <button onclick="viewComments('${isbn}')">View Comments</button>
+                    </div>
+                `;
+                catalog.appendChild(card);
             }
         }
 
@@ -775,6 +795,7 @@
             const isbn = document.getElementById('isbnInput').value.toLowerCase().trim();
             const bookType = document.getElementById('bookTypeSelect').value.toLowerCase().trim();
         
+            // Filter books based on search criteria
             const filteredBooks = allBooks.filter(book => {
                 const bookTitle = book.title ? book.title.toLowerCase() : '';
                 const bookAuthor = book.authors ? book.authors.join(', ').toLowerCase() : '';
