@@ -10,6 +10,7 @@ const passport = require('passport');
 const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const session = require('express-session');
 const multer = require('multer');
+const net = require('net');
 const xlsx = require('xlsx');
 
 const stripBomStream = require('strip-bom-stream');
@@ -2693,6 +2694,124 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
+
+// RFID Reader Management
+const rfidReaders = [
+    { port: 65432, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
+    { port: 65433, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
+    { port: 65434, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
+    // Add more ports as needed
+];
+
+const DETECTION_TIMEOUT = 5000; // 5 seconds timeout for undetected EPCs
+
+function extractMiddleSegment(hexString) {
+    if (typeof hexString !== 'string' || hexString.length < 20) {
+        return null;
+    }
+    return hexString.substring(8, 20);
+}
+
+function startRfidServers() {
+    rfidReaders.forEach(reader => {
+        const server = net.createServer((socket) => {
+            reader.status = 'active';
+            reader.clients += 1;
+            console.log(`RFID client connected to port ${reader.port}`);
+
+            socket.on('data', (data) => {
+                const hexData = data.toString('hex').toUpperCase();
+                const epc = extractMiddleSegment(hexData);
+
+                if (epc) {
+                    // Track the EPC without modifying status
+                    reader.epcs.set(epc, Date.now());
+                    console.log(`EPC ${epc} detected on port ${reader.port}`);
+                }
+            });
+
+            socket.on('end', () => {
+                reader.clients -= 1;
+                if (reader.clients === 0) {
+                    reader.status = 'inactive';
+                }
+                console.log(`RFID client disconnected from port ${reader.port}`);
+            });
+        });
+
+        server.listen(reader.port, reader.host, () => {
+            console.log(`RFID server listening on ${reader.host}:${reader.port}`);
+        });
+
+        reader.server = server;
+
+        server.on('error', (err) => {
+            console.error(`RFID server error on port ${reader.port}:`, err);
+            reader.status = 'error';
+        });
+    });
+
+    // Periodically clean up undetected EPCs
+    setInterval(() => {
+        const now = Date.now();
+        rfidReaders.forEach(reader => {
+            for (const [epc, lastSeen] of reader.epcs) {
+                if (now - lastSeen > DETECTION_TIMEOUT) {
+                    reader.epcs.delete(epc);
+                    console.log(`EPC ${epc} removed from port ${reader.port} (no longer detected)`);
+                }
+            }
+        });
+    }, 1000); // Check every second
+
+    process.on('SIGINT', () => {
+        rfidReaders.forEach(reader => {
+            if (reader.server) {
+                reader.server.close(() => {
+                    console.log(`RFID server on port ${reader.port} closed`);
+                });
+            }
+        });
+        console.log('All RFID servers closed');
+        process.exit(0);
+    });
+}
+
+// API to get RFID reader status with book details from EPC schema
+app.get('/api/rfid-readers', async (req, res) => {
+    try {
+        const readerStatus = await Promise.all(rfidReaders.map(async (reader) => {
+            const epcList = Array.from(reader.epcs.keys());
+            const epcDetails = await EPC.find({ epc: { $in: epcList } })
+                .select('epc title author status industryIdentifier timestamp');
+
+            // Only include EPCs that exist in MongoDB
+            const epcsWithDetails = epcDetails.map(record => ({
+                epc: record.epc,
+                title: record.title,
+                author: record.author.join(', '),
+                status: record.status,
+                industryIdentifier: record.industryIdentifier ? record.industryIdentifier.join(', ') : 'N/A',
+                timestamp: record.timestamp
+            }));
+
+            return {
+                port: reader.port,
+                status: reader.status,
+                clients: reader.clients,
+                epcs: epcsWithDetails
+            };
+        }));
+
+        res.json(readerStatus);
+    } catch (error) {
+        console.error('Error fetching RFID reader status:', error);
+        res.status(500).json({ error: 'Failed to fetch RFID reader status' });
+    }
+});
+
+// Start RFID servers before HTTP server
+startRfidServers();
 
 // Start server and create default admin
 app.listen(PORT, async() => {
