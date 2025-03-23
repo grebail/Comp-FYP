@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RFID Return Boxes</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .return-boxes-container {
+            width: 90%;
+            max-width: 1200px;
+        }
+        .return-box {
+            background-color: #4682B4; /* Steel blue */
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            margin-bottom: 30px;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .return-box:hover {
+            transform: scale(1.02);
+        }
+        .box-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+            margin-bottom: 10px;
+        }
+        .box-header h2 {
+            margin: 0;
+            font-size: 20px;
+        }
+        .status {
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 3px;
+        }
+        .status-active { background-color: #28a745; }
+        .status-inactive { background-color: #6c757d; }
+        .status-error { background-color: #dc3545; }
+        .box-placeholder {
+            height: 120px;
+            background-color: #6495ED; /* Lighter blue */
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 18px;
+            text-align: center;
+        }
+        .book-display {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .book-form {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+            max-height: 80vh;
+            overflow-y: auto;
+            width: 90%;
+            max-width: 1000px;
+        }
+        .book-form h3 {
+            margin: 0 0 15px 0;
+            color: #333;
+            text-align: center;
+        }
+        .book-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        .book-table th, .book-table td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        .book-table th {
+            background-color: #4682B4;
+            color: white;
+            font-weight: bold;
+        }
+        .book-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .book-table tr:hover {
+            background-color: #f1f1f1;
+        }
+        .book-table td {
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <h1>RFID Return Boxes</h1>
+    <div class="return-boxes-container" id="returnBoxes">
+        <!-- Return boxes will be populated here -->
+    </div>
+    <div class="book-display" id="bookDisplay">
+        <div class="book-form" id="bookForm">
+            <!-- Book table will be populated here -->
+        </div>
+    </div>
+
+    <script>
+        let currentReaders = [];
+        let currentPort = null;
+        let intervalId = null;
+
+        async function fetchReturnBoxData() {
+            try {
+                const response = await fetch('http://localhost:10000/api/rfid-readers');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status} - ${response.statusText}`);
+                }
+                currentReaders = (await response.json()).filter(reader => reader.type === 'return box');
+                updateReturnBoxes(currentReaders);
+                if (currentPort) {
+                    const reader = currentReaders.find(r => r.port === currentPort);
+                    if (reader) {
+                        updateBookForm(reader.epcs);
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching return box data:', error.message);
+                document.getElementById('returnBoxes').innerHTML = `<p>Error loading return boxes: ${error.message}</p>`;
+            }
+        }
+
+        function updateReturnBoxes(readers) {
+            const returnBoxesContainer = document.getElementById('returnBoxes');
+            returnBoxesContainer.innerHTML = ''; // Clear existing return boxes
+
+            readers.forEach(reader => {
+                const returnBox = document.createElement('div');
+                returnBox.className = 'return-box';
+                returnBox.innerHTML = `
+                    <div class="box-header">
+                        <h2>Port ${reader.port} (${reader.clients} clients)</h2>
+                        <span class="status status-${reader.status}">${reader.status.charAt(0).toUpperCase() + reader.status.slice(1)}</span>
+                    </div>
+                    <div class="box-placeholder">Return Box (${reader.epcs.length} books detected)</div>
+                `;
+                returnBox.addEventListener('click', () => showBookForm(reader.port));
+                returnBoxesContainer.appendChild(returnBox);
+            });
+        }
+
+        function showBookForm(port) {
+            const reader = currentReaders.find(r => r.port === port);
+            if (!reader || reader.epcs.length === 0) {
+                alert('No books detected in this return box.');
+                return;
+            }
+
+            currentPort = port;
+            const bookDisplay = document.getElementById('bookDisplay');
+            bookDisplay.style.display = 'flex';
+            updateBookForm(reader.epcs);
+
+            // Close display when clicking outside
+            bookDisplay.onclick = (e) => {
+                if (e.target === bookDisplay) {
+                    bookDisplay.style.display = 'none';
+                    currentPort = null;
+                }
+            };
+        }
+
+        function updateBookForm(epcs) {
+            const bookForm = document.getElementById('bookForm');
+            bookForm.innerHTML = `<h3>Books in Return Box (Port ${currentPort})</h3>`;
+
+            if (epcs.length === 0) {
+                bookForm.innerHTML += '<p>No books detected.</p>';
+                return;
+            }
+
+            const table = document.createElement('table');
+            table.className = 'book-table';
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Author</th>
+                        <th>Status</th>
+                        <th>ISBN</th>
+                        <th>EPC</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            `;
+
+            const tbody = table.querySelector('tbody');
+            epcs.forEach(epcData => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${epcData.title}</td>
+                    <td>${epcData.author}</td>
+                    <td>${epcData.status}</td>
+                    <td>${epcData.industryIdentifier}</td>
+                    <td>${epcData.epc}</td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            bookForm.appendChild(table);
+        }
+
+        // Fetch data initially and then every 2 seconds
+        fetchReturnBoxData();
+        intervalId = setInterval(fetchReturnBoxData, 2000);
+
+        // Clean up interval when page is closed
+        window.addEventListener('unload', () => {
+            if (intervalId) {
+                clearInterval(intervalId);
+            }
+        });
+    </script>
+</body>
+</html>
