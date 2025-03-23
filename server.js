@@ -2441,6 +2441,8 @@ async function updateCurrentLoans(userId) {
         // Fetch borrow records where copies have status "borrowed"
         const userBorrows = await UserBorrow.find({ userid: userId, 'copies.status': 'borrowed' });
 
+        console.log(`[DEBUG] Fetched UserBorrow records for userId ${userId}:`, userBorrows);
+
         // Map the borrow records to match the loanDetailsSchema
         const currentLoans = userBorrows.map(borrow => ({
             borrowId: borrow._id,
@@ -2461,13 +2463,14 @@ async function updateCurrentLoans(userId) {
             },
         }));
 
+        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
+
         return currentLoans;
     } catch (error) {
         console.error('[ERROR] Failed to update current loans:', error.message);
         throw new Error('Failed to fetch current loans.');
     }
 }
-
 // API endpoint to save user details
 app.post('/api/userDetails', authenticateToken, async (req, res) => {
     const { userId, name, email, phone, libraryCard } = req.body;
@@ -2566,6 +2569,8 @@ app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
         // Fetch borrow records where copies have status "borrowed"
         const userBorrows = await UserBorrow.find({ userid: userId, 'copies.status': 'borrowed' });
 
+        console.log(`[DEBUG] Fetched UserBorrow records for userId ${userId}:`, userBorrows);
+
         // Map the borrow records to the loanDetailsSchema structure
         const currentLoans = userBorrows.map(borrow => ({
             borrowId: borrow._id,
@@ -2582,6 +2587,8 @@ app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
             },
         }));
 
+        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
+
         // Update currentLoans in UserDetails
         const userDetails = await UserDetails.findOneAndUpdate(
             { userId },
@@ -2589,13 +2596,14 @@ app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
             { new: true, upsert: true }
         );
 
+        console.log(`[DEBUG] Updated UserDetails for userId ${userId}:`, userDetails);
+
         res.json(userDetails.currentLoans);
     } catch (error) {
         console.error('Error fetching and updating current loans:', error);
         res.status(500).json({ error: 'Failed to fetch and update current loans.' });
     }
 });
-
 // API to get room booking records for a specific user
 // API to get room booking records for a specific user
 app.get('/api/roomBookings', async (req, res) => {
@@ -2800,6 +2808,7 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
     }
 });
 
+
 // RFID Reader Management
 const rfidReaders = [
     { port: 65432, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
@@ -2818,20 +2827,37 @@ function extractMiddleSegment(hexString) {
 }
 
 function startRfidServers() {
-    rfidReaders.forEach(reader => {
-        const server = net.createServer((socket) => {
+    rfidReaders.forEach((reader) => {
+        const server = net.createServer(async (socket) => {
             reader.status = 'active';
             reader.clients += 1;
             console.log(`RFID client connected to port ${reader.port}`);
 
-            socket.on('data', (data) => {
+            socket.on('data', async (data) => {
                 const hexData = data.toString('hex').toUpperCase();
                 const epc = extractMiddleSegment(hexData);
 
                 if (epc) {
-                    // Track the EPC without modifying status
+                    // Track the EPC locally
                     reader.epcs.set(epc, Date.now());
                     console.log(`EPC ${epc} detected on port ${reader.port}`);
+
+                    // Update EPC in the database
+                    try {
+                        const existingEPC = await EPC.findOneAndUpdate(
+                            { epc }, // Match by EPC
+                            { $set: { timestamp: new Date() } }, // Update timestamp
+                            { new: true } // Return the updated document
+                        );
+
+                        if (!existingEPC) {
+                            console.warn(`EPC ${epc} not found in the database`);
+                        } else {
+                            console.log(`EPC ${epc} updated successfully`);
+                        }
+                    } catch (err) {
+                        console.error(`Error updating EPC ${epc}:`, err);
+                    }
                 }
             });
 
@@ -2859,7 +2885,7 @@ function startRfidServers() {
     // Periodically clean up undetected EPCs
     setInterval(() => {
         const now = Date.now();
-        rfidReaders.forEach(reader => {
+        rfidReaders.forEach((reader) => {
             for (const [epc, lastSeen] of reader.epcs) {
                 if (now - lastSeen > DETECTION_TIMEOUT) {
                     reader.epcs.delete(epc);
@@ -2870,7 +2896,7 @@ function startRfidServers() {
     }, 1000); // Check every second
 
     process.on('SIGINT', () => {
-        rfidReaders.forEach(reader => {
+        rfidReaders.forEach((reader) => {
             if (reader.server) {
                 reader.server.close(() => {
                     console.log(`RFID server on port ${reader.port} closed`);
@@ -2881,6 +2907,44 @@ function startRfidServers() {
         process.exit(0);
     });
 }
+
+// API to get RFID reader status with book details from EPC schema
+app.get('/api/rfid-readers', async (req, res) => {
+    try {
+        const readerStatus = await Promise.all(
+            rfidReaders.map(async (reader) => {
+                const epcList = Array.from(reader.epcs.keys());
+                const epcDetails = await EPC.find({ epc: { $in: epcList } })
+                    .select('epc title author status industryIdentifier timestamp');
+
+                // Format EPC details
+                const epcsWithDetails = epcDetails.map((record) => ({
+                    epc: record.epc,
+                    title: record.title,
+                    author: record.author.join(', '),
+                    status: record.status,
+                    industryIdentifier: record.industryIdentifier ? record.industryIdentifier.join(', ') : 'N/A',
+                    timestamp: record.timestamp,
+                }));
+
+                return {
+                    port: reader.port,
+                    status: reader.status,
+                    clients: reader.clients,
+                    epcs: epcsWithDetails,
+                };
+            })
+        );
+
+        res.json(readerStatus);
+    } catch (error) {
+        console.error('Error fetching RFID reader status:', error);
+        res.status(500).json({ error: 'Failed to fetch RFID reader status' });
+    }
+});
+
+// Start RFID servers before HTTP server
+startRfidServers();
 
 
 // Start server and create default admin
