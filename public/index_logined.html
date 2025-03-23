@@ -214,9 +214,39 @@
         /* Media Queries */
         
         @media (max-width: 768px) {
-            header h1 {
-                font-size: 24px;
+            header {
+                padding: 15px; /* Reduce padding for smaller screens */
             }
+
+            header h1 {
+                font-size: 24px; /* Smaller title */
+                margin-bottom: 8px;
+            }
+
+            header h4  
+            #welcome-message {
+                position: static; /* Remove absolute positioning */
+                text-align: center; /* Center it */
+                margin-top: 10px; /* Add spacing above */
+                font-size: 14px; /* Slightly smaller text */
+            }
+
+            #search-form {
+                flex-wrap: wrap; /* Stack input and button vertically */
+                width: 80%; /* Ensure form takes full width */
+            }
+
+            #search-input {
+                max-width: none; /* Remove max-width for full width */
+                margin-bottom: 10px; /* Space between input and button */
+            }
+
+            #search-form button[type="submit"] {
+                margin-left: 0; /* Remove left margin */
+                width: 30%; /* Full-width button */
+                padding: 10px; /* Consistent padding */
+            }
+            
             nav a {
                 display: block;
                 margin: 5px 0;
