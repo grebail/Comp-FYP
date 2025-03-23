@@ -540,11 +540,6 @@ app.delete('/api/bookings/expired', async (req, res) => {
 });
 
 
-// Utility function to format date in UTC
-function formatDateToUTC(date) {
-    return new Date(date).toUTCString(); // Converts date to UTC string format
-}
-
 // Function to send email using SendGrid
 // Function to send email using SendGrid
 async function sendEmail(userDetails, upcomingLoans) {
@@ -1931,7 +1926,7 @@ app.put('/api/updateLocationId/:copyId', async (req, res) => {
 });
 
 
-// API endpoint to import books from CSV
+
 app.post('/api/importBooks', upload.single('file'), async (req, res) => {
     const results = [];
     const errors = [];
@@ -1959,40 +1954,43 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
             const fileStream = fs.createReadStream(req.file.path, { encoding: 'utf8' });
 
             fileStream
-            .pipe(csv({ headers: csvHeaders }))
-            .on('data', (data) => {
-                const trimmedData = Object.fromEntries(
-                    Object.entries(data).map(([key, value]) => [key, value?.trim() || ''])
-                );
-        
-                // Skip rows where all fields are empty
-                if (Object.values(trimmedData).some((value) => value)) {
-                    results.push(trimmedData);
-                }
-            })
-            .on('end', async () => {
-                try {
-                    console.log('Parsed CSV Data:', results);
-                    await processBooks(results, errors);
-        
-                    fs.unlinkSync(req.file.path); // Delete the uploaded file
-        
-                    res.status(201).json({ message: 'Books imported successfully!', errors });
-                } catch (error) {
-                    console.error('Error processing books:', error.message);
-                    res.status(500).json({
-                        error: 'Failed to process books.',
+                .pipe(csv({ headers: csvHeaders }))
+                .on('data', (data) => {
+                    // Filter out unexpected columns and sanitize data
+                    const trimmedData = Object.fromEntries(
+                        Object.entries(data)
+                            .filter(([key]) => csvHeaders.includes(key)) // Keep only valid headers
+                            .map(([key, value]) => [key, value?.trim() || '']) // Trim values
+                    );
+
+                    // Skip rows where all fields are empty
+                    if (Object.values(trimmedData).some((value) => value)) {
+                        results.push(trimmedData);
+                    }
+                })
+                .on('end', async () => {
+                    try {
+                        console.log('Parsed CSV Data:', results);
+                        await processBooks(results, errors);
+
+                        fs.unlinkSync(req.file.path); // Delete the uploaded file
+
+                        sendResponse(res, errors); // Send response with errors (if any)
+                    } catch (error) {
+                        console.error('Error processing books:', error.message);
+                        res.status(500).json({
+                            error: 'Failed to process books.',
+                            details: error.message,
+                        });
+                    }
+                })
+                .on('error', (error) => {
+                    console.error('Error parsing CSV:', error.message);
+                    res.status(400).json({
+                        error: 'Error parsing CSV file.',
                         details: error.message,
                     });
-                }
-            })
-            .on('error', (error) => {
-                console.error('Error parsing CSV:', error.message);
-                res.status(400).json({
-                    error: 'Error parsing CSV file.',
-                    details: error.message,
                 });
-            });
         } catch (error) {
             console.error('Error handling file upload:', error.message);
             res.status(500).json({
@@ -2006,6 +2004,7 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
         });
     }
 });
+
 function generateLocationId(isbn, title, authors, publishedDate, category, copyIndex = 1) {
     const lccCodes = {
         "Juvenile Fiction": "PZ",
@@ -2074,12 +2073,53 @@ function generateLocationId(isbn, title, authors, publishedDate, category, copyI
     console.log("Generated locationId:", locationId); // Debug log
     return locationId;
 }
+async function saveEPC(epcData) {
+    try {
+        console.log(`Checking if EPC exists: ${epcData.epc}`);
+        const existingEPC = await EPC.findOne({ epc: epcData.epc });
+        if (existingEPC) {
+           
+            return { duplicate: true, epc: epcData.epc };
+        }
+
+        // Create a new EPC record
+        const newEPC = new EPC(epcData);
+        await newEPC.save();
+        console.log(`EPC saved successfully: ${epcData.epc}`);
+        return { duplicate: false, epc: epcData.epc };
+    } catch (error) {
+        console.error(`Failed to save EPC: ${epcData.epc}`, error.message);
+        throw new Error(`Failed to save EPC: ${epcData.epc}`);
+    }
+}
+
 // Process books from parsed CSV data
 async function processBooks(books, errors) {
     const userId = 'defaultUserId'; // Replace with a valid user ID if needed
 
     for (const book of books) {
         try {
+            const requiredFields = [
+                'title',
+                'authors',
+                'industryIdentifier',
+                'copyId',
+                'bookLocation',
+                'epc',
+            ];
+
+            // Check for missing required fields
+            const missingFields = requiredFields.filter((field) => !book[field] || book[field].trim() === '');
+            if (missingFields.length > 0) {
+                console.warn('Missing required fields:', book, 'Missing:', missingFields);
+                errors.push({
+                    error: 'Missing required fields',
+                    book,
+                    missingFields,
+                });
+                continue; // Skip this book if required fields are missing
+            }
+
             const {
                 title,
                 authors,
@@ -2091,94 +2131,159 @@ async function processBooks(books, errors) {
                 language,
                 coverImage,
                 industryIdentifier,
+                copyId,
                 bookLocation,
                 availability,
                 status,
                 epc,
             } = book;
 
-            // Find existing book in the database
+            console.log(`Processing book: ${title}, EPC: ${epc}`);
+
+            if (!epc || epc.trim() === '') {
+                console.warn(`Skipping book due to missing EPC: ${title}`);
+                continue; // Skip books with missing EPC
+            }
+
+            // Sanitize and validate fields
+            const isAvailable = availability?.toLowerCase() === 'true';
+            const sanitizedStatus = ['borrowed', 'in return box', 'in library'].includes(status?.trim().toLowerCase())
+                ? status.trim().toLowerCase()
+                : 'in library'; // Default to "in library" if invalid
+            const sanitizedPageCount = pageCount ? parseInt(pageCount, 10) : 0;
+
+            // Determine the category for generating locationId
+            const category = categories?.split(',')[0]?.trim() || 'Unknown';
+
+            // Check if the book already exists in the database
             const existingBook = await BookBuy.findOne({
                 title: title.trim(),
                 authors: { $all: authors.split(',').map((a) => a.trim()) },
                 industryIdentifier: { $in: [industryIdentifier.trim()] },
             });
 
-            let copyIndex = 1; // Default copy index
-
-            // If the book already exists, calculate the next copy index
-            if (existingBook) {
-                copyIndex = existingBook.copies.length + 1; // Increment index based on existing copies
-            }
-
-            const copy = {
-                copyId: `${industryIdentifier}-${copyIndex}`, // Generate unique copyId
-                bookLocation: bookLocation?.trim(),
-                locationId: generateLocationId(
-                    industryIdentifier,
-                    title,
-                    authors.split(',').map((a) => a.trim()),
-                    publishedDate,
-                    categories.split(',')[0], // Use the first category
-                    copyIndex // Pass the dynamically calculated copy index
-                ),
-                availability: availability?.toLowerCase() === 'true',
-                status: status?.trim() || 'in library',
-                epc: epc?.trim(),
-            };
-
             if (existingBook) {
                 console.log(`Book found: ${existingBook.title}`);
 
                 // Check if the copy already exists
-                const existingCopyIndex = existingBook.copies.findIndex(c => c.copyId === copy.copyId);
+                const existingCopy = existingBook.copies.find((copy) => copy.copyId === copyId);
+                if (!existingCopy) {
+                    console.log(`Adding new copy to existing book: ${title}`);
 
-                if (existingCopyIndex > -1) {
-                    // Update the existing copy with new values
-                    console.log(`Updating existing copy with ID ${copy.copyId}`);
-                    existingBook.copies[existingCopyIndex] = {
-                        ...existingBook.copies[existingCopyIndex],
-                        ...copy, // Merge existing values with updated ones
-                    };
+                    // Generate the locationId for the new copy
+                    const locationId = generateLocationId(
+                        industryIdentifier.trim(),
+                        title.trim(),
+                        authors.split(',').map((a) => a.trim()),
+                        publishedDate,
+                        category,
+                        existingBook.copies.length + 1 // Next copy index
+                    );
+
+                    console.log(`New copy added with generated locationId: ${locationId}`);
+
+                    existingBook.copies.push({
+                        copyId: copyId?.trim(),
+                        bookLocation: bookLocation?.trim(),
+                        locationId: locationId, // Use the generated locationId
+                        availability: isAvailable,
+                        status: sanitizedStatus, // Use sanitized status
+                        epc: epc?.trim(),
+                    });
+
                 } else {
-                    // Add a new copy if it doesn't exist
-                    console.log(`Adding new copy with ID ${copy.copyId}`);
-                    existingBook.copies.push(copy);
-                    existingBook.quantity += 1;
+                    console.log(`Duplicate copy found: ${copyId}. Not generating a new locationId.`);
+                    // Update the existing copy's details without regenerating the locationId
+                    existingCopy.bookLocation = bookLocation?.trim();
+                    existingCopy.availability = isAvailable;
+                    existingCopy.status = sanitizedStatus; // Use sanitized status
+                    existingCopy.epc = epc?.trim();
                 }
 
-                // Update the book's general information with the latest values
-                existingBook.publisher = publisher;
-                existingBook.publishedDate = publishedDate;
-                existingBook.description = description;
-                existingBook.pageCount = pageCount;
-                existingBook.categories = categories.split(',').map((c) => c.trim());
-                existingBook.language = language;
-                existingBook.coverImage = coverImage;
+                // Save EPC information for this copy
+                const epcResult = await saveEPC({
+                    epc: epc?.trim(),
+                    title: title.trim(),
+                    author: authors.split(',').map((a) => a.trim()),
+                    status: sanitizedStatus,
+                    industryIdentifier: [industryIdentifier.trim()],
+                });
 
+                if (epcResult.duplicate) {
+                    console.log(`Duplicate EPC skipped: ${epc}`);
+                } else {
+                    console.log(`EPC data created successfully for book: ${title}`);
+                }
+
+                // Update the quantity based on the number of unique copies
+                existingBook.quantity = existingBook.copies.length;
+
+                // Save the updated book
                 await existingBook.save();
             } else {
                 console.log(`Creating a new book entry: ${title}`);
+                const locationId = generateLocationId(
+                    industryIdentifier.trim(),
+                    title.trim(),
+                    authors.split(',').map((a) => a.trim()),
+                    publishedDate,
+                    category,
+                    1 // First copy
+                );
+
+                console.log(`New book created with first copy locationId: ${locationId}`);
+
                 const newBook = new BookBuy({
                     userid: userId,
                     industryIdentifier: [industryIdentifier.trim()],
                     title: title.trim(),
                     authors: authors.split(',').map((a) => a.trim()),
-                    publisher,
-                    publishedDate,
-                    description,
-                    pageCount,
-                    categories: categories.split(',').map((c) => c.trim()),
-                    language,
-                    coverImage,
-                    copies: [copy],
-                    quantity: 1,
+                    publisher: publisher?.trim() || '',
+                    publishedDate: isValidDate(publishedDate) ? publishedDate.trim() : '',
+                    description: description?.trim() || '',
+                    pageCount: sanitizedPageCount, // Use sanitized pageCount
+                    categories: categories ? categories.split(',').map((c) => c.trim()) : [],
+                    language: language?.trim() || '',
+                    coverImage: coverImage?.trim() || '',
+                    purchaseDate: new Date(),
+                    quantity: 1, // New book starts with one copy
+                    copies: [
+                        {
+                            copyId: copyId?.trim(),
+                            bookLocation: bookLocation?.trim(),
+                            locationId: locationId, // Use the generated locationId
+                            availability: isAvailable,
+                            status: sanitizedStatus, // Use sanitized status
+                            epc: epc?.trim(),
+                        },
+                    ],
                 });
+
+                // Save the new book
                 await newBook.save();
+
+                // Save EPC information for this copy
+                const epcResult = await saveEPC({
+                    epc: epc?.trim(),
+                    title: title.trim(),
+                    author: authors.split(',').map((a) => a.trim()),
+                    status: sanitizedStatus,
+                    industryIdentifier: [industryIdentifier.trim()],
+                });
+
+                if (epcResult.duplicate) {
+                    console.log(`Duplicate EPC skipped: ${epc}`);
+                } else {
+                    console.log(`EPC data created successfully for book: ${title}`);
+                }
             }
         } catch (error) {
             console.error('Error processing book:', book, error.message);
-            errors.push({ error: 'Failed to process book.', book, details: error.message });
+            errors.push({
+                error: 'Failed to process book.',
+                book,
+                details: error.message,
+            });
         }
     }
 }
@@ -2336,6 +2441,8 @@ async function updateCurrentLoans(userId) {
         // Fetch borrow records where copies have status "borrowed"
         const userBorrows = await UserBorrow.find({ userid: userId, 'copies.status': 'borrowed' });
 
+        console.log(`[DEBUG] Fetched UserBorrow records for userId ${userId}:`, userBorrows);
+
         // Map the borrow records to match the loanDetailsSchema
         const currentLoans = userBorrows.map(borrow => ({
             borrowId: borrow._id,
@@ -2356,13 +2463,14 @@ async function updateCurrentLoans(userId) {
             },
         }));
 
+        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
+
         return currentLoans;
     } catch (error) {
         console.error('[ERROR] Failed to update current loans:', error.message);
         throw new Error('Failed to fetch current loans.');
     }
 }
-
 // API endpoint to save user details
 app.post('/api/userDetails', authenticateToken, async (req, res) => {
     const { userId, name, email, phone, libraryCard } = req.body;
@@ -2461,6 +2569,8 @@ app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
         // Fetch borrow records where copies have status "borrowed"
         const userBorrows = await UserBorrow.find({ userid: userId, 'copies.status': 'borrowed' });
 
+        console.log(`[DEBUG] Fetched UserBorrow records for userId ${userId}:`, userBorrows);
+
         // Map the borrow records to the loanDetailsSchema structure
         const currentLoans = userBorrows.map(borrow => ({
             borrowId: borrow._id,
@@ -2477,6 +2587,8 @@ app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
             },
         }));
 
+        console.log(`[DEBUG] Mapped currentLoans for userId ${userId}:`, currentLoans);
+
         // Update currentLoans in UserDetails
         const userDetails = await UserDetails.findOneAndUpdate(
             { userId },
@@ -2484,13 +2596,14 @@ app.get('/api/userDetails/:userId/currentLoans', async (req, res) => {
             { new: true, upsert: true }
         );
 
+        console.log(`[DEBUG] Updated UserDetails for userId ${userId}:`, userDetails);
+
         res.json(userDetails.currentLoans);
     } catch (error) {
         console.error('Error fetching and updating current loans:', error);
         res.status(500).json({ error: 'Failed to fetch and update current loans.' });
     }
 });
-
 // API to get room booking records for a specific user
 // API to get room booking records for a specific user
 app.get('/api/roomBookings', async (req, res) => {
@@ -2910,15 +3023,15 @@ app.get('/api/rfid-readers', async (req, res) => {
             const epcDetails = await EPC.find({ epc: { $in: epcList } })
                 .select('epc title author status industryIdentifier timestamp');
 
-            // Only include EPCs that exist in MongoDB
-            const epcsWithDetails = epcDetails.map(record => ({
-                epc: record.epc,
-                title: record.title,
-                author: record.author.join(', '),
-                status: record.status,
-                industryIdentifier: record.industryIdentifier ? record.industryIdentifier.join(', ') : 'N/A',
-                timestamp: record.timestamp
-            }));
+                // Format EPC details
+                const epcsWithDetails = epcDetails.map((record) => ({
+                    epc: record.epc,
+                    title: record.title,
+                    author: record.author.join(', '),
+                    status: record.status,
+                    industryIdentifier: record.industryIdentifier ? record.industryIdentifier.join(', ') : 'N/A',
+                    timestamp: record.timestamp,
+                }));
 
             return {
                 port: reader.port,
@@ -2940,6 +3053,7 @@ app.get('/api/rfid-readers', async (req, res) => {
 startRfidServers(rfidReaders, false); // Shelf readers (check and update status)
 startRfidServers(returnBoxReaders, true); // Return box readers (status to "in the return box")
 startRfidCleanup(); // Combined cleanup
+
 
 // Start server and create default admin
 app.listen(PORT, async() => {
