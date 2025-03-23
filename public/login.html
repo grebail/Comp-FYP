@@ -189,7 +189,7 @@
             const username = document.getElementById('login-username').value;
             const password = document.getElementById('login-password').value;
 
-            fetch('http://localhost:10000/login', {
+            fetch('/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -201,7 +201,7 @@
                 })
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Login failed: ' + response.statusText + ' - User Not Found!');
+                        throw new Error('Login failed: ' + response.statusText + ' - User Not Found or incorrect input!');
                     }
                     return response.json();
                 })

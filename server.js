@@ -1028,8 +1028,8 @@ app.post('/login', async (req, res) => {
             user.role === 'admin'
                 ? '/admin.html'
                 : user.role === 'librarian'
-                ? `http://localhost:10000/index_logined.html?userid=${user._id}`
-                : `http://localhost:10000/index_userlogined.html?userid=${user._id}`;
+                ? `/index_logined.html?userid=${user._id}`
+                : `/index_userlogined.html?userid=${user._id}`;
 
         // Return token and redirect URL
         console.log('Response:', { token, redirect: redirectUrl });
