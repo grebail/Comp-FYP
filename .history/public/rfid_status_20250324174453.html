@@ -169,35 +169,7 @@
         let currentIndex = 0;
         let intervalId = null;
 
-        async function fetchBookshelfData() {
-            try {
-                const response = await fetch('/api/rfid-readers', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
         
-                // Check if the response is okay
-                if (!response.ok) {
-                    throw new Error(`HTTP error! Status: ${response.status} - ${response.statusText}`);
-                }
-        
-                const data = await response.json();
-                currentReaders = data.filter(reader => reader.type === 'shelf');
-                updateBookshelves(currentReaders);
-        
-                if (currentPort) {
-                    const reader = currentReaders.find(r => r.port === currentPort);
-                    if (reader) {
-                        updateBookContainer(reader.epcs);
-                    }
-                }
-            } catch (error) {
-                console.error('Error fetching bookshelf data:', error.message);
-                document.getElementById('bookshelves').innerHTML = `<p>Error loading bookshelves: ${error.message}</p>`;
-            }
-        }
         function updateBookshelves(readers) {
             const bookshelvesContainer = document.getElementById('bookshelves');
             bookshelvesContainer.innerHTML = ''; // Clear existing bookshelves
