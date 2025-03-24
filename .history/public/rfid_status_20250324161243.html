@@ -171,22 +171,12 @@
 
         async function fetchBookshelfData() {
             try {
-                const response = await fetch('https://comp-fyp.onrender.com/api/rfid-readers', {
-                    method: 'GET',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
-        
-                // Check if the response is okay
+                const response = await fetch('http://comp-fyp.onrender.com/api/rfid-readers');
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status} - ${response.statusText}`);
                 }
-        
-                const data = await response.json();
-                currentReaders = data.filter(reader => reader.type === 'shelf');
+                currentReaders = (await response.json()).filter(reader => reader.type === 'shelf');
                 updateBookshelves(currentReaders);
-        
                 if (currentPort) {
                     const reader = currentReaders.find(r => r.port === currentPort);
                     if (reader) {
@@ -198,6 +188,7 @@
                 document.getElementById('bookshelves').innerHTML = `<p>Error loading bookshelves: ${error.message}</p>`;
             }
         }
+
         function updateBookshelves(readers) {
             const bookshelvesContainer = document.getElementById('bookshelves');
             bookshelvesContainer.innerHTML = ''; // Clear existing bookshelves
