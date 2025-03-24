@@ -171,7 +171,7 @@
 
         async function fetchBookshelfData() {
             try {
-                const response = await fetch('http://comp-fyp.onrender.com/api/rfid-readers');
+                const response = await fetch('http://localhost:10000/api/rfid-readers');
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status} - ${response.statusText}`);
                 }
