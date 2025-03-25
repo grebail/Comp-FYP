@@ -2471,11 +2471,18 @@ async function updateCurrentLoans(userId) {
         throw new Error('Failed to fetch current loans.');
     }
 }
-// API endpoint to save user details
-app.post('/api/userDetails', authenticateToken, async (req, res) => {
-    const { userId, name, email, phone, libraryCard } = req.body;
+const crypto = require('crypto');
 
-    if (!userId || !name || !email || !phone || !libraryCard) {
+// Function to generate a unique library card ID
+function generateLibraryCardId() {
+    return `LIB-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
+}
+
+// API endpoint to save or update user details
+app.post('/api/userDetails', authenticateToken, async (req, res) => {
+    const { userId, name, email, phone } = req.body;
+
+    if (!userId || !name || !email || !phone) {
         return res.status(400).json({ error: 'All fields are required.' });
     }
 
@@ -2483,24 +2490,21 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
         let userDetails = await UserDetails.findOne({ userId });
 
         if (userDetails) {
-            // Fetch current loans and update existing user details
-            const currentLoans = await updateCurrentLoans(userId);
+            // Check if library card exists; if not, generate one
+            if (!userDetails.libraryCard) {
+                userDetails.libraryCard = generateLibraryCardId();
+            }
 
-            console.log(`[DEBUG] Updating currentLoans for userId ${userId}:`, currentLoans);
-
+            // Update user details
             userDetails.name = name;
             userDetails.email = email;
             userDetails.phone = phone;
-            userDetails.libraryCard = libraryCard;
-            userDetails.currentLoans = currentLoans;
 
             await userDetails.save();
-            return res.status(200).json({ message: 'User details updated successfully.' });
+            return res.status(200).json({ message: 'User details updated successfully.', userDetails });
         } else {
-            // Fetch current loans for a new userDetails document
-            const currentLoans = await updateCurrentLoans(userId);
-
-            console.log(`[DEBUG] Creating new userDetails with currentLoans for userId ${userId}:`, currentLoans);
+            // Generate a new library card for the new user
+            const libraryCard = generateLibraryCardId();
 
             // Create new user details
             userDetails = new UserDetails({
@@ -2509,11 +2513,11 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
                 email,
                 phone,
                 libraryCard,
-                currentLoans, // Assign current loans fetched from UserBorrow
+                currentLoans: [],
             });
 
             await userDetails.save();
-            return res.status(201).json({ message: 'User details saved successfully.', userDetails });
+            return res.status(201).json({ message: 'User details created successfully.', userDetails });
         }
     } catch (error) {
         console.error('[ERROR] Failed to save user details:', error.message);
@@ -2521,7 +2525,7 @@ app.post('/api/userDetails', authenticateToken, async (req, res) => {
     }
 });
 
-// Get userDetails
+// API endpoint to fetch user details
 app.get('/api/userDetails', authenticateToken, async (req, res) => {
     const { userid } = req.query;
 
@@ -2530,30 +2534,23 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
     }
 
     try {
-        let userDetails = await UserDetails.findOne({ userId: userid }).populate('currentLoans.borrowId');
+        let userDetails = await UserDetails.findOne({ userId: userid });
 
-        // If UserDetails does not exist, create a new one
+        // If user details do not exist, create a new user with a generated library card
         if (!userDetails) {
-            console.log(`[INFO] UserDetails not found for userId: ${userid}. Creating a new document.`);
+            const libraryCard = generateLibraryCardId();
 
             userDetails = new UserDetails({
                 userId: userid,
                 name: '',
                 email: '',
                 phone: '',
-                libraryCard: '',
+                libraryCard,
                 currentLoans: [],
             });
 
             await userDetails.save();
         }
-
-        // Update the currentLoans field
-        const currentLoans = await updateCurrentLoans(userid);
-        userDetails.currentLoans = currentLoans;
-        await userDetails.save();
-
-        console.log(`[DEBUG] Updated currentLoans for userId ${userid}:`, userDetails.currentLoans);
 
         return res.status(200).json(userDetails);
     } catch (error) {

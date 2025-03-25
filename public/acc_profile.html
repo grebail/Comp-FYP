@@ -140,7 +140,7 @@
             <input type="text" id="name" name="name" required>
 
             <label for="library-card"><strong>Library Card #:</strong></label>
-            <input type="text" id="library-card" name="library-card" >
+<input type="text" id="library-card" name="library-card" readonly>
 
             <label for="email"><strong>Email:</strong></label>
             <input type="email" id="email" name="email" required>
@@ -204,17 +204,17 @@
         document.getElementById('name').value = userDetails.name || '';
         document.getElementById('email').value = userDetails.email || '';
         document.getElementById('phone').value = userDetails.phone || '';
-        document.getElementById('library-card').value = userDetails.libraryCard || '';
     
-        // Check if all fields are empty
-        const isEmpty = !userDetails.name && !userDetails.email && !userDetails.phone && !userDetails.libraryCard;
-    
-        if (isEmpty) {
-            alert('Your profile is incomplete! Please fill in your details to complete your profile.');
+        const libraryCardField = document.getElementById('library-card');
+        // Update the library card field dynamically
+        if (userDetails.libraryCard) {
+            libraryCardField.value = userDetails.libraryCard; // Set the library card
+        } else {
+            libraryCardField.value = 'Generating...'; // Show placeholder until library card is available
         }
     }
-
-    async function fetchUserDetails() {
+    
+    async function fetchUserDetails(retryCount = 0) {
         const userId = new URLSearchParams(window.location.search).get('userid'); // Get userId from URL
         const token = localStorage.getItem('token'); // Retrieve the token from local storage
     
@@ -231,22 +231,33 @@
             }
     
             const userDetails = await userResponse.json();
-            console.log('Fetched or Created User Details:', userDetails); // Log the fetched or new user details
+            console.log('Fetched User Details:', userDetails); // Log the fetched user details
     
-            populateUserDetails(userDetails); // Populate the input fields with fetched or default data
+            populateUserDetails(userDetails);
+    
+            // If the library card is not generated yet, poll the backend
+            if (!userDetails.libraryCard && retryCount < 10) {
+                console.log('Library card not generated yet, retrying...');
+                setTimeout(() => fetchUserDetails(retryCount + 1), 2000); // Retry after 2 seconds
+            } else if (!userDetails.libraryCard) {
+                console.error('Failed to generate library card after multiple retries.');
+                alert('Library card generation is taking longer than expected. Please try again later.');
+            }
         } catch (error) {
             console.error('Error fetching user details:', error);
             alert('Error fetching user details. Please try again.');
         }
     }
-   
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        fetchUserDetails(); // Fetch user details when the page loads
+    });
     async function saveChanges(event) {
-        event.preventDefault(); // Prevent the default form submission
+        event.preventDefault();
     
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
-        const libraryCard = document.getElementById('library-card').value;
     
         const userId = new URLSearchParams(window.location.search).get('userid');
         const token = localStorage.getItem('token');
@@ -263,7 +274,6 @@
                     name,
                     email,
                     phone,
-                    libraryCard,
                 }),
             });
     
@@ -277,7 +287,10 @@
             alert('Error saving user details. Please try again.');
         }
     }
-
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        fetchUserDetails(); // Fetch user details when the page loads
+    });
     async function fetchCurrentLoans() {
         const userId = new URLSearchParams(window.location.search).get('userid');
         const token = localStorage.getItem('token');

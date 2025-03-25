@@ -120,6 +120,18 @@
 
         async function borrowSelectedCopies() {
             try {
+                if (!copies || copies.length === 0) {
+                    throw new Error('No copies available to borrow.');
+                }
+
+                // Ask the user to confirm which copy they are borrowing
+                const selectedCopy = copies[0]; // Use the first copy as the default selection
+                const confirmation = confirm(`You are about to borrow Copy ID: ${selectedCopy}. Do you want to proceed?`);
+                if (!confirmation) {
+                    displayError('Borrowing process canceled by the user.');
+                    return;
+                }
+
                 const response = await fetch(`/api/books/copy_borrow`, {
                     method: 'POST',
                     headers: {
@@ -129,19 +141,19 @@
                     body: JSON.stringify({
                         userid: userId,
                         isbn,
-                        copyId: copies[0], // Use the first `copyId` from the array
+                        copyId: selectedCopy,
                     })
                 });
-        
+
                 const data = await response.json();
-        
+
                 if (!response.ok || data.error) {
                     throw new Error(data.error || 'Failed to borrow copies.');
                 }
-        
+
                 displaySuccess(data.message || 'Copies borrowed successfully!');
                 displayBorrowedDetails(data.borrowedCopies);
-        
+
                 if (data.redirectUrl) {
                     window.location.href = data.redirectUrl;
                 }
