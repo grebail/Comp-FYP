@@ -200,23 +200,13 @@
             return;
         }
     
-        const nameField = document.getElementById('name');
-        const emailField = document.getElementById('email');
-        const phoneField = document.getElementById('phone');
+        // Populate the form fields
+        document.getElementById('name').value = userDetails.name || '';
+        document.getElementById('email').value = userDetails.email || '';
+        document.getElementById('phone').value = userDetails.phone || '';
+    
         const libraryCardField = document.getElementById('library-card');
-    
-        // Populate fields only if they are empty
-        if (!nameField.value) {
-            nameField.value = userDetails.name || '';
-        }
-        if (!emailField.value) {
-            emailField.value = userDetails.email || '';
-        }
-        if (!phoneField.value) {
-            phoneField.value = userDetails.phone || '';
-        }
-    
-        // Library card is read-only, so it can always be updated
+        // Update the library card field dynamically
         if (userDetails.libraryCard) {
             libraryCardField.value = userDetails.libraryCard; // Set the library card
         } else {
@@ -245,7 +235,7 @@
     
             populateUserDetails(userDetails);
     
-            // Poll only if the library card is not generated yet
+            // If the library card is not generated yet, poll the backend
             if (!userDetails.libraryCard && retryCount < 10) {
                 console.log('Library card not generated yet, retrying...');
                 setTimeout(() => fetchUserDetails(retryCount + 1), 2000); // Retry after 2 seconds
@@ -262,8 +252,6 @@
     document.addEventListener('DOMContentLoaded', function () {
         fetchUserDetails(); // Fetch user details when the page loads
     });
-
-    
     async function saveChanges(event) {
         event.preventDefault();
     
