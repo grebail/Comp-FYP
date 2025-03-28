@@ -2805,251 +2805,240 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
     }
 });
 
-// RFID Reader Management for Shelves (update status from "in return box" to "in library")
-const rfidReaders = [
-    { port: 65432, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
-    { port: 65433, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
-    { port: 65434, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
-];
+const detectedEpcs = { shelf: new Map(), returnBox: new Map() };
+const connectionStatus = new Map();
 
-// RFID Reader Management for Return Boxes (status changes to "in the return box")
-const returnBoxReaders = [
-    { port: 12345, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
-    { port: 12346, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
-    { port: 12347, host: '0.0.0.0', status: 'inactive', epcs: new Map(), server: null, clients: 0 },
-];
-
-const DETECTION_TIMEOUT = 5000; // 5 seconds timeout for undetected EPCs
-
-function extractMiddleSegment(hexString) {
-    if (typeof hexString !== 'string' || hexString.length < 20) {
-        return null;
+async function processShelfDetection(epc, readerIp) {
+  try {
+    const existingEpc = await Epc.findOne({ epc });
+    const shelf = await Shelf.findOne({ readerIp });
+    if (!shelf) throw new Error(`Shelf with IP ${readerIp} not found`);
+    const logMessage = `${new Date().toLocaleTimeString()} - EPC '${epc}' detected by shelf reader ${readerIp}`;
+    if (existingEpc) {
+      if (existingEpc.status !== 'in library') {
+        existingEpc.status = 'in library';
+        existingEpc.readerIp = readerIp;
+        existingEpc.timestamp = Date.now();
+        existingEpc.logs = existingEpc.logs || [];
+        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEpc.save();
+        console.log(`EPC '${epc}' status changed to 'in library'`);
+      } else {
+        existingEpc.readerIp = readerIp;
+        existingEpc.logs = existingEpc.logs || [];
+        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEpc.save();
+      }
+    } else {
+      const newEpc = new Epc({
+        epc, title: 'Unknown Title', author: ['Unknown Author'], status: 'in library',
+        readerIp, timestamp: Date.now(), logs: [{ message: logMessage, timestamp: Date.now() }]
+      });
+      await newEpc.save();
+      console.log(`New EPC '${epc}' added to shelf`);
     }
-    return hexString.substring(8, 20);
+  } catch (error) {
+    console.error(`Error processing shelf EPC '${epc}':`, error.message);
+    throw error;
+  }
 }
 
-async function processShelfDetection(epc) {
-    try {
-        const epcRecord = await EPC.findOne({ epc });
-        if (!epcRecord) {
-            console.log(`EPC number '${epc}' not found in EPC schema for shelf detection.`);
-            return;
-        }
-
-        if (epcRecord.status === 'in return box') {
-            const updatedRecord = await EPC.findOneAndUpdate(
-                { epc },
-                { $set: { status: 'in library' } },
-                { new: true }
-            );
-
-            // Update UserBorrow if applicable
-            const userBorrowRecord = await UserBorrow.findOneAndUpdate(
-                { 'copies.epc': epc },
-                { 
-                    $set: { 
-                        'copies.$.status': 'in library', 
-                        'copies.$.availability': true, 
-                        'copies.$.borrowStatus': false 
-                    } 
-                },
-                { new: true }
-            );
-
-            if (!userBorrowRecord) {
-                console.log(`No UserBorrow record found for EPC '${epc}' during shelf detection.`);
-            }
-
-            // Update BookBuy to reflect availability
-            const book = await BookBuy.findOneAndUpdate(
-                { 'copies.epc': epc },
-                { 
-                    $set: { 
-                        'copies.$.availability': true, 
-                        'copies.$.status': 'in library', 
-                        'copies.$.borrowStatus': false 
-                    } 
-                },
-                { new: true }
-            );
-
-            if (!book) {
-                console.log(`No BookBuy record found for EPC '${epc}' during shelf detection.`);
-            }
-
-            console.log(`Book with EPC '${epc}' status changed from 'in return box' to 'in library' on shelf.`);
-        } else {
-            console.log(`EPC '${epc}' detected on shelf, status '${epcRecord.status}' unchanged.`);
-        }
-    } catch (error) {
-        console.error('Error processing shelf detection:', error);
+async function processReturn(epc, readerIp) {
+  try {
+    const existingEpc = await Epc.findOne({ epc });
+    const returnBox = await ReturnBox.findOne({ readerIp });
+    if (!returnBox) throw new Error(`Return box with IP ${readerIp} not found`);
+    const logMessage = `${new Date().toLocaleTimeString()} - EPC '${epc}' detected by return box reader ${readerIp}`;
+    if (existingEpc) {
+      if (existingEpc.status !== 'in return box') {
+        existingEpc.status = 'in return box';
+        existingEpc.readerIp = readerIp;
+        existingEpc.timestamp = Date.now();
+        existingEpc.logs = existingEpc.logs || [];
+        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEpc.save();
+        console.log(`EPC '${epc}' status changed to 'in return box'`);
+      } else {
+        existingEpc.readerIp = readerIp;
+        existingEpc.logs = existingEpc.logs || [];
+        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEpc.save();
+      }
+    } else {
+      const newEpc = new Epc({
+        epc, title: 'Unknown Title', author: ['Unknown Author'], status: 'in return box',
+        readerIp, timestamp: Date.now(), logs: [{ message: logMessage, timestamp: Date.now() }]
+      });
+      await newEpc.save();
+      console.log(`New EPC '${epc}' added to return box`);
     }
+  } catch (error) {
+    console.error(`Error processing return box EPC '${epc}':`, error.message);
+    throw error;
+  }
 }
 
-async function processReturn(epc) {
-    try {
-        const epcRecord = await EPC.findOneAndUpdate(
-            { epc },
-            { $set: { status: 'in return box' } },
-            { new: true }
-        );
-
-        if (!epcRecord) {
-            console.log(`EPC number '${epc}' not found in EPC schema for return.`);
-            return;
-        }
-
-        // Update UserBorrow if the book was borrowed
-        const userBorrowRecord = await UserBorrow.findOneAndUpdate(
-            { 'copies.epc': epc },
-            { 
-                $set: { 
-                    'copies.$.status': 'in return box', 
-                    'copies.$.availability': true, 
-                    'copies.$.borrowStatus': false 
-                } 
-            },
-            { new: true }
-        );
-
-        if (!userBorrowRecord) {
-            console.log(`No UserBorrow record found for EPC '${epc}' during return.`);
-        }
-
-        // Update BookBuy to reflect availability
-        const book = await BookBuy.findOneAndUpdate(
-            { 'copies.epc': epc },
-            { 
-                $set: { 
-                    'copies.$.availability': true, 
-                    'copies.$.status': 'in return box', 
-                    'copies.$.borrowStatus': false 
-                } 
-            },
-            { new: true }
-        );
-
-        if (!book) {
-            console.log(`No BookBuy record found for EPC '${epc}' during return.`);
-        }
-
-        console.log(`Book with EPC '${epc}' returned to return box.`);
-    } catch (error) {
-        console.error('Error processing return:', error);
+app.post('/api/rfid-update', ensureDbConnected, async (req, res) => {
+  const { readerIp, epc, type, detected = true } = req.body;
+  if (!readerIp || !epc || !type) return res.status(400).json({ error: 'Missing fields' });
+  const store = type === 'shelf' ? detectedEpcs.shelf : detectedEpcs.returnBox;
+  try {
+    if (detected) {
+      console.log(`EPC '${epc}' detected by ${type} reader ${readerIp}`);
+      if (type === 'shelf') await processShelfDetection(epc, readerIp);
+      else if (type === 'return_box') await processReturn(epc, readerIp);
+      store.set(epc, { timestamp: Date.now(), readerIp });
+    } else {
+      console.log(`EPC '${epc}' no longer detected by ${type} reader ${readerIp}`);
+      store.delete(epc);
+      const existingEpc = await Epc.findOne({ epc });
+      if (existingEpc && existingEpc.status !== 'borrowed') {
+        const logMessage = `${new Date().toLocaleTimeString()} - EPC '${epc}' no longer detected by ${type} reader ${readerIp}`;
+        existingEpc.status = 'borrowed';
+        existingEpc.readerIp = null;
+        existingEpc.timestamp = Date.now();
+        existingEpc.logs = existingEpc.logs || [];
+        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEpc.save();
+        console.log(`EPC '${epc}' status changed to 'borrowed'`);
+      }
     }
-}
-
-function startRfidServers(readers, isReturnBox = false) {
-    readers.forEach(reader => {
-        const server = net.createServer((socket) => {
-            reader.status = 'active';
-            reader.clients += 1;
-            console.log(`RFID client connected to port ${reader.port} (${isReturnBox ? 'return box' : 'shelf'})`);
-
-            socket.on('data', async (data) => {
-                const hexData = data.toString('hex').toUpperCase();
-                const epc = extractMiddleSegment(hexData);
-
-                if (epc) {
-                    if (isReturnBox) {
-                        await processReturn(epc); // Update status for return box readers
-                    } else {
-                        await processShelfDetection(epc); // Check and update status for shelf readers
-                    }
-                    // Track the EPC in the Map (for both shelf and return box)
-                    reader.epcs.set(epc, Date.now());
-                    console.log(`EPC ${epc} detected on port ${reader.port} (${isReturnBox ? 'return box' : 'shelf'})`);
-                }
-            });
-
-            socket.on('end', () => {
-                reader.clients -= 1;
-                if (reader.clients === 0) {
-                    reader.status = 'inactive';
-                }
-                console.log(`RFID client disconnected from port ${reader.port} (${isReturnBox ? 'return box' : 'shelf'})`);
-            });
-        });
-
-        server.listen(reader.port, reader.host, () => {
-            console.log(`RFID server listening on ${reader.host}:${reader.port} (${isReturnBox ? 'return box' : 'shelf'})`);
-        });
-
-        reader.server = server;
-
-        server.on('error', (err) => {
-            console.error(`RFID server error on port ${reader.port} (${isReturnBox ? 'return box' : 'shelf'}):`, err);
-            reader.status = 'error';
-        });
-    });
-}
-
-// Combined cleanup for both shelf and return box readers
-function startRfidCleanup() {
-    setInterval(() => {
-        const now = Date.now();
-        [...rfidReaders, ...returnBoxReaders].forEach(reader => {
-            for (const [epc, lastSeen] of reader.epcs) {
-                if (now - lastSeen > DETECTION_TIMEOUT) {
-                    reader.epcs.delete(epc);
-                    console.log(`EPC ${epc} removed from port ${reader.port} (no longer detected)`);
-                }
-            }
-        });
-    }, 1000); // Check every second
-
-    process.on('SIGINT', () => {
-        [...rfidReaders, ...returnBoxReaders].forEach(reader => {
-            if (reader.server) {
-                reader.server.close(() => {
-                    console.log(`RFID server on port ${reader.port} closed`);
-                });
-            }
-        });
-        console.log('All RFID servers closed');
-        process.exit(0);
-    });
-}
-
-// API to get RFID reader status with book details from EPC schema
-app.get('/api/rfid-readers', async (req, res) => {
-    try {
-        const allReaders = [...rfidReaders, ...returnBoxReaders];
-        const readerStatus = await Promise.all(allReaders.map(async (reader) => {
-            const epcList = Array.from(reader.epcs.keys());
-            const epcDetails = await EPC.find({ epc: { $in: epcList } })
-                .select('epc title author status industryIdentifier timestamp');
-
-                // Format EPC details
-                const epcsWithDetails = epcDetails.map((record) => ({
-                    epc: record.epc,
-                    title: record.title,
-                    author: record.author.join(', '),
-                    status: record.status,
-                    industryIdentifier: record.industryIdentifier ? record.industryIdentifier.join(', ') : 'N/A',
-                    timestamp: record.timestamp,
-                }));
-
-            return {
-                port: reader.port,
-                status: reader.status,
-                clients: reader.clients,
-                epcs: epcsWithDetails,
-                type: returnBoxReaders.includes(reader) ? 'return box' : 'shelf'
-            };
-        }));
-
-        res.json(readerStatus);
-    } catch (error) {
-        console.error('Error fetching RFID reader status:', error);
-        res.status(500).json({ error: 'Failed to fetch RFID reader status' });
-    }
+    res.status(200).json({ message: 'EPC processed' });
+  } catch (error) {
+    console.error('Error processing EPC:', error.message);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
 });
 
-// Start RFID servers for shelves and return boxes
-startRfidServers(rfidReaders, false); // Shelf readers (check and update status)
-startRfidServers(returnBoxReaders, true); // Return box readers (status to "in the return box")
-startRfidCleanup(); // Combined cleanup
+app.post('/api/connection-status', (req, res) => {
+  const { readerIp, connected } = req.body;
+  if (!readerIp || typeof connected !== 'boolean') return res.status(400).json({ error: 'Missing fields' });
+  connectionStatus.set(readerIp, connected);
+  res.status(200).json({ message: 'Connection status updated' });
+});
+
+app.get('/api/rfid-readers', ensureDbConnected, async (req, res) => {
+  try {
+    const allEpcs = await Epc.find().lean();
+    const shelves = await Shelf.find().lean();
+    const returnBoxes = await ReturnBox.find().lean();
+
+    const shelfEpcs = Array.from(detectedEpcs.shelf.entries()).map(([epc, { timestamp, readerIp }]) => {
+      const dbEpc = allEpcs.find(e => e.epc === epc) || {};
+      const shelf = shelves.find(s => s.readerIp === readerIp) || { name: 'Unknown' };
+      return { epc, timestamp, readerIp, shelfName: shelf.name, logs: dbEpc.logs || [], ...dbEpc };
+    });
+
+    const returnBoxEpcs = Array.from(detectedEpcs.returnBox.entries()).map(([epc, { timestamp, readerIp }]) => {
+      const dbEpc = allEpcs.find(e => e.epc === epc) || {};
+      const returnBox = returnBoxes.find(r => r.readerIp === readerIp) || { name: 'Unknown' };
+      return { epc, timestamp, readerIp, returnBoxName: returnBox.name, logs: dbEpc.logs || [], ...dbEpc };
+    });
+
+    const shelfReaders = shelves.map(shelf => {
+      const epcsForShelf = shelfEpcs.filter(epc => epc.readerIp === shelf.readerIp);
+      return {
+        readerIp: shelf.readerIp,
+        name: shelf.name,
+        status: connectionStatus.get(shelf.readerIp) ? 'active' : 'inactive',
+        epcs: epcsForShelf,
+      };
+    });
+
+    const returnBoxReaders = returnBoxes.map(box => {
+      const epcsForBox = returnBoxEpcs.filter(epc => epc.readerIp === box.readerIp);
+      return {
+        readerIp: box.readerIp,
+        name: box.name,
+        status: connectionStatus.get(box.readerIp) ? 'active' : 'inactive',
+        epcs: epcsForBox,
+      };
+    });
+
+    res.json({
+      shelves: shelfReaders,
+      returnBoxes: returnBoxReaders,
+    });
+  } catch (error) {
+    console.error('Error fetching readers:', error.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post('/api/shelves', ensureDbConnected, async (req, res) => {
+  const { name, readerIp } = req.body;
+  if (!name || !readerIp) return res.status(400).json({ error: 'Name and readerIp required' });
+  try {
+    const existing = await Shelf.findOne({ readerIp });
+    if (existing) return res.status(400).json({ error: 'Shelf exists' });
+    const shelf = new Shelf({ name, readerIp });
+    await shelf.save();
+    res.status(201).json(shelf);
+  } catch (error) {
+    console.error('Error adding shelf:', error.message);
+    res.status(500).json({ error: 'Failed to add shelf' });
+  }
+});
+
+app.delete('/api/shelves/:readerIp', ensureDbConnected, async (req, res) => {
+  const { readerIp } = req.params;
+  try {
+    await Shelf.deleteOne({ readerIp });
+    connectionStatus.set(readerIp, false);
+    res.status(200).json({ message: 'Shelf deleted' });
+  } catch (error) {
+    console.error('Error deleting shelf:', error.message);
+    res.status(500).json({ error: 'Failed to delete shelf' });
+  }
+});
+
+app.post('/api/return-boxes', ensureDbConnected, async (req, res) => {
+  const { name, readerIp } = req.body;
+  if (!name || !readerIp) return res.status(400).json({ error: 'Name and readerIp required' });
+  try {
+    const existing = await ReturnBox.findOne({ readerIp });
+    if (existing) return res.status(400).json({ error: 'Return box exists' });
+    const box = new ReturnBox({ name, readerIp });
+    await box.save();
+    res.status(201).json(box);
+  } catch (error) {
+    console.error('Error adding return box:', error.message);
+    res.status(500).json({ error: 'Failed to add return box' });
+  }
+});
+
+app.delete('/api/return-boxes/:readerIp', ensureDbConnected, async (req, res) => {
+  const { readerIp } = req.params;
+  try {
+    await ReturnBox.deleteOne({ readerIp });
+    connectionStatus.set(readerIp, false);
+    res.status(200).json({ message: 'Return box deleted' });
+  } catch (error) {
+    console.error('Error deleting return box:', error.message);
+    res.status(500).json({ error: 'Failed to delete return box' });
+  }
+});
+
+app.post('/api/epc', ensureDbConnected, async (req, res) => {
+  const { epc, title, author, status, industryIdentifier } = req.body;
+  if (!epc || !title || !author || !status) return res.status(400).json({ error: 'EPC, title, author, status required' });
+  if (!['borrowed', 'in return box', 'in library'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
+  try {
+    const existing = await Epc.findOne({ epc });
+    if (existing) return res.status(400).json({ error: 'EPC exists' });
+    const newEpc = new Epc({
+      epc, title, author, status, industryIdentifier: industryIdentifier || ['N/A'],
+      timestamp: Date.now(), logs: [{ message: `${new Date().toLocaleTimeString()} - EPC '${epc}' manually added`, timestamp: Date.now() }]
+    });
+    await newEpc.save();
+    console.log(`Added EPC '${epc}' with status '${status}'`);
+    res.status(201).json(newEpc);
+  } catch (error) {
+    console.error('Error adding EPC:', error.message);
+    res.status(500).json({ error: 'Failed to add EPC' });
+  }
+});
+
 
 
 // Start server and create default admin
