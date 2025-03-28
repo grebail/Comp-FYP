@@ -9,7 +9,7 @@ import time
 
 # Configuration
 CONFIG_FILE = "rfid_config.json"
-RENDER_URL = "https://rfid-library.onrender.com/api/rfid-update"
+RENDER_URL = "https://comp-fyp.onrender.com/api/rfid-update"
 LISTEN_PORT = 5000
 
 try:
@@ -197,7 +197,7 @@ def add_box(box_type):
             update_lists()
             dialog.destroy()
             try:
-                requests.post(f"https://rfid-library.onrender.com/api/{key}", 
+                requests.post(f"https://comp-fyp.onrender.com/api/{key}", 
                               json={"name": name, "readerIp": ip},
                               headers={"Content-Type": "application/json"})
             except Exception as e:
@@ -262,7 +262,7 @@ def remove_selected():
                 save_config()
                 update_lists()
                 try:
-                    response = requests.delete(f"https://rfid-library.onrender.com/api/shelves/{selected_ip}")
+                    response = requests.delete(f"https://comp-fyp.onrender.com/api/shelves/{selected_ip}")
                     log_message(f"Deleted shelf {selected_ip} from server - Status: {response.status_code}")
                     if selected_ip in detected_epcs:
                         del detected_epcs[selected_ip]
@@ -275,7 +275,7 @@ def remove_selected():
                 save_config()
                 update_lists()
                 try:
-                    response = requests.delete(f"https://rfid-library.onrender.com/api/return-boxes/{selected_ip}")
+                    response = requests.delete(f"https://comp-fyp.onrender.com/api/return-boxes/{selected_ip}")
                     log_message(f"Deleted return box {selected_ip} from server - Status: {response.status_code}")
                     if selected_ip in detected_epcs:
                         del detected_epcs[selected_ip]
@@ -463,7 +463,7 @@ def send_to_render(ip, epc, box_type, detected=True, retries=3):
 
 def send_connection_status(ip, connected):
     try:
-        response = requests.post("https://rfid-library.onrender.com/api/connection-status", json={
+        response = requests.post("https://comp-fyp.onrender.com/api/connection-status", json={
             "readerIp": ip,
             "connected": connected
         }, headers={"Content-Type": "application/json"})

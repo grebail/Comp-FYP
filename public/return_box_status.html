@@ -164,7 +164,7 @@
 
         async function fetchReturnBoxData() {
             try {
-                const response = await fetch('https://rfid-library.onrender.com/api/rfid-readers');
+                const response = await fetch('https://comp-fyp.onrender.com/api/rfid-readers');
                 if (!response.ok) {
                     throw new Error(`HTTP error! Status: ${response.status}`);
                 }
@@ -232,7 +232,7 @@
                 return;
             }
             try {
-                const response = await fetch('https://rfid-library.onrender.com/api/return-boxes', {
+                const response = await fetch('https://comp-fyp.onrender.com/api/return-boxes', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: `Return Box ${readerIp.split('.').pop()}`, readerIp })
@@ -254,7 +254,7 @@
                 return;
             }
             try {
-                const response = await fetch(`https://rfid-library.onrender.com/api/return-boxes/${readerIp}`, {
+                const response = await fetch(`https://comp-fyp.onrender.com/api/return-boxes/${readerIp}`, {
                     method: 'DELETE'
                 });
                 if (!response.ok) throw new Error(`Failed to delete return box: ${await response.text()}`);
