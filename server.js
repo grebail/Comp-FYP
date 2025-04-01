@@ -545,107 +545,128 @@ function formatDateToUTC(date) {
 }
 
 // Function to send email using SendGrid
-async function sendEmail(userDetails) {
+// Function to send email using SendGrid
+async function sendEmail(userDetails, upcomingLoans) {
     try {
         const fromAddress = 'abbichiu@gmail.com'; // Sender email
-        const toAddress = userDetails.email;     // Recipient email from user details
+        const toAddress = userDetails.email;     // Recipient email
 
         if (!toAddress) {
-            throw new Error('Recipient address is required.');
+            throw new Error(`Recipient email address is required for user ${userDetails.name || 'Unknown'}.`);
         }
 
-        // Compose the email including the current loans
-        let loanDetailsText = 'Current Loans:\n\n';
-        userDetails.currentLoans.forEach((loan, index) => {
+        // Compose the email content with the upcoming loan details
+        let loanDetailsText = 'Loans Due Soon:\n\n';
+        upcomingLoans.forEach((loan, index) => {
             loanDetailsText += `Loan ${index + 1}:\n`;
-            loanDetailsText += `Title: ${loan.details.title}\n`;
-            loanDetailsText += `Authors: ${loan.details.authors.join(', ')}\n`;
-            loanDetailsText += `Borrow Date: ${formatDateToUTC(loan.details.borrowDate)}\n`; // Convert to UTC
-            loanDetailsText += `Due Date: ${formatDateToUTC(loan.details.dueDate)}\n`;     // Convert to UTC
-            loanDetailsText += `Returned: ${loan.details.returned ? 'Yes' : 'No'}\n`;
-            loanDetailsText += `Comments: ${loan.details.comments.join(', ')}\n\n`;
+            loanDetailsText += `- Title: ${loan.details.title || 'N/A'}\n`;
+            loanDetailsText += `- Authors: ${loan.details.authors ? loan.details.authors.join(', ') : 'N/A'}\n`;
+            loanDetailsText += `- Publisher: ${loan.details.publisher || 'N/A'}\n`;
+            loanDetailsText += `- Due Date: ${formatDateToUTC(loan.copy.dueDate)}\n\n`;
         });
 
         const emailContent = `
-Hello ${userDetails.name},
+Hello ${userDetails.name || 'User'},
 
-Here are your current loan details:
+Here are your loan details that are due soon:
 
 ${loanDetailsText}
 
-Best regards,
+Please make sure to return the items on time to avoid any penalties.
+
+Best regards,  
 Library Team`;
 
         // Create the email object for SendGrid
         const msg = {
-            to: toAddress, // Recipient email
-            from: fromAddress, // Sender email
-            subject: 'Loan Due Reminder: Your Current Loan Details',
-            text: emailContent, // Plain text body
-            html: `<pre>${emailContent}</pre>`, // HTML body (optional for better formatting)
+            to: toAddress,
+            from: fromAddress,
+            subject: 'Loan Due Reminder: Upcoming Loan Details',
+            text: emailContent, // Plain text content
+            html: `<pre>${emailContent}</pre>`, // HTML content
         };
 
         // Send email using SendGrid
         const response = await sgMail.send(msg);
 
-        console.log(`Email sent successfully to ${toAddress}. Response:`, response);
+        console.log(`Email sent successfully to ${toAddress}.`);
         return response;
     } catch (error) {
-        console.error('Error sending email:', error.response ? error.response.body : error.message);
-        throw new Error('Error sending email');
+        console.error(`Error sending email to ${userDetails.email || 'Unknown Email'}:`, error.message);
+        throw error;
     }
 }
 
-// Scheduled task to send reminder emails
-cron.schedule('0 9 * * *', async () => { // Runs every day at 9 AM
-    console.log('Cron job started at:', new Date());
+// Helper function to format dates to UTC
+function formatDateToUTC(date) {
+    const utcDate = new Date(date);
+    return utcDate.toUTCString(); // Format date in UTC
+}
+// Route to manually send reminder emails
+app.post('/send-reminder-emails', async (req, res) => {
     try {
-        const today = new Date();
+        // Force UTC dates
+        const today = new Date(new Date().toISOString());
         const threeDaysFromNow = new Date(today);
-        threeDaysFromNow.setUTCDate(today.getUTCDate() + 3); // Use UTC dates
+        threeDaysFromNow.setUTCDate(today.getUTCDate() + 4); // Add 4 days
+        threeDaysFromNow.setUTCHours(23, 59, 59, 999); // Set to the end of the fourth day
 
-        // Fetch users with loans due in the next 3 days
+        console.log('Today (UTC):', today.toISOString());
+        console.log('Three Days from Now (UTC, End of Day):', threeDaysFromNow.toISOString());
+
+        // Fetch users with loans having copies due within the next 3 days
         const usersWithLoans = await UserDetails.find({
-            'currentLoans.details.dueDate': {
-                $gte: today.toISOString(), // Use ISO string for comparison
-                $lt: threeDaysFromNow.toISOString(),
+            currentLoans: {
+                $elemMatch: {
+                    'details.copies': {
+                        $elemMatch: {
+                            dueDate: {
+                                $gte: today.toISOString(), // Start of the range (inclusive)
+                                $lt: threeDaysFromNow.toISOString(), // End of the range (inclusive)
+                            },
+                        },
+                    },
+                },
             },
         });
 
         if (usersWithLoans.length === 0) {
             console.log('No users with loans due in the next 3 days.');
-            return;
+            return res.status(404).json({ message: 'No users with loans due in the next 3 days.' });
         }
 
         for (const user of usersWithLoans) {
-            await sendEmail(user);
+            if (!user.email) {
+                console.error(`User ${user.name || 'Unknown'} is missing an email address.`);
+                continue; // Skip users without an email
+            }
+
+            // Collect copies due within the next 3 days
+            const upcomingLoans = [];
+            user.currentLoans.forEach(loan => {
+                loan.details.copies.forEach(copy => {
+                    const dueDate = new Date(copy.dueDate);
+                    if (dueDate >= today && dueDate < threeDaysFromNow) {
+                        upcomingLoans.push({ details: loan.details, copy });
+                    }
+                });
+            });
+
+            if (upcomingLoans.length > 0) {
+                try {
+                    await sendEmail(user, upcomingLoans);
+                } catch (error) {
+                    console.error(`Failed to send email to ${user.email}. Error:`, error.message);
+                }
+            }
         }
+
+        res.status(200).json({ message: 'Reminder emails sent successfully!' });
     } catch (error) {
-        console.error('Error sending scheduled emails:', error.message);
-    }
-    console.log('Cron job finished at:', new Date());
-});
-
-// Route to manually send an email
-app.post('/send-email', async (req, res) => {
-    try {
-        // Fetch user details from the database (modify query as needed)
-        const userDetails = await UserDetails.findOne(); // Fetch the first user for demonstration
-
-        if (!userDetails) {
-            return res.status(404).send('No user found.');
-        }
-
-        // Send email
-        await sendEmail(userDetails);
-
-        res.status(200).send('Email sent successfully!');
-    } catch (error) {
-        console.error('Error sending email:', error.message);
-        res.status(500).send('Error sending email');
+        console.error('Error sending reminder emails:', error.message);
+        res.status(500).json({ error: 'Error sending reminder emails.' });
     }
 });
-
 // Assuming you have your Book model defined
 const countBooks = async() => {
     try {
