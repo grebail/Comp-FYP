@@ -2878,7 +2878,7 @@ async function processReturn(epc, readerIp) {
   }
 }
 
-app.post('/api/rfid-update', ensureDbConnected, async (req, res) => {
+app.post('/api/rfid-update',  async (req, res) => {
   const { readerIp, epc, type, detected = true } = req.body;
   if (!readerIp || !epc || !type) return res.status(400).json({ error: 'Missing fields' });
   const store = type === 'shelf' ? detectedEpcs.shelf : detectedEpcs.returnBox;
@@ -2917,7 +2917,7 @@ app.post('/api/connection-status', (req, res) => {
   res.status(200).json({ message: 'Connection status updated' });
 });
 
-app.get('/api/rfid-readers', ensureDbConnected, async (req, res) => {
+app.get('/api/rfid-readers',  async (req, res) => {
   try {
     const allEpcs = await Epc.find().lean();
     const shelves = await Shelf.find().lean();
@@ -2965,7 +2965,7 @@ app.get('/api/rfid-readers', ensureDbConnected, async (req, res) => {
   }
 });
 
-app.post('/api/shelves', ensureDbConnected, async (req, res) => {
+app.post('/api/shelves',  async (req, res) => {
   const { name, readerIp } = req.body;
   if (!name || !readerIp) return res.status(400).json({ error: 'Name and readerIp required' });
   try {
@@ -2980,7 +2980,7 @@ app.post('/api/shelves', ensureDbConnected, async (req, res) => {
   }
 });
 
-app.delete('/api/shelves/:readerIp', ensureDbConnected, async (req, res) => {
+app.delete('/api/shelves/:readerIp',  async (req, res) => {
   const { readerIp } = req.params;
   try {
     await Shelf.deleteOne({ readerIp });
@@ -2992,7 +2992,7 @@ app.delete('/api/shelves/:readerIp', ensureDbConnected, async (req, res) => {
   }
 });
 
-app.post('/api/return-boxes', ensureDbConnected, async (req, res) => {
+app.post('/api/return-boxes',  async (req, res) => {
   const { name, readerIp } = req.body;
   if (!name || !readerIp) return res.status(400).json({ error: 'Name and readerIp required' });
   try {
@@ -3007,7 +3007,7 @@ app.post('/api/return-boxes', ensureDbConnected, async (req, res) => {
   }
 });
 
-app.delete('/api/return-boxes/:readerIp', ensureDbConnected, async (req, res) => {
+app.delete('/api/return-boxes/:readerIp',  async (req, res) => {
   const { readerIp } = req.params;
   try {
     await ReturnBox.deleteOne({ readerIp });
@@ -3019,7 +3019,7 @@ app.delete('/api/return-boxes/:readerIp', ensureDbConnected, async (req, res) =>
   }
 });
 
-app.post('/api/epc', ensureDbConnected, async (req, res) => {
+app.post('/api/epc',  async (req, res) => {
   const { epc, title, author, status, industryIdentifier } = req.body;
   if (!epc || !title || !author || !status) return res.status(400).json({ error: 'EPC, title, author, status required' });
   if (!['borrowed', 'in return box', 'in library'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
