@@ -56,19 +56,6 @@
         .status-inactive {
             background-color: red;
         }
-        .add-box {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .add-box input {
-            margin-right: 10px;
-            width: 250px; /* Adjusted size of input field */
-            padding: 5px;
-        }
-        .add-box button {
-            margin-right: 10px;
-            padding: 5px 10px;
-        }
         .modal {
             display: none;
             position: fixed;
@@ -138,12 +125,6 @@
     <h1>RFID Return Boxes</h1>
     <div class="return-boxes" id="return-boxes">
         <!-- Return boxes will be populated here -->
-    </div>
-    <div class="add-box">
-        <input type="text" id="new-return-box-ip" placeholder="Enter Return Box IP to Add (e.g., 192.168.3.102)">
-        <button onclick="addNewReturnBox()">Add New Return Box</button>
-        <input type="text" id="delete-return-box-ip" placeholder="Enter Return Box IP to Delete">
-        <button onclick="deleteReturnBox()">Delete Return Box</button>
     </div>
 
     <div class="modal" id="book-modal">
@@ -216,54 +197,12 @@
                 const statusClass = box.status === 'active' ? 'active' : 'inactive';
                 boxDiv.innerHTML = `
                     <div class="shelf-header">
-                        <h2>${box.name} (${box.readerIp})</h2>
+                        <h2>${box.name}</h2>
                         <span class="status status-${statusClass}">${box.status}</span>
                     </div>
                 `;
                 boxDiv.onclick = () => showBooks(box.readerIp, box.epcs);
             });
-        }
-
-        async function addNewReturnBox() {
-            const ipInput = document.getElementById('new-return-box-ip');
-            const readerIp = ipInput.value.trim();
-            if (!readerIp) {
-                alert('Please enter a valid IP address to add.');
-                return;
-            }
-            try {
-                const response = await fetch('./api/return-boxes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: `Return Box ${readerIp.split('.').pop()}`, readerIp })
-                });
-                if (!response.ok) throw new Error(`Failed to add return box: ${await response.text()}`);
-                ipInput.value = '';
-                fetchReturnBoxData();
-            } catch (error) {
-                console.error('Error adding return box:', error);
-                alert(`Error adding return box: ${error.message}`);
-            }
-        }
-
-        async function deleteReturnBox() {
-            const ipInput = document.getElementById('delete-return-box-ip');
-            const readerIp = ipInput.value.trim();
-            if (!readerIp) {
-                alert('Please enter a valid IP address to delete.');
-                return;
-            }
-            try {
-                const response = await fetch(`./api/return-boxes/${readerIp}`, {
-                    method: 'DELETE'
-                });
-                if (!response.ok) throw new Error(`Failed to delete return box: ${await response.text()}`);
-                ipInput.value = '';
-                fetchReturnBoxData();
-            } catch (error) {
-                console.error('Error deleting return box:', error);
-                alert(`Error deleting return box: ${error.message}`);
-            }
         }
 
         function showBooks(readerIp, books) {

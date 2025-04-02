@@ -6,10 +6,11 @@ import threading
 import requests
 from datetime import datetime
 import time
+import re
 
 # Configuration
 CONFIG_FILE = "rfid_config.json"
-RENDER_URL = "https://comp-fyp.onrender.com/api/rfid-update"
+RENDER_URL = "https://comp-fyp.onrender.com/api/rfid-update"  # Updated Render URL
 LISTEN_PORT = 5000
 
 try:
@@ -167,6 +168,18 @@ def save_config():
     with open(CONFIG_FILE, 'w') as f:
         json.dump(config, f, indent=4)
 
+def validate_ip(ip):
+    """Validate if the input is a valid IP address."""
+    pattern = re.compile(r"^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$")
+    if not pattern.match(ip):
+        return False
+    return all(0 <= int(part) <= 255 for part in ip.split("."))
+
+def is_ip_in_use(ip):
+    """Check if the IP is already used in shelves or return boxes."""
+    all_ips = [item["ip"] for item in config["shelves"] + config["return_boxes"]]
+    return ip in all_ips
+
 def add_box(box_type):
     dialog = tk.Toplevel(root)
     dialog.title(f"Add {box_type.replace('_', ' ')}")
@@ -184,26 +197,39 @@ def add_box(box_type):
     name_entry.pack(pady=5)
     tk.Label(dialog, text="IP:", font=("Arial", 10)).pack(pady=10)
     ip_entry = tk.Entry(dialog, width=30)
-    ip_entry.insert(0, "192.168.1.1")
+    default_ip = "192.168.1.100" if box_type == "shelf" else "192.168.2.100"
+    ip_entry.insert(0, default_ip)
     ip_entry.pack(pady=5)
 
     def submit():
         name = name_entry.get().strip()
         ip = ip_entry.get().strip()
-        if name and ip:
-            key = "shelves" if box_type == "shelf" else "return_boxes"
-            config[key].append({"name": name, "ip": ip})
+        if not name or not ip:
+            messagebox.showwarning("Input Error", "Both Name and IP are required.")
+        elif not validate_ip(ip):
+            messagebox.showwarning("Input Error", "Invalid IP address format.")
+        elif is_ip_in_use(ip):
+            messagebox.showwarning("Input Error", f"IP address {ip} is already in use by another bookshelf or return box.")
+        else:
+            config_key = "shelves" if box_type == "shelf" else "return_boxes"
+            api_key = "shelves" if box_type == "shelf" else "return-boxes"
+            config[config_key].append({"name": name, "ip": ip})
             save_config()
             update_lists()
             dialog.destroy()
             try:
-                requests.post(f"https://comp-fyp.onrender.com/api/{key}", 
-                              json={"name": name, "readerIp": ip},
-                              headers={"Content-Type": "application/json"})
+                response = requests.post(
+                    f"https://comp-fyp.onrender.com/api/{api_key}",  # Updated Render URL
+                    json={"name": name, "readerIp": ip},
+                    headers={"Content-Type": "application/json"},
+                    timeout=5
+                )
+                if response.status_code in (200, 201):
+                    log_message(f"Added {box_type} {name} ({ip}) to server - Status: {response.status_code}")
+                else:
+                    log_message(f"Warning: Failed to add {box_type} {name} ({ip}) to server - Status: {response.status_code}")
             except Exception as e:
-                log_message(f"Error registering {box_type} {ip} with Render: {str(e)}")
-        else:
-            messagebox.showwarning("Input Error", "Both Name and IP are required.")
+                log_message(f"Error registering {box_type} {ip} with server: {str(e)}")
 
     tk.Button(dialog, text="Add", command=submit).pack(pady=20)
 
@@ -218,6 +244,8 @@ def edit_selected():
             if box["ip"] == selected_ip:
                 edit_item("return_box", i, box)
                 return
+    else:
+        messagebox.showwarning("Selection Error", "Please select an item to edit.")
 
 def edit_item(box_type, idx, item):
     dialog = tk.Toplevel(root)
@@ -242,14 +270,48 @@ def edit_item(box_type, idx, item):
     def submit():
         name = name_entry.get().strip()
         ip = ip_entry.get().strip()
-        if name and ip:
-            key = "shelves" if box_type == "shelf" else "return_boxes"
-            config[key][idx] = {"name": name, "ip": ip}
+        if not name or not ip:
+            messagebox.showwarning("Input Error", "Both Name and IP are required.")
+        elif not validate_ip(ip):
+            messagebox.showwarning("Input Error", "Invalid IP address format.")
+        elif ip != item["ip"] and is_ip_in_use(ip):
+            messagebox.showwarning("Input Error", f"IP address {ip} is already in use by another bookshelf or return box.")
+        else:
+            config_key = "shelves" if box_type == "shelf" else "return_boxes"
+            api_key = "shelves" if box_type == "shelf" else "return-boxes"
+            old_ip = item["ip"]
+            old_name = item["name"]
+            
+            config[config_key][idx] = {"name": name, "ip": ip}
             save_config()
             update_lists()
             dialog.destroy()
-        else:
-            messagebox.showwarning("Input Error", "Both Name and IP are required.")
+            
+            try:
+                delete_endpoint = f"https://comp-fyp.onrender.com/api/{api_key}/{old_ip}"  # Updated Render URL
+                delete_response = requests.delete(delete_endpoint)
+                if delete_response.status_code in (200, 204, 404):
+                    log_message(f"Deleted old {box_type} {old_ip} from server - Status: {delete_response.status_code}")
+                else:
+                    log_message(f"Warning: Failed to delete old {box_type} {old_ip} from server - Status: {delete_response.status_code}")
+                
+                add_endpoint = f"https://comp-fyp.onrender.com/api/{api_key}"  # Updated Render URL
+                add_response = requests.post(
+                    add_endpoint,
+                    json={"name": name, "readerIp": ip},
+                    headers={"Content-Type": "application/json"},
+                    timeout=5
+                )
+                if add_response.status_code in (200, 201):
+                    log_message(f"Updated {box_type} from '{old_name}' ({old_ip}) to '{name}' ({ip}) on server")
+                else:
+                    log_message(f"Warning: Failed to update {box_type} {ip} on server - Status: {add_response.status_code}")
+                
+                if old_ip != ip and old_ip in detected_epcs:
+                    detected_epcs[ip] = detected_epcs.pop(old_ip)
+                    update_status(ip, detected_epcs[ip].get('status', 'grey'))
+            except Exception as e:
+                log_message(f"Error updating {box_type} {ip} on server: {str(e)}")
 
     tk.Button(dialog, text="Save", command=submit).pack(pady=20)
 
@@ -262,7 +324,7 @@ def remove_selected():
                 save_config()
                 update_lists()
                 try:
-                    response = requests.delete(f"https://comp-fyp.onrender.com/api/shelves/{selected_ip}")
+                    response = requests.delete(f"https://comp-fyp.onrender.com/api/shelves/{selected_ip}")  # Updated Render URL
                     log_message(f"Deleted shelf {selected_ip} from server - Status: {response.status_code}")
                     if selected_ip in detected_epcs:
                         del detected_epcs[selected_ip]
@@ -275,7 +337,7 @@ def remove_selected():
                 save_config()
                 update_lists()
                 try:
-                    response = requests.delete(f"https://comp-fyp.onrender.com/api/return-boxes/{selected_ip}")
+                    response = requests.delete(f"https://comp-fyp.onrender.com/api/return-boxes/{selected_ip}")  # Updated Render URL
                     log_message(f"Deleted return box {selected_ip} from server - Status: {response.status_code}")
                     if selected_ip in detected_epcs:
                         del detected_epcs[selected_ip]
@@ -463,7 +525,7 @@ def send_to_render(ip, epc, box_type, detected=True, retries=3):
 
 def send_connection_status(ip, connected):
     try:
-        response = requests.post("https://comp-fyp.onrender.com/api/connection-status", json={
+        response = requests.post("https://comp-fyp.onrender.com/api/connection-status", json={  # Updated Render URL
             "readerIp": ip,
             "connected": connected
         }, headers={"Content-Type": "application/json"})

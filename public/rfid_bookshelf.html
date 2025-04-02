@@ -56,19 +56,6 @@
         .status-inactive {
             background-color: red;
         }
-        .add-box {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .add-box input {
-            margin-right: 10px;
-            width: 250px; /* Adjusted size of input field */
-            padding: 5px;
-        }
-        .add-box button {
-            margin-right: 10px;
-            padding: 5px 10px;
-        }
         .modal {
             display: none;
             position: fixed;
@@ -138,12 +125,6 @@
     <h1>RFID Bookshelves</h1>
     <div class="bookshelf" id="bookshelf">
         <!-- Shelves will be populated here -->
-    </div>
-    <div class="add-box">
-        <input type="text" id="new-shelf-ip" placeholder="Enter Shelf IP to Add (e.g., 192.168.3.101)">
-        <button onclick="addNewShelf()">Add New Shelf</button>
-        <input type="text" id="delete-shelf-ip" placeholder="Enter Shelf IP to Delete">
-        <button onclick="deleteShelf()">Delete Shelf</button>
     </div>
 
     <div class="modal" id="book-modal">
@@ -216,54 +197,12 @@
                 const statusClass = shelf.status === 'active' ? 'active' : 'inactive';
                 shelfDiv.innerHTML = `
                     <div class="shelf-header">
-                        <h2>${shelf.name} (${shelf.readerIp})</h2>
+                        <h2>${shelf.name}</h2>
                         <span class="status status-${statusClass}">${shelf.status}</span>
                     </div>
                 `;
                 shelfDiv.onclick = () => showBooks(shelf.readerIp, shelf.epcs);
             });
-        }
-
-        async function addNewShelf() {
-            const ipInput = document.getElementById('new-shelf-ip');
-            const readerIp = ipInput.value.trim();
-            if (!readerIp) {
-                alert('Please enter a valid IP address to add.');
-                return;
-            }
-            try {
-                const response = await fetch('./api/shelves', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: `Bookshelf ${readerIp.split('.').pop()}`, readerIp })
-                });
-                if (!response.ok) throw new Error(`Failed to add shelf: ${await response.text()}`);
-                ipInput.value = '';
-                fetchBookshelfData();
-            } catch (error) {
-                console.error('Error adding shelf:', error);
-                alert(`Error adding shelf: ${error.message}`);
-            }
-        }
-
-        async function deleteShelf() {
-            const ipInput = document.getElementById('delete-shelf-ip');
-            const readerIp = ipInput.value.trim();
-            if (!readerIp) {
-                alert('Please enter a valid IP address to delete.');
-                return;
-            }
-            try {
-                const response = await fetch(`./api/shelves/${readerIp}`, {
-                    method: 'DELETE'
-                });
-                if (!response.ok) throw new Error(`Failed to delete shelf: ${await response.text()}`);
-                ipInput.value = '';
-                fetchBookshelfData();
-            } catch (error) {
-                console.error('Error deleting shelf:', error);
-                alert(`Error deleting shelf: ${error.message}`);
-            }
         }
 
         function showBooks(readerIp, books) {
