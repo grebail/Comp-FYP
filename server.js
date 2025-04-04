@@ -186,11 +186,10 @@ Smart Library Team`;
 // API to handle event booking
 app.post('/api/bookEvent', async (req, res) => {
     try {
-        const { eventName, userName, userEmail } = req.body;
+        const { eventName, userId } = req.body;
 
         // Validate inputs
-        if (!eventName || !userName || !userEmail) {
-            console.log('Missing booking details');
+        if (!eventName || !userId) {
             return res.status(400).json({ error: 'Missing booking details.' });
         }
 
@@ -198,67 +197,52 @@ app.post('/api/bookEvent', async (req, res) => {
 
         // Find the event in the database
         const event = await Event.findOne({ title: eventName });
-
         if (!event) {
-            console.log('Event not found in the database');
             return res.status(404).json({ error: 'Event not found.' });
         }
-
-        console.log(`Event found: ${event.title}`);
 
         // Ensure `registeredUsers` is a Map
         if (!event.registeredUsers || !(event.registeredUsers instanceof Map)) {
             event.registeredUsers = new Map();
         }
 
-        // Sanitize the email address for use as a key in the Map
+        // Fetch the user's details using the userId
+        const userDetails = await UserDetails.findOne({ userId });
+        if (!userDetails) {
+            return res.status(404).json({ error: 'User details not found. Please register the user first.' });
+        }
+
+        const userName = userDetails.name; // Assuming `name` is a field in UserDetails
+        const userEmail = userDetails.email; // Assuming `email` is a field in UserDetails
+
+        // Sanitize the email address to use as a key in the Map
         const sanitizedEmail = userEmail.replace(/\./g, '[dot]');
 
         // Check if the user is already registered
         if (event.registeredUsers.has(sanitizedEmail)) {
-            console.log(`User ${userName} is already registered for event ${event.title}`);
             return res.status(400).json({ error: 'User already registered for this event.' });
         }
 
         // Add the sanitized email and user name to the `registeredUsers` map
         event.registeredUsers.set(sanitizedEmail, userName);
-
-        // Save the updated event
         await event.save();
 
         console.log(`User ${userName} successfully registered for event ${event.title}`);
 
-        // Update the `eventBookings` in the `UserDetails` schema
-        const userDetails = await UserDetails.findOne({ email: userEmail });
-
-        if (userDetails) {
-            // Add the event to the user's `eventBookings` if not already present
-            if (!userDetails.eventBookings.includes(event._id)) {
-                userDetails.eventBookings.push(event._id);
-                await userDetails.save();
-
-                console.log(`Event ${eventName} added to user ${userName}'s bookings.`);
-            }
-        } else {
-            console.log(`UserDetails not found for email: ${userEmail}`);
-            return res.status(404).json({ error: 'User details not found. Please register the user first.' });
+        // Add the event to the user's bookings if not already present
+        if (!userDetails.eventBookings.includes(event._id)) {
+            userDetails.eventBookings.push(event._id);
+            await userDetails.save();
         }
 
-        // Send confirmation email
+        // Send booking confirmation email
         await sendBookingConfirmationEmail({ eventName, userName, userEmail });
 
-        // Respond to the client
         res.status(200).json({
             message: `Booking confirmed for "${eventName}". A confirmation email has been sent to: ${userEmail}`,
         });
     } catch (error) {
-        console.error('Error in /api/bookEvent:', error.message);
-
-        // Handle specific errors for better feedback
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ error: 'Invalid input data.' });
-        }
-
+        console.error('Error booking event:', error.message);
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
