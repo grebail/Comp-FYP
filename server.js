@@ -422,6 +422,53 @@ app.delete('/api/deleteExpiredEvents', async (req, res) => {
     }
 });
 
+
+// Function to send room booking confirmation email
+async function sendRoomBookingConfirmationEmail(bookingDetails) {
+    try {
+        const { roomName, userName, userEmail, date, timeslot } = bookingDetails;
+
+        if (!userName || !userEmail || !roomName || !date || !timeslot) {
+            throw new Error('Missing booking details.');
+        }
+
+        const fromAddress = 'abbichiu@gmail.com'; // Replace with your verified email
+        const toAddress = userEmail;
+
+        const emailContent = `
+Hello ${userName},
+
+Thank you for booking the room "${roomName}" with us!
+
+Here are the booking details:
+
+Room: ${roomName}
+Date: ${date}
+Timeslot: ${timeslot}
+
+We look forward to having you use our facilities. If you have any questions, please feel free to contact us.
+
+Best regards,
+Smart Library Team`;
+
+        const msg = {
+            to: toAddress,
+            from: fromAddress,
+            subject: `Booking Confirmation: ${roomName}`,
+            text: emailContent, // Send as plain text
+        };
+
+        console.log('Sending email with the following details:', msg);
+
+        const response = await sgMail.send(msg);
+        console.log('Email sent successfully. SendGrid response:', response[0].statusCode, response[0].headers);
+
+        return response;
+    } catch (error) {
+        console.error('Error sending room booking confirmation email:', error.response ? error.response.body : error.message);
+        throw new Error('Error sending room booking confirmation email');
+    }
+}
 // API to book a room
 // API to book a room
 app.post('/api/bookRoom', async (req, res) => {
@@ -469,12 +516,24 @@ app.post('/api/bookRoom', async (req, res) => {
 
         console.log(`Room "${roomName}" booked successfully by user "${user.name}" for ${date} at ${timeslot}.`);
 
+        // Send confirmation email
+        const emailDetails = {
+            roomName,
+            userName: user.name,
+            userEmail: user.email,
+            date,
+            timeslot,
+        };
+
+        await sendRoomBookingConfirmationEmail(emailDetails);
+
         res.status(201).json({ message: 'Room booked successfully', bookingId });
     } catch (error) {
         console.error('Error booking room:', error.message);
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
+
 
 
 
