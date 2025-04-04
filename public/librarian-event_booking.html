@@ -150,6 +150,53 @@
         #edit-modal button {
             margin: 5px;
         }
+        #users-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            padding: 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            width: 90%;
+            max-width: 600px;
+        }
+        
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        
+        #users-modal ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        #users-modal ul li {
+            margin: 5px 0;
+        }
+        .details-button {
+            background-color: #1565c0; /* Blue background */
+            color: white;
+            border: none;
+            padding: 7px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .details-button:hover {
+            background-color: #1e88e5; /* Lighter blue on hover */
+        }
     </style>
 </head>
 <body>
@@ -169,7 +216,6 @@
                 <tr>
                     <th>Event Title</th>
                     <th>Event Date</th>
-                    <th>Registered Users</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -192,6 +238,15 @@
         <button class="delete-button" onclick="deleteExpiredEvents()">Delete All Expired Events</button>
     </div>
 </div>
+<!-- Registered Users Modal -->
+<div id="users-modal">
+    <h3>Registered Users</h3>
+    <ul id="users-list">
+        <!-- User list will be dynamically populated -->
+    </ul>
+    <button onclick="closeUsersModal()">Close</button>
+</div>
+<div id="overlay" onclick="closeUsersModal()"></div>
 
 <!-- Edit Modal -->
 <div id="edit-modal">
@@ -223,23 +278,23 @@
         try {
             const response = await fetch('/api/events');
             const events = await response.json();
-
+    
             if (!response.ok) {
                 throw new Error(events.error || 'Failed to fetch events.');
             }
-
+    
             const tableBody = document.getElementById('event-table-body');
             tableBody.innerHTML = ''; // Clear existing rows
-
+    
             events.forEach(event => {
+                const registeredUsers = Object.entries(event.registeredUsers || {}).map(([email, name]) => ({ email, name }));
+    
                 const row = document.createElement('tr');
-                const registeredUsers = Object.entries(event.registeredUsers || {}).map(([email, name]) => `${name} (${email})`).join('<br>');
-
                 row.innerHTML = `
                     <td>${event.title}</td>
                     <td>${event.time ? new Date(event.time).toLocaleString() : 'No time set'}</td>
-                    <td>${registeredUsers || 'No users registered'}</td>
                     <td>
+                        <button class="details-button" onclick="showRegisteredUsers('${event.eventId}', ${JSON.stringify(registeredUsers)})">Show Details</button>
                         <button class="edit-button" onclick="editEvent('${event.eventId}', '${event.time || ''}')">Edit</button>
                         <button class="delete-button" onclick="deleteEvent('${event.eventId}')">Delete</button>
                     </td>
@@ -277,6 +332,34 @@ document.getElementById('csv-upload').addEventListener('change', async function 
         alert('Error uploading CSV. Please check your file.');
     }
 });
+//display user details
+function showRegisteredUsers(eventId, registeredUsers) {
+    try {
+        const usersList = document.getElementById('users-list');
+        usersList.innerHTML = ''; // Clear existing list
+
+        if (registeredUsers.length > 0) {
+            registeredUsers.forEach(user => {
+                const listItem = document.createElement('li');
+                listItem.textContent = `${user.name} (${user.email})`;
+                usersList.appendChild(listItem);
+            });
+        } else {
+            usersList.innerHTML = '<li>No registered users found.</li>';
+        }
+
+        document.getElementById('users-modal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    } catch (error) {
+        console.error('Error displaying registered users:', error.message);
+        alert('Error displaying registered users. Please try again later.');
+    }
+}
+
+function closeUsersModal() {
+    document.getElementById('users-modal').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+}
     // Show the edit modal
     function editEvent(eventId, currentTime) {
         currentEventId = eventId;
