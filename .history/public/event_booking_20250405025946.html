@@ -138,6 +138,7 @@
             bottom: 0;
             width: 100%;
         }
+
         .modal {
             display: none;
             position: fixed;
@@ -169,6 +170,9 @@
             color: black;
             text-decoration: none;
             cursor: pointer;
+        }
+        #event-detail {
+            line-height: 1.5; /* Optional: Improves readability */
         }
 
                 /* Back to Home Button */
@@ -251,214 +255,43 @@
         }
     </style>
 </head>
-<body>
-
-<header>
-    <h1>Event Booking</h1>
-</header>
-
-<!-- Promotional Section -->
-<div class ="promo-container">
-    <button class="scroll-button scroll-left" onclick="slideLeft()">&#10094;</button>
-    <div class="promo-slider" id="promoSlider">
-        <div class="promo-slide">
-            <img src="Event-Promotion-test.jpeg" alt="Promotion 1">
-        </div>
-        <div class="promo-slide">
-            <img src="Event-Promotion-850x425.png" alt="Promotion 2">
-        </div>
-    </div>
-    <button class="scroll-button scroll-right" onclick="slideRight()">&#10095;</button>
-</div>
-
-<!-- Booking  Section -->
 <div class="container">
     <h2>Explore Our Events</h2>
     <div class="event">
         <h3>Book Reading: "The Great Gatsby"</h3>
         <p>Date: March 15, 2025</p>
         <p>Time: 3:00 PM - 4:00 PM</p>
-        <button class="book-button" onclick="openModal('The Great Gatsby')">Book Now</button>
-        <button class="detail-button">Details</button>
+        <button class="book-button" onclick="bookEvent('The Great Gatsby', 'John Doe', 'johndoe@example.com')">Book Now</button>
     </div>
     <div class="event">
         <h3>Writing Workshop</h3>
         <p>Date: March 20, 2025</p>
         <p>Time: 1:00 PM - 3:00 PM</p>
-        <button class="book-button" onclick="openModal('Writing Workshop')">Book Now</button>
-        <button class="detail-button">Details</button>
+        <button class="book-button" onclick="bookEvent('Writing Workshop', 'Jane Smith', 'janesmith@example.com')">Book Now</button>
     </div>
-    <div class="event">
-        <h3>Author Meet and Greet</h3>
-        <p>Date: April 10, 2025</p>
-        <p>Time: 5:00 PM - 7:00 PM</p>
-        <button class="book-button" onclick="openModal('Author Meet and Greet')">Book Now</button>
-        <button class="detail-button">Details</button>
-    </div>
-    <div class="event">
-        <h3>Digital Literacy Workshop</h3>
-        <p>Date: April 15, 2025</p>
-        <p>Time: 2:00 PM - 4:00 PM</p>
-        <button class="book-button" onclick="openModal('Digital Literacy Workshop')">Book Now</button>
-        <button class="detail-button">Details</button>
-    </div>
-</div>
-
-<!-- Modal -->
-<div id="myModal" class="modal">
-    <div class="modal-content">
-        <span class="close" onclick="closeModal()">&times;</span>
-        <h2>Booking Confirmation</h2>
-        <p id="event-name"></p>
-        <form id="booking-form">
-            <label for ="name">Name:</label><br>
-            <input type="text" id="name" required><br><br>
-            <label for="email">Email:</label><br>
-            <input type="email" id="email" required><br><br>
-            <button type="submit" class="book-button">Confirm Booking</button>
-        </form>
-    </div>
-</div>
-
-<div class="back-home">
-    <a id="home-link" href="#">Back to Home</a>
 </div>
 
 <script>
-   
-    let currentIndex = 0;
-    const slides = document.querySelectorAll('.promo-slide');
-    const totalSlides = slides.length;
-
-    function slideLeft() {
-        if (currentIndex > 0) {
-            currentIndex--;
-            updateSliderPosition();
-        }
-    }
-
-    function slideRight() {
-        if (currentIndex < totalSlides - 1) {
-            currentIndex++;
-            updateSliderPosition();
-        }
-    }
-
-    function updateSliderPosition() {
-        const slider = document.getElementById('promoSlider');
-        slider.style.transform = `translateX(-${currentIndex * 100}%)`;
-    }
-
-    setInterval(() => {
-        if (currentIndex < totalSlides - 1) {
-            currentIndex++;
-        } else {
-            currentIndex = 0;
-        }
-        updateSliderPosition();
-    }, 5000);
-
-
-    function openModal(eventName) {
-        document.getElementById('event-name').innerText = "You are booking: " + eventName;
-        document.getElementById('myModal').dataset.eventName = eventName; // Save the event name in modal
-        document.getElementById('myModal').style.display = "block";
-    }
-
-    function closeModal() {
-        document.getElementById('myModal').style.display = "none";
-    }
-    document.getElementById('booking-form').addEventListener('submit', async function (event) {
-        event.preventDefault();
-    
-        const eventName = document.getElementById('myModal').dataset.eventName;
-        const userName = document.getElementById('name').value.trim();
-        const userEmail = document.getElementById('email').value.trim();
-        const submitButton = event.target.querySelector('.book-button');
-    
-        if (!userName || !userEmail) {
-            alert('Please fill out all fields.');
-            return;
-        }
-    
-        // Disable the button to prevent multiple submissions
-        submitButton.disabled = true;
-        submitButton.textContent = 'Processing...';
-    
+    async function bookEvent(eventName, userName, userEmail) {
         try {
-            // Send booking details to the server
             const response = await fetch('/api/bookEvent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    eventName,
-                    userName,
-                    userEmail
-                })
+                body: JSON.stringify({ eventName, userName, userEmail })
             });
-    
-            const result = await response.json();
-    
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to confirm booking.');
-            }
-    
-            alert(`Booking confirmed for "${eventName}"! A confirmation email has been sent to: ${userEmail}`);
-            closeModal();
-        } catch (error) {
-            console.error('Error confirming booking:', error.message);
-            alert('Error confirming booking. Please try again.');
-        } finally {
-            // Re-enable the button
-            submitButton.disabled = false;
-            submitButton.textContent = 'Confirm Booking';
-        }
-    });
-   
-    document.addEventListener('DOMContentLoaded', async function () {
-        try {
-            // Fetch events from the API
-            const response = await fetch('/api/events');
-            const events = await response.json();
-    
-            if (!response.ok) {
-                throw new Error(events.error || 'Failed to fetch events.');
-            }
-    
-            // Display events dynamically
-            const container = document.querySelector('.container');
-            container.innerHTML = '<h2>Explore Our Events</h2>'; // Clear existing content
-    
-            events.forEach(event => {
-                const eventDiv = document.createElement('div');
-                eventDiv.classList.add('event');
-                eventDiv.innerHTML = `
-                    <h3>${event.title}</h3>
-                    <p>Date: ${new Date(event.time).toLocaleDateString()}</p>
-                    <p>Time: ${new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    <button class="book-button" onclick="openModal('${event.title}')">Book Now</button>
-                    <button class="detail-button">Details</button>
-                `;
-                container.appendChild(eventDiv);
-            });
-        } catch (error) {
-            console.error('Error fetching events:', error.message);
-            alert('Error fetching events. Please try again later.');
-        }
-    });
-    
-    window.onclick = function(event) {
-        if (event.target == document.getElementById('myModal')) {
-            closeModal();
-        }
-    };
 
-    document.addEventListener('DOMContentLoaded', function() {    
-        document.getElementById('home-link').addEventListener('click', function() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `index_userlogined.html?userid=${userId}`; 
-        });
-    });
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to book the event.');
+            }
+
+            alert(`Booking confirmed for "${eventName}"! A confirmation email has been sent to: ${userEmail}`);
+        } catch (error) {
+            console.error('Error booking event:', error.message);
+            alert('Error booking event. Please try again later.');
+        }
+    }
 </script>
 
 <footer>

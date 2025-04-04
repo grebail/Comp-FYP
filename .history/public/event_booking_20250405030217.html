@@ -138,6 +138,7 @@
             bottom: 0;
             width: 100%;
         }
+
         .modal {
             display: none;
             position: fixed;
@@ -169,6 +170,9 @@
             color: black;
             text-decoration: none;
             cursor: pointer;
+        }
+        #event-detail {
+            line-height: 1.5; /* Optional: Improves readability */
         }
 
                 /* Back to Home Button */
@@ -278,34 +282,46 @@
         <h3>Book Reading: "The Great Gatsby"</h3>
         <p>Date: March 15, 2025</p>
         <p>Time: 3:00 PM - 4:00 PM</p>
+        <p class="event-info" style="display: none;">
+            Join us for a captivating reading of F. Scott Fitzgerald's classic novel, followed by a discussion on the American Dream.
+        </p>
         <button class="book-button" onclick="openModal('The Great Gatsby')">Book Now</button>
-        <button class="detail-button">Details</button>
+        <button class="detail-button" onclick="detailModal(this)">Details</button>
     </div>
     <div class="event">
         <h3>Writing Workshop</h3>
         <p>Date: March 20, 2025</p>
         <p>Time: 1:00 PM - 3:00 PM</p>
+        <p class="event-info" style="display: none;">
+            Used many time for drafting an essay. Join the workshop to enrich your writing skills. 
+        </p>
         <button class="book-button" onclick="openModal('Writing Workshop')">Book Now</button>
-        <button class="detail-button">Details</button>
+        <button class="detail-button" onclick="detailModal(this)">Details</button>
     </div>
     <div class="event">
         <h3>Author Meet and Greet</h3>
         <p>Date: April 10, 2025</p>
         <p>Time: 5:00 PM - 7:00 PM</p>
+        <p class="event-info" style="display: none;">
+            Meet and greet local famous author - Richard Tong. Sharing his life of being an author in Hong Kong and challenges.
+        </p>
         <button class="book-button" onclick="openModal('Author Meet and Greet')">Book Now</button>
-        <button class="detail-button">Details</button>
+        <button class="detail-button" onclick="detailModal(this)">Details</button>
     </div>
     <div class="event">
         <h3>Digital Literacy Workshop</h3>
         <p>Date: April 15, 2025</p>
         <p>Time: 2:00 PM - 4:00 PM</p>
+        <p class="event-info" style="display: none;">
+            Sharing by a local vender company on the topic. Join our workshop to know more about that how are the technology helps with the library's development.
+        </p>
         <button class="book-button" onclick="openModal('Digital Literacy Workshop')">Book Now</button>
-        <button class="detail-button">Details</button>
+        <button class="detail-button" onclick="detailModal(this)">Details</button>
     </div>
 </div>
 
 <!-- Modal -->
-<div id="myModal" class="modal">
+<div id="bookModal" class="modal">
     <div class="modal-content">
         <span class="close" onclick="closeModal()">&times;</span>
         <h2>Booking Confirmation</h2>
@@ -317,6 +333,15 @@
             <input type="email" id="email" required><br><br>
             <button type="submit" class="book-button">Confirm Booking</button>
         </form>
+    </div>
+</div>
+
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Event Details</h2>
+        <p id="event-name-info"></p><br>
+        <p id="event-detail"></p>
     </div>
 </div>
 
@@ -359,19 +384,29 @@
     }, 5000);
 
 
-    function openModal(eventName) {
-        document.getElementById('event-name').innerText = "You are booking: " + eventName;
-        document.getElementById('myModal').dataset.eventName = eventName; // Save the event name in modal
-        document.getElementById('myModal').style.display = "block";
-    }
+    
+    
+    // Closing logic remains unchanged
+    document.addEventListener('DOMContentLoaded', function() {
+        var modal = document.getElementById('infoModal');
+        var span = document.getElementsByClassName('close')[0];
+        
+        span.onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = 'none';
+            }
+        };
+    });
 
-    function closeModal() {
-        document.getElementById('myModal').style.display = "none";
-    }
+    
     document.getElementById('booking-form').addEventListener('submit', async function (event) {
         event.preventDefault();
     
-        const eventName = document.getElementById('myModal').dataset.eventName;
+        const eventName = document.getElementById('bookModal').dataset.eventName;
         const userName = document.getElementById('name').value.trim();
         const userEmail = document.getElementById('email').value.trim();
         const submitButton = event.target.querySelector('.book-button');
@@ -448,7 +483,7 @@
     });
     
     window.onclick = function(event) {
-        if (event.target == document.getElementById('myModal')) {
+        if (event.target == document.getElementById('bookModal')) {
             closeModal();
         }
     };
