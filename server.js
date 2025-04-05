@@ -1979,6 +1979,10 @@ app.put('/api/updateLocationId/:copyId', async (req, res) => {
 
 
 app.post('/api/importBooks', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded. Please select a CSV file.' });
+    }
+
     const results = [];
     const errors = [];
     const csvHeaders = [
@@ -1997,62 +2001,46 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
         'availability',
         'status',
         'industryIdentifier',
-        'epc',
+        'epc'
     ];
 
-    if (req.file) {
-        try {
-            const fileStream = fs.createReadStream(req.file.path, { encoding: 'utf8' });
+    try {
+        const fileStream = fs.createReadStream(req.file.path, { encoding: 'utf8' });
 
-            fileStream
-                .pipe(csv({ headers: csvHeaders }))
-                .on('data', (data) => {
-                    // Filter out unexpected columns and sanitize data
-                    const trimmedData = Object.fromEntries(
-                        Object.entries(data)
-                            .filter(([key]) => csvHeaders.includes(key)) // Keep only valid headers
-                            .map(([key, value]) => [key, value?.trim() || '']) // Trim values
-                    );
+        fileStream
+            .pipe(csv({ headers: csvHeaders, skipLines: 1 })) // Skip the header row
+            .on('data', (data) => {
+                const sanitizedData = Object.fromEntries(
+                    Object.entries(data)
+                        .filter(([key]) => csvHeaders.includes(key)) // Keep only valid fields
+                        .map(([key, value]) => [key, value?.trim() || '']) // Trim all values
+                );
 
-                    // Skip rows where all fields are empty
-                    if (Object.values(trimmedData).some((value) => value)) {
-                        results.push(trimmedData);
-                    }
-                })
-                .on('end', async () => {
-                    try {
-                        console.log('Parsed CSV Data:', results);
-                        await processBooks(results, errors);
+                if (Object.values(sanitizedData).some((value) => value)) {
+                    results.push(sanitizedData);
+                }
+            })
+            .on('end', async () => {
+                try {
+                    await processBooks(results, errors);
 
-                        fs.unlinkSync(req.file.path); // Delete the uploaded file
+                    // Delete the uploaded file after processing
+                    fs.unlinkSync(req.file.path);
 
-                        sendResponse(res, errors); // Send response with errors (if any)
-                    } catch (error) {
-                        console.error('Error processing books:', error.message);
-                        res.status(500).json({
-                            error: 'Failed to process books.',
-                            details: error.message,
-                        });
-                    }
-                })
-                .on('error', (error) => {
-                    console.error('Error parsing CSV:', error.message);
-                    res.status(400).json({
-                        error: 'Error parsing CSV file.',
-                        details: error.message,
-                    });
-                });
-        } catch (error) {
-            console.error('Error handling file upload:', error.message);
-            res.status(500).json({
-                error: 'Error handling file upload.',
-                details: error.message,
+                    // Send response to the client
+                    sendResponse(res, errors);
+                } catch (error) {
+                    console.error('Error processing books:', error.message);
+                    res.status(500).json({ error: 'Failed to process books.', details: error.message });
+                }
+            })
+            .on('error', (error) => {
+                console.error('Error parsing CSV:', error.message);
+                res.status(400).json({ error: 'Error parsing CSV file.', details: error.message });
             });
-        }
-    } else {
-        res.status(400).json({
-            error: 'No valid input provided. Please upload a CSV file.',
-        });
+    } catch (error) {
+        console.error('Error handling file upload:', error.message);
+        res.status(500).json({ error: 'Error handling file upload.', details: error.message });
     }
 });
 
@@ -2146,195 +2134,73 @@ async function saveEPC(epcData) {
 
 // Process books from parsed CSV data
 async function processBooks(books, errors) {
-    const userId = 'defaultUserId'; // Replace with a valid user ID if needed
-
     for (const book of books) {
         try {
-            const requiredFields = [
-                'title',
-                'authors',
-                'industryIdentifier',
-                'copyId',
-                'bookLocation',
-                'epc',
-            ];
+            const requiredFields = ['title', 'authors', 'industryIdentifier', 'copyId', 'bookLocation', 'epc'];
 
-            // Check for missing required fields
+            // Check for missing fields
             const missingFields = requiredFields.filter((field) => !book[field] || book[field].trim() === '');
             if (missingFields.length > 0) {
-                console.warn('Missing required fields:', book, 'Missing:', missingFields);
                 errors.push({
-                    error: 'Missing required fields',
+                    error: 'Missing required fields.',
                     book,
-                    missingFields,
+                    missingFields
                 });
-                continue; // Skip this book if required fields are missing
-            }
-
-            const {
-                title,
-                authors,
-                publisher,
-                publishedDate,
-                description,
-                pageCount,
-                categories,
-                language,
-                coverImage,
-                industryIdentifier,
-                copyId,
-                bookLocation,
-                availability,
-                status,
-                epc,
-            } = book;
-
-            console.log(`Processing book: ${title}, EPC: ${epc}`);
-
-            if (!epc || epc.trim() === '') {
-                console.warn(`Skipping book due to missing EPC: ${title}`);
-                continue; // Skip books with missing EPC
+                continue; // Skip this book
             }
 
             // Sanitize and validate fields
-            const isAvailable = availability?.toLowerCase() === 'true';
-            const sanitizedStatus = ['borrowed', 'in return box', 'in library'].includes(status?.trim().toLowerCase())
-                ? status.trim().toLowerCase()
-                : 'in library'; // Default to "in library" if invalid
-            const sanitizedPageCount = pageCount ? parseInt(pageCount, 10) : 0;
+            const isAvailable = book.availability?.toLowerCase() === 'true';
+            const sanitizedStatus = ['borrowed', 'in return box', 'in library'].includes(book.status?.toLowerCase())
+                ? book.status.toLowerCase()
+                : 'in library';
 
-            // Determine the category for generating locationId
-            const category = categories?.split(',')[0]?.trim() || 'Unknown';
-
-            // Check if the book already exists in the database
-            const existingBook = await BookBuy.findOne({
-                title: title.trim(),
-                authors: { $all: authors.split(',').map((a) => a.trim()) },
-                industryIdentifier: { $in: [industryIdentifier.trim()] },
-            });
-
+            // Handle existing book or create a new one
+            const existingBook = await BookBuy.findOne({ industryIdentifier: book.industryIdentifier.trim() });
             if (existingBook) {
-                console.log(`Book found: ${existingBook.title}`);
-
-                // Check if the copy already exists
-                const existingCopy = existingBook.copies.find((copy) => copy.copyId === copyId);
+                // Add a new copy to the existing book
+                const existingCopy = existingBook.copies.find((copy) => copy.copyId === book.copyId.trim());
                 if (!existingCopy) {
-                    console.log(`Adding new copy to existing book: ${title}`);
-
-                    // Generate the locationId for the new copy
-                    const locationId = generateLocationId(
-                        industryIdentifier.trim(),
-                        title.trim(),
-                        authors.split(',').map((a) => a.trim()),
-                        publishedDate,
-                        category,
-                        existingBook.copies.length + 1 // Next copy index
-                    );
-
-                    console.log(`New copy added with generated locationId: ${locationId}`);
-
                     existingBook.copies.push({
-                        copyId: copyId?.trim(),
-                        bookLocation: bookLocation?.trim(),
-                        locationId: locationId, // Use the generated locationId
+                        copyId: book.copyId.trim(),
+                        bookLocation: book.bookLocation.trim(),
+                        locationId: generateLocationId(book.industryIdentifier, book.title, book.authors),
                         availability: isAvailable,
-                        status: sanitizedStatus, // Use sanitized status
-                        epc: epc?.trim(),
+                        status: sanitizedStatus,
+                        epc: book.epc.trim()
                     });
-
-                } else {
-                    console.log(`Duplicate copy found: ${copyId}. Not generating a new locationId.`);
-                    // Update the existing copy's details without regenerating the locationId
-                    existingCopy.bookLocation = bookLocation?.trim();
-                    existingCopy.availability = isAvailable;
-                    existingCopy.status = sanitizedStatus; // Use sanitized status
-                    existingCopy.epc = epc?.trim();
+                    existingBook.quantity = existingBook.copies.length;
+                    await existingBook.save();
                 }
-
-                // Save EPC information for this copy
-                const epcResult = await saveEPC({
-                    epc: epc?.trim(),
-                    title: title.trim(),
-                    author: authors.split(',').map((a) => a.trim()),
-                    status: sanitizedStatus,
-                    industryIdentifier: [industryIdentifier.trim()],
-                });
-
-                if (epcResult.duplicate) {
-                    console.log(`Duplicate EPC skipped: ${epc}`);
-                } else {
-                    console.log(`EPC data created successfully for book: ${title}`);
-                }
-
-                // Update the quantity based on the number of unique copies
-                existingBook.quantity = existingBook.copies.length;
-
-                // Save the updated book
-                await existingBook.save();
             } else {
-                console.log(`Creating a new book entry: ${title}`);
-                const locationId = generateLocationId(
-                    industryIdentifier.trim(),
-                    title.trim(),
-                    authors.split(',').map((a) => a.trim()),
-                    publishedDate,
-                    category,
-                    1 // First copy
-                );
-
-                console.log(`New book created with first copy locationId: ${locationId}`);
-
+                // Create a new book with the given copy
                 const newBook = new BookBuy({
-                    userid: userId,
-                    industryIdentifier: [industryIdentifier.trim()],
-                    title: title.trim(),
-                    authors: authors.split(',').map((a) => a.trim()),
-                    publisher: publisher?.trim() || '',
-                    publishedDate: isValidDate(publishedDate) ? publishedDate.trim() : '',
-                    description: description?.trim() || '',
-                    pageCount: sanitizedPageCount, // Use sanitized pageCount
-                    categories: categories ? categories.split(',').map((c) => c.trim()) : [],
-                    language: language?.trim() || '',
-                    coverImage: coverImage?.trim() || '',
-                    purchaseDate: new Date(),
-                    quantity: 1, // New book starts with one copy
+                    title: book.title.trim(),
+                    authors: book.authors.split(',').map((a) => a.trim()),
+                    industryIdentifier: [book.industryIdentifier.trim()],
+                    publisher: book.publisher?.trim() || '',
+                    publishedDate: book.publishedDate?.trim() || '',
+                    description: book.description?.trim() || '',
+                    pageCount: parseInt(book.pageCount, 10) || 0,
+                    categories: book.categories?.split(',').map((c) => c.trim()) || [],
+                    language: book.language?.trim() || '',
+                    coverImage: book.coverImage?.trim() || '',
+                    quantity: 1,
                     copies: [
                         {
-                            copyId: copyId?.trim(),
-                            bookLocation: bookLocation?.trim(),
-                            locationId: locationId, // Use the generated locationId
+                            copyId: book.copyId.trim(),
+                            bookLocation: book.bookLocation.trim(),
+                            locationId: generateLocationId(book.industryIdentifier, book.title, book.authors),
                             availability: isAvailable,
-                            status: sanitizedStatus, // Use sanitized status
-                            epc: epc?.trim(),
-                        },
-                    ],
+                            status: sanitizedStatus,
+                            epc: book.epc.trim()
+                        }
+                    ]
                 });
-
-                // Save the new book
                 await newBook.save();
-
-                // Save EPC information for this copy
-                const epcResult = await saveEPC({
-                    epc: epc?.trim(),
-                    title: title.trim(),
-                    author: authors.split(',').map((a) => a.trim()),
-                    status: sanitizedStatus,
-                    industryIdentifier: [industryIdentifier.trim()],
-                });
-
-                if (epcResult.duplicate) {
-                    console.log(`Duplicate EPC skipped: ${epc}`);
-                } else {
-                    console.log(`EPC data created successfully for book: ${title}`);
-                }
             }
         } catch (error) {
-            console.error('Error processing book:', book, error.message);
-            errors.push({
-                error: 'Failed to process book.',
-                book,
-                details: error.message,
-            });
+            errors.push({ error: 'Failed to process book.', book, details: error.message });
         }
     }
 }
