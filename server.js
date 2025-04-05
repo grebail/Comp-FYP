@@ -1814,29 +1814,13 @@ app.post('/api/userPurchases', authenticateToken, async (req, res) => {
             return res.status(404).json({ error: 'Book not found' });
         }
 
-        // Check if a purchase with the same industryIdentifier and userid already exists
-        const existingPurchase = await BookBuy.findOne({ userid: userid, industryIdentifier: book.industryIdentifier });
-
+        // Check if a purchase with the same industryIdentifier already exists
+        const existingPurchase = await BookBuy.findOne({ industryIdentifier: book.industryIdentifier });
         if (existingPurchase) {
-            // Increment the quantity and add new copies
-            const newCopies = Array.from({ length: quantity }, (_, index) => ({
-                copyId: `${googleId}-${existingPurchase.copies.length + index + 1}`, // Unique copyId
-                bookLocation: 'Main Library', // Default location
-                locationId: '001', // Default location ID
-            }));
-
-            // Update the existing purchase record
-            existingPurchase.quantity += quantity; // Increment the quantity
-            existingPurchase.copies = [...existingPurchase.copies, ...newCopies]; // Append new copies
-            const updatedPurchase = await existingPurchase.save();
-
-            return res.status(200).json({
-                message: 'Purchase updated successfully',
-                purchaseInfo: updatedPurchase,
-            });
+            return res.status(409).json({ error: 'Purchase already exists for this ISBN.' });
         }
 
-        // Generate copies for a new purchase
+        // Generate copies with unique `copyId`s
         const copies = Array.from({ length: quantity }, (_, index) => ({
             copyId: `${googleId}-${index + 1}`, // Unique copyId
             bookLocation: 'Main Library', // Default location
@@ -1864,7 +1848,7 @@ app.post('/api/userPurchases', authenticateToken, async (req, res) => {
         });
 
         const savedPurchase = await purchase.save();
-        return res.status(201).json({
+        res.status(201).json({
             message: 'Purchase recorded successfully',
             purchaseInfo: savedPurchase,
         });

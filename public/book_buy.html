@@ -153,7 +153,7 @@
                         quantity // Include the quantity in the request body
                     })
                 });
-        
+                console.log('Request Payload:', { googleId, userid, quantity }); 
                 console.log('Response Status:', response.status);
                 const responseBody = await response.json();
                 console.log('Response Body:', responseBody);
