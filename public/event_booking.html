@@ -17,7 +17,7 @@
             color: #fff;
             padding: 20px;
             text-align: center;
-            border-bottom: 5px solid #388e3c; /* Slightly lighter green border */
+            border-bottom: 5px solid #388e3c;
         }
         .promo-container {
             max-width: 600px;
@@ -31,17 +31,15 @@
             width: calc(100% * 3);
         }
         .promo-slide {
-            min-width: 100%; 
+            min-width: 100%;
             box-sizing: border-box;
             position: relative;
             place-items: center;
-            left: 4%;
         }
         .promo-slide img {
             width: 25%;
             height: auto;
             border-radius: 8px;
-            align-items: center;
         }
         .scroll-button {
             position: absolute;
@@ -54,12 +52,8 @@
             border-radius: 5px;
             z-index: 10;
         }
-        .scroll-left {
-            left: 10px;
-        }
-        .scroll-right {
-            right: 10px;
-        }
+        .scroll-left { left: 10px; }
+        .scroll-right { right: 10px; }
         .container {
             max-width: 900px;
             margin: 20px auto;
@@ -68,10 +62,7 @@
             border-radius: 8px;
             box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
         }
-
-        h2 {
-            color: #0056b3;
-        }
+        h2 { color: #0056b3; }
         .event {
             border: 1px solid #ddd;
             margin: 15px 0;
@@ -79,61 +70,24 @@
             border-radius: 5px;
             transition: box-shadow 0.3s;
         }
-        .event:hover {
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-        }
-        .book-button {
-            background: #28a745;
-            color: #fff;
-            border: none;
-            padding: 10px 20px;
-            cursor: pointer;
-            border-radius: 5px;
-            transition: background 0.3s;
-        }
-        .book-button:hover {
-            background: #218838;
-        }
-
-
-        .detail-button {
+        .event:hover { box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); }
+        .book-button, .detail-button {
             background: #0056b3;
             color: #fff;
             border: none;
             padding: 10px 20px;
             cursor: pointer;
             border-radius: 5px;
+            margin-right: 10px;
             transition: background 0.3s;
         }
-        .detail-button:hover {
-            background: #014690;
-        }
-
-
-       .back-home {
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .back-home a {
-            background-color: #55ba59; /* Green background */
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-
-        .back-home a:hover {
-            background-color: #45a049; /* Darker green on hover */
-        }
-
+        .book-button:hover { background: #218838; }
+        .detail-button:hover { background: #014690; }
         footer {
             background: linear-gradient(to left, #55ba59, #27732b);
             color: #fff;
             padding: 10px;
             text-align: center;
-            clear: both;
             position: relative;
             bottom: 0;
             width: 100%;
@@ -164,90 +118,10 @@
             font-size: 28px;
             font-weight: bold;
         }
-        .close:hover,
-        .close:focus {
+        .close:hover, .close:focus {
             color: black;
             text-decoration: none;
             cursor: pointer;
-        }
-
-                /* Back to Home Button */
-        .back-home {
-            text-align: center;
-            margin: 20px 0;
-        }
-
-        .back-home a {
-            background-color: #55ba59; /* Green background */
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
-        }
-
-        .back-home a:hover {
-            background-color: #45a049; /* Darker green on hover */
-        }
-
-        /* Media Queries */
-
-        @media (max-width: 768px) {
-            header {
-                padding: 15px;
-            }
-            .promo-container {
-                max-width: 100%;
-            }
-            .promo-slide img {
-                width: 90%; /* Larger on small screens */
-            }
-            .scroll-button {
-                padding: 0.8rem;
-                font-size: 1rem;
-            }
-            .container {
-                padding: 10px;
-            }
-            .event {
-                padding: 8px;
-            }
-            .book-button, .detail-button {
-                font-size: 0.9rem;
-            }
-            .modal-content {
-                width: 90%;
-                margin: 15% auto;
-            }
-        }
-
-        @media (max-width: 480px) {
-            h1 {
-                font-size: 1.5rem;
-            }
-            h2 {
-                font-size: 1.2rem;
-            }
-            .promo-slide img {
-                width: 100%;
-            }
-            .scroll-button {
-                padding: 0.5rem;
-                font-size: 0.9rem;
-            }
-            .event h3 {
-                font-size: 1rem;
-            }
-            .event p {
-                font-size: 0.9rem;
-            }
-            .back-home a {
-                padding: 10px 20px;
-                font-size: 0.9rem;
-            }
-            footer {
-                font-size: 0.8rem;
-            }
         }
     </style>
 </head>
@@ -274,6 +148,19 @@
 <!-- Booking Section -->
 <div class="container">
     <h2>Explore Our Events</h2>
+</div>
+
+<!-- Details Modal -->
+<div id="infoModal" class="modal">
+    <div class="modal-content">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <h2>Event Details</h2>
+        <p><strong>Title:</strong> <span id="event-title-info"></span></p>
+        <p><strong>Venue:</strong> <span id="event-venue-info"></span></p>
+        <p><strong>Date:</strong> <span id="event-date-info"></span></p>
+        <p><strong>Time:</strong> <span id="event-time-info"></span></p>
+        <p><strong>Event Link:</strong> <a id="event-link-info" href="#" target="_blank">Click Here</a></p>
+    </div>
 </div>
 
 <div class="back-home">
@@ -313,46 +200,20 @@
         updateSliderPosition();
     }, 5000);
 
-    // Function to automatically book an event
-    async function bookEvent(eventName) {
-        try {
-            // Retrieve the userId from the URL parameters
-            const userId = new URLSearchParams(window.location.search).get('userid');
+    // Function to open the details modal
+    // Function to open the details modal and populate it with event information
+function openDetailsModal(eventName, eventDescription, eventVenue, eventTime, eventLink) {
+    document.getElementById('event-title-info').innerText = eventName;
+    document.getElementById('event-venue-info').innerText = eventVenue;
+    document.getElementById('event-date-info').innerText = new Date(eventTime).toLocaleDateString();
+    document.getElementById('event-time-info').innerText = new Date(eventTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    document.getElementById('event-link-info').href = eventLink;
+    document.getElementById('infoModal').style.display = 'block';
+}
 
-            // Validate userId
-            if (!userId) {
-                alert('User ID is missing. Please log in to book an event.');
-                return;
-            }
-
-            // Disable the button to prevent multiple clicks
-            const button = document.querySelector(`button[onclick="bookEvent('${eventName}')"]`);
-            button.disabled = true;
-            button.textContent = 'Booking...';
-
-            // Send the booking details to the backend API
-            const response = await fetch('/api/bookEvent', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ eventName, userId })
-            });
-
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to book the event.');
-            }
-
-            alert(`Booking confirmed for "${eventName}"! A confirmation email has been sent.`);
-        } catch (error) {
-            console.error('Error booking event:', error.message);
-            alert('Error booking event. Please try again later.');
-        } finally {
-            // Re-enable the button
-            const button = document.querySelector(`button[onclick="bookEvent('${eventName}')"]`);
-            button.disabled = false;
-            button.textContent = 'Book Now';
-        }
+    // Function to close the modal
+    function closeModal() {
+        document.getElementById('infoModal').style.display = 'none';
     }
 
     document.addEventListener('DOMContentLoaded', async function () {
@@ -360,15 +221,15 @@
             // Fetch events from the API
             const response = await fetch('/api/events');
             const events = await response.json();
-
+    
             if (!response.ok) {
                 throw new Error(events.error || 'Failed to fetch events.');
             }
-
+    
             // Display events dynamically
             const container = document.querySelector('.container');
             container.innerHTML = '<h2>Explore Our Events</h2>'; // Clear existing content
-
+    
             events.forEach(event => {
                 const eventDiv = document.createElement('div');
                 eventDiv.classList.add('event');
@@ -377,7 +238,7 @@
                     <p>Date: ${new Date(event.time).toLocaleDateString()}</p>
                     <p>Time: ${new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     <button class="book-button" onclick="bookEvent('${event.title}')">Book Now</button>
-                    <button class="detail-button">Details</button>
+                    <button class="detail-button" onclick="openDetailsModal('${event.title}', 'Event description for ${event.title}', '${event.venue}', '${event.time}', '${event.eventLink}')">Details</button>
                 `;
                 container.appendChild(eventDiv);
             });
