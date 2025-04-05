@@ -338,12 +338,20 @@
             window.location.href = `book_buy.html?googleId=${googleId}&userid=${userId}`;
         }
 
-        function viewHistory(userId) {
-            window.location.href = `https://comp-fyp.onrender.com/purchase_history.html?userid=${userId}`;
+        function viewHistory() {
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+            if (!token) {
+                alert('No token found. Please log in.');
+                return;
+            }
+        
+            // Redirect to purchase_history.html with the token and userId as query parameters
+            window.location.href = `https://comp-fyp.onrender.com/purchase_history.html?userid=${userId}&token=${encodeURIComponent(token)}`;
         }
+        
 
         function ImportBook() {
-            window.location.href = `https://comp-fyp.onrender.com/importBook.html?userid=${userId}`;
+            window.location.href =`https://comp-fyp.onrender.com//importBook.html?userid=${userId}`;
         }
 
 

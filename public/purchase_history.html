@@ -100,68 +100,43 @@
     <script>
         const params = new URLSearchParams(window.location.search);
         const userid = params.get('userid');
-
+        const tokenFromUrl = params.get('token');
+// Store the token in localStorage if not already stored
+if (tokenFromUrl) {
+    localStorage.setItem('token', tokenFromUrl);
+}
         // Function to fetch purchase history
         async function fetchPurchaseHistory() {
             const token = localStorage.getItem('token');
+            console.log('Token:', token); // Debug: Log the token
             if (!token) {
                 displayError('No token found. Please log in.');
                 return;
             }
-
+        
             try {
                 const response = await fetch(`/api/userPurchases?userid=${userid}`, {
                     method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    headers: { 'Authorization': `Bearer ${token}` }, // Include the token in the Authorization header
                 });
-
+        
+                console.log('Response status:', response.status); // Debug: Log the response status
+        
                 if (!response.ok) {
                     const errorData = await response.text();
+                    console.error('Error data:', errorData); // Debug: Log error details
                     displayError(errorData || 'Failed to fetch purchase history.');
                     return;
                 }
-
+        
                 const history = await response.json();
-                console.log('Purchase History:', history); // Debugging
+                console.log('Purchase history:', history); // Debug: Log the fetched history
                 displayBooks(history);
             } catch (error) {
+                console.error('Error during fetch:', error); // Debug: Log the fetch error
                 displayError('An error occurred while fetching purchase history.');
             }
         }
-
-        // Function to fetch book details by googleId
-        // Function to fetch book details by ISBN
-// Function to fetch book details by ISBN
-async function fetchBookDetails(isbn) {
-    if (!isbn) {
-        throw new Error('ISBN is undefined');
-    }
-
-    const token = localStorage.getItem('token');
-    console.log('Fetching book details for ISBN:', isbn); // Debugging log
-
-    try {
-        const response = await fetch(`/api/books/isbn/${isbn}`, {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${token}`
-            }
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text(); // Get the response text
-            console.error('Error fetching book details:', response.status, errorText); // Log error details
-            throw new Error('Failed to fetch book details: ' + errorText);
-        }
-
-        return await response.json(); // Return the fetched book details
-    } catch (error) {
-        console.error('Error fetching book details by ISBN:', error);
-        throw error;
-    }
-}
         // Function to delete a purchased book
         // Function to delete a purchased book
 async function deleteBook(isbn) {
@@ -187,67 +162,92 @@ async function deleteBook(isbn) {
     }
 }
 
-        // Function to display purchased books
-        async function displayBooks(history) {
-            if (history.length === 0) {
-                document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
-                return;
-            }
-        
-            // Fetch details for each book using the ISBN (industryIdentifier)
-            const bookPromises = history.map(async (item) => {
-                const isbn = item.industryIdentifier; // Extract ISBN from userPurchases
-                if (!isbn) {
-                    console.warn('Skipping item with undefined ISBN:', item);
-                    return null; // Skip if ISBN is undefined
-                }
-        
-                try {
-                    const bookDetails = await fetchBookDetails(isbn); // Fetch book details by ISBN
-                    return bookDetails; // Return book details if successful
-                } catch (error) {
-                    console.error('Error fetching book details for ISBN:', isbn, error);
-                    return null; // Return null if there's an error
-                }
-            });
-        
-            // Wait for all promises to resolve and filter out null values
-            const books = await Promise.all(bookPromises);
-            const validBooks = books.filter(book => book !== null); // Keep only valid book details
-        
-            // Construct HTML for valid books
-            const historyHTML = validBooks.map(book => {
-                // Find the purchase record that matches the book's industryIdentifier
-                const purchase = history.find(h => h.industryIdentifier.trim() === book.industryIdentifier.trim());
-        
-                // Safeguard against undefined `purchase`
-                if (!purchase) {
-                    console.warn('No matching purchase found for book:', book);
-                    return ''; // Skip rendering this book
-                }
-        
-                // Format the purchase date
-                const formattedDate = purchase.purchaseDate
-                    ? new Date(purchase.purchaseDate).toLocaleDateString() // Format the date
-                    : 'Unknown Date'; // Fallback if purchaseDate is missing
-        
-                // Render the book HTML
-                return `
-                    <div class="book-item">
-                        <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
-                        <div class="book-details">
-                            <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
-                            <strong>Purchase Date:</strong> ${formattedDate} <br>
-                            <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
-                        </div>
-                        <button class="delete-button" onclick="deleteBook('${book.industryIdentifier}')">Delete</button>
-                    </div>
-                `;
-            }).join('');
-        
-            // Update the HTML with the constructed book items
-            document.getElementById('historyContent').innerHTML = historyHTML;
+async function fetchBookDetails(isbn) {
+    try {
+        const response = await fetch(`/api/books/isbn/${isbn}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error fetching book details:', errorText);
+            throw new Error(errorText || 'Failed to fetch book details.');
         }
+
+        return await response.json();
+    } catch (error) {
+        console.error('Error in fetchBookDetails:', error);
+        throw error;
+    }
+}
+async function displayBooks(history) {
+    if (history.length === 0) {
+        document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
+        return;
+    }
+
+    // Fetch details for each book using the ISBN (industryIdentifier)
+    const bookPromises = history.map(async (item) => {
+        const isbn = Array.isArray(item.industryIdentifier) && item.industryIdentifier.length > 0
+            ? item.industryIdentifier[0] // Use the first ISBN
+            : null; // If no ISBN available, set to null
+
+        if (!isbn) {
+            console.warn('Skipping item with undefined or empty ISBN:', item);
+            return null; // Skip if no valid ISBN
+        }
+
+        try {
+            const bookDetails = await fetchBookDetails(isbn); // Fetch book details by ISBN
+            return { ...item, ...bookDetails }; // Merge purchase details with book details
+        } catch (error) {
+            console.error('Error fetching book details for ISBN:', isbn, error);
+            return null; // Skip if there's an error
+        }
+    });
+
+    // Wait for all promises to resolve and filter out null values
+    const books = (await Promise.all(bookPromises)).filter(book => book !== null);
+
+    // Construct HTML for valid books
+    const historyHTML = books.map(book => {
+        // Find the purchase record that matches the book's industryIdentifier
+        const purchase = history.find(h =>
+            Array.isArray(h.industryIdentifier) &&
+            h.industryIdentifier.includes(book.industryIdentifier)
+        );
+
+        // Safeguard against undefined `purchase`
+        if (!purchase) {
+            console.warn('No matching purchase found for book:', book);
+            return ''; // Skip rendering this book
+        }
+
+        // Format the purchase date
+        const formattedDate = purchase.purchaseDate
+            ? new Date(purchase.purchaseDate).toLocaleDateString() // Format the date
+            : 'Unknown Date'; // Fallback if purchaseDate is missing
+
+        // Render the book HTML
+        return `
+            <div class="book-item">
+                <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
+                <div class="book-details">
+                    <strong>Title:</strong> ${book.title || 'Unknown Title'} <br>
+                    <strong>Purchase Date:</strong> ${formattedDate} <br>
+                    <strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'} <br>
+                </div>
+                <button class="delete-button" onclick="deleteBook('${book.industryIdentifier}')">Delete</button>
+            </div>
+        `;
+    }).join('');
+
+    // Update the HTML with the constructed book items
+    document.getElementById('historyContent').innerHTML = historyHTML;
+}
 
 
 

@@ -35,8 +35,14 @@ const Comment = require('./models/commentSchema');
 const AdminBook = require('./models/adminBookSchema');
 const BookBuy = require('./models/buyBookSchema');
 const UserDetails = require('./models/userDetailsSchema');
-const EPC = require('./models/epcSchema');
+const EPC  = require('./models/epcSchema');
+const Shelf = require('./models/shelfSchema');
+const ReturnBox = require('./models/returnBoxSchema');
+
 const Event = require('./models/eventSchema');
+
+
+const ReturnBox = require('./models/returnBoxSchema');
 const RoomBooking = require('./models/roomSchema');
 const app = express();
 const PORT = process.env.PORT || 10000
@@ -1761,13 +1767,25 @@ app.get('/api/user-role', async(req, res) => {
 });
 
 // API endpoint to get purchase history for a specific user
-app.get('/api/userPurchases', authenticateToken, async(req, res) => {
+app.get('/api/userPurchases', authenticateToken, async (req, res) => {
     const { userid } = req.query;
 
-
     try {
-        const purchases = await BookBuy.find({ userid: userid });
-        res.json(purchases);
+        const purchases = await BookBuy.find({ userid: userid }).lean(); // Use lean() for better performance
+
+        if (!purchases.length) {
+            return res.status(404).json({ message: 'No purchases found.' });
+        }
+
+        // Ensure industryIdentifier is always an array
+        const updatedPurchases = purchases.map(purchase => {
+            if (!Array.isArray(purchase.industryIdentifier)) {
+                purchase.industryIdentifier = [purchase.industryIdentifier].filter(Boolean); // Wrap non-array values
+            }
+            return purchase;
+        });
+
+        res.json(updatedPurchases);
     } catch (error) {
         console.error('Error fetching purchase history:', error);
         res.status(500).json({ error: 'Failed to fetch purchase history.' });
@@ -1872,70 +1890,49 @@ app.delete('/api/userPurchases', authenticateToken, async(req, res) => {
 });
 
 // API endpoint to get all purchased books
-app.get('/api/allUserPurchases', authenticateToken, async(req, res) => {
+app.get('/api/allUserPurchases', authenticateToken, async (req, res) => {
     try {
-        // Find all purchases
         const purchases = await BookBuy.find();
 
         if (!purchases.length) {
             return res.status(404).json({ message: 'No purchases found.' });
         }
 
-        // Fetch additional details from Google Books API
-        const bookDetailsPromises = purchases.map(async(purchase) => {
-            // Check if googleId exists
-            if (!purchase.googleId) {
-                return {
-                    ...purchase.toObject(),
-                    googleBookDetails: null, // Set googleBookDetails to null if googleId is missing
-                };
+        // Cache for Google Books API responses
+        const googleBooksCache = new Map();
+
+        const bookDetailsPromises = purchases.map(async (purchase) => {
+            if (!purchase.googleId && (!purchase.industryIdentifier || purchase.industryIdentifier.length === 0)) {
+                return { ...purchase.toObject(), googleBookDetails: null };
             }
 
-            // Attempt to fetch details by googleId
-            const googleIdResponse = await fetch(`https://www.googleapis.com/books/v1/volumes/${purchase.googleId}?key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
-            const googleIdData = await googleIdResponse.json();
-
-            if (googleIdResponse.ok) {
-                return {
-                    ...purchase.toObject(),
-                    googleBookDetails: googleIdData, // Use the data from googleId
-                };
-            } else {
-                console.warn(`Failed to fetch details for googleId: ${purchase.googleId}. Attempting to fetch by ISBN.`);
-
-                // Fallback to fetch by ISBN if googleId fetch fails
-                if (!purchase.industryIdentifier || purchase.industryIdentifier.length === 0) {
-                    return {
-                        ...purchase.toObject(),
-                        googleBookDetails: null, // Set to null if identifier is missing
-                    };
-                }
-
-                const isbn = purchase.industryIdentifier[0]; // Get the first identifier
-                const isbnResponse = await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
-                const isbnData = await isbnResponse.json();
-
-                // Check if the response is okay and contains valid items
-                if (isbnResponse.ok && isbnData.totalItems > 0) {
-                    return {
-                        ...purchase.toObject(),
-                        googleBookDetails: isbnData.items[0], // Use the first item
-                    };
-                } else {
-                    console.error(`ISBN not found for ${isbn}.`);
-                    return {
-                        ...purchase.toObject(),
-                        googleBookDetails: null, // Set to null if both attempts fail
-                    };
-                }
+            const cacheKey = purchase.googleId || purchase.industryIdentifier[0];
+            if (googleBooksCache.has(cacheKey)) {
+                return { ...purchase.toObject(), googleBookDetails: googleBooksCache.get(cacheKey) };
             }
+
+            try {
+                const response = purchase.googleId
+                    ? await fetch(`https://www.googleapis.com/books/v1/volumes/${purchase.googleId}`)
+                    : await fetch(`https://www.googleapis.com/books/v1/volumes?q=isbn:${purchase.industryIdentifier[0]}`);
+
+                const data = await response.json();
+                if (response.ok) {
+                    googleBooksCache.set(cacheKey, data);
+                    return { ...purchase.toObject(), googleBookDetails: data };
+                }
+            } catch (error) {
+                console.error(`Error fetching Google Book details for ${cacheKey}:`, error);
+            }
+
+            return { ...purchase.toObject(), googleBookDetails: null };
         });
 
         const detailedPurchases = await Promise.all(bookDetailsPromises);
-        return res.status(200).json({ data: detailedPurchases });
+        res.status(200).json({ data: detailedPurchases });
     } catch (error) {
-        console.error('Error fetching user purchases:', error);
-        return res.status(500).json({ error: 'Error fetching user purchases' });
+        console.error('Error fetching all user purchases:', error);
+        res.status(500).json({ error: 'Error fetching user purchases' });
     }
 });
 
