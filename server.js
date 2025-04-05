@@ -1793,13 +1793,12 @@ app.get('/api/userPurchases', authenticateToken, async (req, res) => {
 });
 
 // API endpoint to create a user purchase
-app.post('/api/userPurchases', authenticateToken, async(req, res) => {
-    console.log('Request Body:', req.body);
-    const { googleId, userid } = req.body;
+app.post('/api/userPurchases', authenticateToken, async (req, res) => {
+    const { googleId, userid, quantity } = req.body;
 
     // Validate request body
-    if (!googleId || !userid) {
-        return res.status(400).json({ error: 'Missing googleId or userid.' });
+    if (!googleId || !userid || !quantity) {
+        return res.status(400).json({ error: 'Missing googleId, userid, or quantity.' });
     }
 
     // Ensure userid matches the authenticated user
@@ -1811,19 +1810,40 @@ app.post('/api/userPurchases', authenticateToken, async(req, res) => {
     try {
         // Fetch book details based on googleId
         const book = await Book.findOne({ googleId });
-        console.log('Fetched Book:', book);
         if (!book) {
             return res.status(404).json({ error: 'Book not found' });
         }
 
-        // Check if a purchase with the same industryIdentifier already exists
-        const existingPurchase = await BookBuy.findOne({ industryIdentifier: book.industryIdentifier });
+        // Check if a purchase with the same industryIdentifier and userid already exists
+        const existingPurchase = await BookBuy.findOne({ userid: userid, industryIdentifier: book.industryIdentifier });
+
         if (existingPurchase) {
-            console.log(`Purchase already exists for ISBN: ${book.industryIdentifier}`);
-            return res.status(409).json({ error: 'Purchase already exists for this ISBN.' });
+            // Increment the quantity and add new copies
+            const newCopies = Array.from({ length: quantity }, (_, index) => ({
+                copyId: `${googleId}-${existingPurchase.copies.length + index + 1}`, // Unique copyId
+                bookLocation: 'Main Library', // Default location
+                locationId: '001', // Default location ID
+            }));
+
+            // Update the existing purchase record
+            existingPurchase.quantity += quantity; // Increment the quantity
+            existingPurchase.copies = [...existingPurchase.copies, ...newCopies]; // Append new copies
+            const updatedPurchase = await existingPurchase.save();
+
+            return res.status(200).json({
+                message: 'Purchase updated successfully',
+                purchaseInfo: updatedPurchase,
+            });
         }
 
-        // Create a new purchase record using the book details
+        // Generate copies for a new purchase
+        const copies = Array.from({ length: quantity }, (_, index) => ({
+            copyId: `${googleId}-${index + 1}`, // Unique copyId
+            bookLocation: 'Main Library', // Default location
+            locationId: '001', // Default location ID
+        }));
+
+        // Create a new purchase record
         const purchase = new BookBuy({
             userid: userid,
             googleId: book.googleId,
@@ -1838,23 +1858,25 @@ app.post('/api/userPurchases', authenticateToken, async(req, res) => {
             categories: book.categories,
             language: book.language,
             coverImage: book.coverImage,
-            purchaseDate: new Date() // Automatically set the purchase date
+            purchaseDate: new Date(),
+            quantity: quantity,
+            copies: copies,
         });
 
         const savedPurchase = await purchase.save();
         return res.status(201).json({
             message: 'Purchase recorded successfully',
-            purchaseInfo: savedPurchase
+            purchaseInfo: savedPurchase,
         });
     } catch (error) {
         console.error('Error recording purchase:', error);
-        return res.status(500).json({ error: 'Error recording purchase' });
+        res.status(500).json({ error: 'Error recording purchase' });
     }
 });
 // API endpoint to delete a user purchase
 // API endpoint to delete a user purchase and its corresponding copy in admin books
-app.delete('/api/userPurchases', authenticateToken, async(req, res) => {
-    const { copyId, userid } = req.query; // Change googleId to copyId
+app.delete('/api/userPurchases', authenticateToken, async (req, res) => {
+    const { copyId, userid } = req.query;
 
     // Validate request parameters
     if (!copyId || !userid) {
@@ -1868,27 +1890,32 @@ app.delete('/api/userPurchases', authenticateToken, async(req, res) => {
     }
 
     try {
-        // Delete the purchase record
-        const purchaseResult = await BookBuy.deleteOne({ copyId: copyId, userid: userid });
+        // Find the purchase record that contains the copyId
+        const purchase = await BookBuy.findOne({ userid: userid, 'copies.copyId': copyId });
 
-        if (purchaseResult.deletedCount === 0) {
-            return res.status(404).json({ error: 'Purchase not found.' });
+        if (!purchase) {
+            return res.status(404).json({ error: 'Purchase or copy not found.' });
         }
 
-        // Delete the corresponding copy from the admin book collection
-        const adminBookResult = await Book.deleteOne({ copyId: copyId });
+        // Remove the specific copy from the `copies` array
+        const updatedCopies = purchase.copies.filter(copy => copy.copyId !== copyId);
 
-        if (adminBookResult.deletedCount === 0) {
-            return res.status(404).json({ error: 'Copy not found in admin books.' });
+        // If no copies are left, delete the entire purchase record
+        if (updatedCopies.length === 0) {
+            await BookBuy.deleteOne({ _id: purchase._id });
+        } else {
+            // Otherwise, update the purchase record with the remaining copies
+            purchase.copies = updatedCopies;
+            purchase.quantity = updatedCopies.length; // Update the quantity
+            await purchase.save();
         }
 
-        res.json({ message: 'Purchase and corresponding copy deleted successfully.' });
+        res.json({ message: 'Copy deleted successfully.' });
     } catch (error) {
-        console.error('Error deleting purchase:', error);
-        res.status(500).json({ error: 'Failed to delete purchase.' });
+        console.error('Error deleting copy:', error);
+        res.status(500).json({ error: 'Failed to delete the copy.' });
     }
 });
-
 // API endpoint to get all purchased books
 app.get('/api/allUserPurchases', authenticateToken, async (req, res) => {
     try {

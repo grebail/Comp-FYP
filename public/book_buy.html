@@ -54,6 +54,18 @@
         button:hover {
             background-color: #0d47a1;
         }
+
+        .quantity-input {
+            margin-top: 10px;
+        }
+
+        .quantity-input input {
+            padding: 5px;
+            width: 50px;
+            text-align: center;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
     </style>
 </head>
 
@@ -64,6 +76,12 @@
     <div id="errorMessage" class="error-message"></div>
     <div id="successMessage" class="success-message"></div>
 
+    <div class="quantity-input">
+        <label for="quantity">Enter Quantity:</label>
+        <input type="number" id="quantity" name="quantity" min="1" value="1" />
+    </div>
+
+    <button id="purchaseButton">Purchase Book</button>
     <button id="purchaseHistoryButton">Purchase History</button>
 
     <script>
@@ -99,9 +117,6 @@
             <div><strong>Language:</strong> ${book.language}</div>
         `;
             document.getElementById('bookDetails').innerHTML = bookDetailsHTML;
-
-            // Allow purchasing the book after displaying details
-            purchaseBook();
         }
 
         async function purchaseBook() {
@@ -109,13 +124,22 @@
                 displayError('No Google ID or User ID provided.');
                 return;
             }
-
+        
             const token = localStorage.getItem('token');
             if (!token) {
                 displayError('No token found. Please log in.');
                 return;
             }
-
+        
+            // Get the quantity from the input field
+            const quantityInput = document.getElementById('quantity');
+            const quantity = parseInt(quantityInput.value, 10);
+        
+            if (isNaN(quantity) || quantity <= 0) {
+                displayError('Invalid quantity. Please enter a positive number.');
+                return;
+            }
+        
             try {
                 const response = await fetch('/api/userPurchases', {
                     method: 'POST',
@@ -125,19 +149,20 @@
                     },
                     body: JSON.stringify({
                         googleId,
-                        userid // Ensure userid is included in the request body
+                        userid,
+                        quantity // Include the quantity in the request body
                     })
                 });
-
+        
                 console.log('Response Status:', response.status);
                 const responseBody = await response.json();
                 console.log('Response Body:', responseBody);
-
+        
                 if (!response.ok) {
                     displayError(responseBody.error || 'Failed to purchase the book.');
                     return;
                 }
-
+        
                 // If we reach here, the purchase was successful
                 displaySuccess(responseBody.purchaseInfo);
             } catch (error) {
@@ -167,6 +192,9 @@
             document.getElementById('successMessage').innerHTML = successMessageHTML;
             document.getElementById('errorMessage').innerHTML = ''; // Clear error message
         }
+
+        // Event listener for Purchase button
+        document.getElementById('purchaseButton').addEventListener('click', purchaseBook);
 
         // Event listener for Purchase History button
         document.getElementById('purchaseHistoryButton').addEventListener('click', () => {
