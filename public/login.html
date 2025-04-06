@@ -212,7 +212,7 @@
 
         if (fromApp) {
             // Redirect back to the app
-            window.location.href = 'myapp://main?token=' + data.token;
+            window.location.href = `myapp://main?userid=${data.userid}&token=${data.token}`;
         } else {
             // Redirect to the website’s main page
             window.location.href = data.redirect;
