@@ -13,34 +13,35 @@
             background-color: #f4f4f4;
             color: #333;
         }
-        
+
         h1 {
             color: #1565c0;
         }
-        
-        .book-details {
+
+        .book-details,
+        .purchase-history {
             background: white;
             padding: 20px;
             border-radius: 5px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
             margin-top: 20px;
         }
-        
+
         .error-message {
             color: red;
             margin-top: 10px;
         }
-        
+
         .success-message {
             color: green;
             margin-top: 10px;
         }
-        
+
         .book-cover {
             max-width: 200px;
             margin-bottom: 10px;
         }
-        
+
         button {
             margin-top: 20px;
             padding: 10px 15px;
@@ -50,7 +51,7 @@
             border-radius: 5px;
             cursor: pointer;
         }
-        
+
         button:hover {
             background-color: #0d47a1;
         }
@@ -65,6 +66,31 @@
             text-align: center;
             border: 1px solid #ccc;
             border-radius: 5px;
+        }
+
+        .purchase-history table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .purchase-history th,
+        .purchase-history td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .purchase-history th {
+            background-color: #f2f2f2;
+        }
+
+        .delete-button {
+            background-color: #d32f2f;
+        }
+
+        .delete-button:hover {
+            background-color: #c62828;
         }
     </style>
 </head>
@@ -82,46 +108,49 @@
     </div>
 
     <button id="purchaseButton">Purchase Book</button>
-    <button id="purchaseHistoryButton">Purchase History</button>
+    <button id="loadHistoryButton">Load Purchase History</button>
+
+    <div id="purchaseHistory" class="purchase-history"></div>
 
     <script>
         const params = new URLSearchParams(window.location.search);
-        const googleId = params.get('googleId');
+        const industryIdentifier = params.get('industryIdentifier');
         const userid = params.get('userid');
 
         // Function to fetch book details
-        async function fetchBookDetails() {
-            try {
-                const response = await fetch(`/api/books/${googleId}`);
-                if (!response.ok) {
-                    throw new Error('Book not found');
-                }
-                const book = await response.json();
-                displayBook(book);
-            } catch (error) {
-                displayError(error.message);
-            }
+        // Function to fetch book details by ISBN
+async function fetchBookDetails() {
+    try {
+        const response = await fetch(`/api/books/isbn/${industryIdentifier}`); // Use the correct API endpoint
+        if (!response.ok) {
+            throw new Error('Book not found by ISBN');
         }
+        const book = await response.json();
+        displayBook(book);
+    } catch (error) {
+        displayError(error.message);
+    }
+}
 
         // Function to display book details
         function displayBook(book) {
             const bookDetailsHTML = `
-            <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
-            <div><strong>Title:</strong> ${book.title}</div>
-            <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
-            <div><strong>Publisher:</strong> ${book.publisher}</div>
-            <div><strong>Published Date:</strong> ${book.publishedDate}</div>
-            <div><strong>Description:</strong> ${book.description}</div>
-            <div><strong>Page Count:</strong> ${book.pageCount}</div>
-            <div><strong>Categories:</strong> ${book.categories.join(', ')}</div>
-            <div><strong>Language:</strong> ${book.language}</div>
-        `;
+                <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
+                <div><strong>Title:</strong> ${book.title}</div>
+                <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
+                <div><strong>Publisher:</strong> ${book.publisher}</div>
+                <div><strong>Published Date:</strong> ${book.publishedDate}</div>
+                <div><strong>Description:</strong> ${book.description}</div>
+                <div><strong>Page Count:</strong> ${book.pageCount}</div>
+                <div><strong>Categories:</strong> ${book.categories.join(', ')}</div>
+                <div><strong>Language:</strong> ${book.language}</div>
+            `;
             document.getElementById('bookDetails').innerHTML = bookDetailsHTML;
         }
 
         async function purchaseBook() {
-            if (!googleId || !userid) {
-                displayError('No Google ID or User ID provided.');
+            if (!industryIdentifier || !userid) {
+                displayError('No Book ID or User ID provided.');
                 return;
             }
         
@@ -131,7 +160,6 @@
                 return;
             }
         
-            // Get the quantity from the input field
             const quantityInput = document.getElementById('quantity');
             const quantity = parseInt(quantityInput.value, 10);
         
@@ -145,63 +173,137 @@
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
+                        'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({
-                        googleId,
-                        userid,
-                        quantity // Include the quantity in the request body
-                    })
+                    body: JSON.stringify({ industryIdentifier, userid, quantity }),
                 });
-                console.log('Request Payload:', { googleId, userid, quantity }); 
-                console.log('Response Status:', response.status);
-                const responseBody = await response.json();
-                console.log('Response Body:', responseBody);
         
+                const responseBody = await response.json();
                 if (!response.ok) {
                     displayError(responseBody.error || 'Failed to purchase the book.');
                     return;
                 }
         
-                // If we reach here, the purchase was successful
+                // Pass the purchaseInfo object to the displaySuccess function
                 displaySuccess(responseBody.purchaseInfo);
             } catch (error) {
-                console.error('Error during fetch:', error);
                 displayError('An error occurred while purchasing the book.');
             }
         }
 
+        async function loadPurchaseHistory() {
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+        
+            // Redirect to purchase_history.html with userid and token as query parameters
+            window.location.href = `purchase_history.html?userid=${userid}&token=${token}`;
+        }
+
+        function displayPurchaseHistory(purchases) {
+            if (!purchases.length) {
+                document.getElementById('purchaseHistory').innerHTML = '<p>No purchase history found.</p>';
+                return;
+            }
+
+            const historyHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Title</th>
+                            <th>ISBN</th>
+                            <th>Copies</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${purchases
+                            .map(
+                                (purchase) => `
+                            <tr>
+                                <td>${purchase.title}</td>
+                                <td>${purchase.industryIdentifier.join(', ')}</td>
+                                <td>${purchase.quantity}</td>
+                                <td>${purchase.copies
+                                    .map(
+                                        (copy) => `
+                                    <div>
+                                        <strong>Copy ID:</strong> ${copy.copyId}
+                                        <button class="delete-button" onclick="deleteCopy('${copy.copyId}')">Delete</button>
+                                    </div>
+                                `
+                                    )
+                                    .join('')}
+                                </td>
+                            </tr>
+                        `
+                            )
+                            .join('')}
+                    </tbody>
+                </table>
+            `;
+            document.getElementById('purchaseHistory').innerHTML = historyHTML;
+        }
+
+        async function deleteCopy(copyId) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/userPurchases?copyId=${copyId}&userid=${userid}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to delete the copy.');
+                }
+
+                displaySuccess('Copy deleted successfully.');
+                loadPurchaseHistory(); // Refresh the purchase history
+            } catch (error) {
+                displayError(error.message);
+            }
+        }
+
         function displayError(message) {
-            document.getElementById('errorMessage').innerHTML = message;
-            document.getElementById('successMessage').innerHTML = ''; // Clear success message
+            document.getElementById('errorMessage').innerText = message;
+            document.getElementById('successMessage').innerText = '';
         }
 
         function displaySuccess(purchaseInfo) {
             const successMessageHTML = `
-                <h2>Successfully Purchased!</h2>
-                <p><strong>Purchase ID:</strong> ${purchaseInfo._id}</p>
-                <p><strong>User ID:</strong> ${purchaseInfo.userid}</p>
-                <p><strong>Google ID:</strong> ${purchaseInfo.googleId}</p>
+                <h2>Purchase Successful!</h2>
                 <p><strong>Title:</strong> ${purchaseInfo.title}</p>
-                <p><strong>Author(s):</strong> ${purchaseInfo.authors.join(', ')}</p>
-                <p><strong>Publisher:</strong> ${purchaseInfo.publisher}</p>
-                <p><strong>Published Date:</strong> ${purchaseInfo.publishedDate}</p>
-                <p><strong>ISBN:</strong> ${Array.isArray(purchaseInfo.industryIdentifier) ? purchaseInfo.industryIdentifier.join(', ') : purchaseInfo.industryIdentifier}</p>
+                <p><strong>Copies Purchased:</strong> ${purchaseInfo.quantity}</p>
                 <p><strong>Purchase Date:</strong> ${new Date(purchaseInfo.purchaseDate).toLocaleDateString()}</p>
+                <p><strong>Details of Purchased Copies:</strong></p>
+                <ul>
+                    ${purchaseInfo.copies
+                        .map(
+                            (copy) => `
+                            <li>
+                                <strong>Copy ID:</strong> ${copy.copyId}, 
+                                <strong>EPC:</strong> ${copy.epc}, 
+                                <strong>Location ID:</strong> ${copy.locationId}
+                            </li>
+                        `
+                        )
+                        .join('')}
+                </ul>
             `;
             document.getElementById('successMessage').innerHTML = successMessageHTML;
-            document.getElementById('errorMessage').innerHTML = ''; // Clear error message
+            document.getElementById('errorMessage').innerText = ''; // Clear any error messages
         }
 
-        // Event listener for Purchase button
         document.getElementById('purchaseButton').addEventListener('click', purchaseBook);
+        document.getElementById('loadHistoryButton').addEventListener('click', loadPurchaseHistory);
 
-        // Event listener for Purchase History button
-        document.getElementById('purchaseHistoryButton').addEventListener('click', () => {
-            window.location.href = `purchase_history.html?userid=${userid}`; // Ensure userid is passed
-        });
-
-        // Start fetching book details when the page loads
         window.onload = fetchBookDetails;
     </script>
 

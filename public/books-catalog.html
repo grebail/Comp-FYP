@@ -263,49 +263,35 @@
         function displayBooks(startIndex) {
             const catalog = document.getElementById('bookCatalog');
             catalog.innerHTML = ''; // Clear existing content
-
+    
             const booksToShow = allBooks.slice(startIndex, startIndex + booksPerPage);
             if (booksToShow.length === 0) {
                 catalog.innerHTML = '<p>No more books found.</p>';
                 return;
             }
-
+    
             booksToShow.forEach(book => {
                 const card = document.createElement('div');
                 card.className = 'book-card';
-
+    
                 const title = book.volumeInfo.title || 'N/A';
                 const author = book.volumeInfo.authors ? book.volumeInfo.authors.join(', ') : 'N/A';
                 const publishedDate = book.volumeInfo.publishedDate || 'N/A';
                 const coverImage = book.volumeInfo.imageLinks ? book.volumeInfo.imageLinks.thumbnail : '';
-                const googleId = book.id;
-
+                const industryIdentifier = book.volumeInfo.industryIdentifiers ? book.volumeInfo.industryIdentifiers[0]?.identifier : 'N/A';
+    
                 card.innerHTML = `
                     <img src="${coverImage}" alt="${title} cover" class="book-cover" />
                     <div class="book-title">${title}</div>
                     <div class="book-author">Author: ${author}</div>
                     <div class="book-published">Published: ${publishedDate}</div>
                     <div class="action-buttons">
-                        <button onclick="buyBook('${googleId}')">Buy Book</button>
-                        <button onclick="viewDetails('${googleId}')">View Details</button>
+                        <button onclick="buyBook('${industryIdentifier}')">Buy Book</button>
+                        <button onclick="viewDetails('${industryIdentifier}')">View Details</button>
                     </div>
                 `;
                 catalog.appendChild(card);
             });
-        }
-
-        function nextBooks() {
-            if (currentStartIndex + booksPerPage < allBooks.length) {
-                currentStartIndex += booksPerPage;
-                displayBooks(currentStartIndex);
-            }
-        }
-
-        function prevBooks() {
-            if (currentStartIndex - booksPerPage >= 0) {
-                currentStartIndex -= booksPerPage;
-                displayBooks(currentStartIndex);
-            }
         }
 
         function searchBooks() {
@@ -328,15 +314,17 @@
                 })
                 .finally(() => hideLoader());
         }
+ // Updated function to view book details using `industryIdentifier`
+ function viewDetails(industryIdentifier) {
+    window.location.href = `book_details.html?industryIdentifier=${industryIdentifier}&userid=${userId}`;
+}
 
-        function viewDetails(googleId) {
-            window.location.href = `book_details.html?googleId=${googleId}&userid=${userId}`;
-        }
 
-        function buyBook(googleId) {
-            // Redirect to a purchase page or handle the buying process
-            window.location.href = `book_buy.html?googleId=${googleId}&userid=${userId}`;
-        }
+        // Updated function to buy a book using `industryIdentifier`
+    function buyBook(industryIdentifier) {
+        // Redirect to a purchase page or handle the buying process
+        window.location.href = `book_buy.html?industryIdentifier=${industryIdentifier}&userid=${userId}`;
+    }
 
         function viewHistory() {
             const token = localStorage.getItem('token'); // Retrieve the token from localStorage
@@ -346,12 +334,12 @@
             }
         
             // Redirect to purchase_history.html with the token and userId as query parameters
-            window.location.href = `https://comp-fyp.onrender.com/purchase_history.html?userid=${userId}&token=${encodeURIComponent(token)}`;
+            window.location.href = `http://localhost:10000//purchase_history.html?userid=${userId}&token=${encodeURIComponent(token)}`;
         }
         
 
         function ImportBook() {
-            window.location.href =`https://comp-fyp.onrender.com/importBook.html?userid=${userId}`;
+            window.location.href =`http://localhost:10000//importBook.html?userid=${userId}&token=${token}`;
         }
 
 
