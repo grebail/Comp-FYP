@@ -11,6 +11,10 @@ const EventSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    description: {
+        type: String,
+        required: true,
+    },
     venue: {
         type: String,
         required: true,
@@ -19,8 +23,8 @@ const EventSchema = new mongoose.Schema({
         type: Date, // The `time` field will store a valid Date object
         required: true,
     },
-    eventLink: {
-        type: String,
+    image: {
+        type: String, // Stores the image filename or URL
         required: true,
     },
     registeredUsers: {

@@ -49,30 +49,8 @@
             background-color: #f1f1f1;
         }
 
-        .upload-section {
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        .upload-section input[type="file"] {
-            display: none;
-        }
-
-        .upload-label {
+        .details-button, .edit-button, .delete-button {
             background-color: #1565c0;
-            color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-        }
-
-        .upload-label:hover {
-            background-color: #1e88e5;
-        }
-
-        .delete-button, .edit-button {
-            background-color: #f44336;
             color: white;
             border: none;
             padding: 7px 15px;
@@ -81,59 +59,49 @@
             transition: background-color 0.3s;
         }
 
-        .edit-button {
-            background-color: #4caf50;
+        .details-button:hover {
+            background-color: #1e88e5;
         }
 
-        .delete-button:hover {
-            background-color: #d32f2f;
+        .edit-button {
+            background-color: #4caf50;
         }
 
         .edit-button:hover {
             background-color: #388e3c;
         }
 
-        /* Back to Home Button */
-        .back-home {
-            text-align: center;
-            margin: 20px 0;
+        .delete-button {
+            background-color: #f44336;
         }
 
-        .back-home a {
-            background-color: #55ba59; /* Green background */
-            color: white;
-            padding: 10px 20px;
-            text-decoration: none;
-            border-radius: 5px;
-            transition: background-color 0.3s;
+        .delete-button:hover {
+            background-color: #d32f2f;
         }
 
-        .back-home a:hover {
-            background-color: #45a049; /* Darker green on hover */
+        button {
+            margin: 10px 0;
         }
 
         footer {
             background: linear-gradient(to left, #1565c0, #1e88e5);
             color: white;
-            padding: 5px; /* Reduced padding */
+            padding: 10px;
             text-align: center;
-            bottom: 0;
-            width: 100%;
         }
 
         /* Modal Styles */
-        #edit-modal {
+        #create-event-modal, #edit-modal, #users-modal {
             display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             padding: 20px;
             border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
             z-index: 1000;
-            width: 300px;
         }
 
         #overlay {
@@ -147,44 +115,50 @@
             z-index: 999;
         }
 
-        #edit-modal button {
-            margin: 5px;
+        form label {
+            display: block;
+            margin: 10px 0 5px;
         }
-        #users-modal {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: white;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-            padding: 20px;
-            border-radius: 5px;
-            z-index: 1000;
-            width: 90%;
-            max-width: 600px;
-        }
-        
-        #overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
+
+        form input, form textarea {
             width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 999;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
         }
-        
-        #users-modal ul {
-            list-style: none;
-            padding: 0;
+
+        form button {
+            background-color: #1565c0;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
         }
-        
-        #users-modal ul li {
-            margin: 5px 0;
+
+        form button:hover {
+            background-color: #1e88e5;
         }
-        .details-button {
+        .back-home {
+            text-align: center;
+            margin: 20px 0;
+        }
+
+        .back-home button {
+            background-color: #55ba59;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .back-home button:hover {
+            background-color: #45a049;
+        }
+        .create-event-button {
             background-color: #1565c0; /* Blue background */
             color: white;
             border: none;
@@ -194,9 +168,10 @@
             transition: background-color 0.3s;
         }
         
-        .details-button:hover {
+        .create-event-button:hover {
             background-color: #1e88e5; /* Lighter blue on hover */
         }
+
     </style>
 </head>
 <body>
@@ -206,49 +181,53 @@
 </header>
 
 <div class="container">
-    <h2>Manage Event Bookings</h2>
+    <h2>Manage Events</h2>
 
-    <!-- Section to View Registered Users -->
-    <h3>Registered Users for Events</h3>
-    <div id="event-list">
-        <table>
-            <thead>
-                <tr>
-                    <th>Event Title</th>
-                    <th>Event Date</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="event-table-body">
-                <!-- Rows will be dynamically populated -->
-            </tbody>
-        </table>
-    </div>
+    <!-- Table to display events -->
+    <table>
+        <thead>
+            <tr>
+                <th>Event Title</th>
+                <th>Event Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody id="event-table-body">
+            <!-- Event rows will be dynamically populated -->
+        </tbody>
+    </table>
 
-    <!-- Section to Upload CSV -->
-    <div class="upload-section">
-        <h3>Upload CSV for Bulk Registration</h3>
-        <label for="csv-upload" class="upload-label">Upload CSV</label>
-        <input type="file" id="csv-upload" accept=".csv">
-    </div>
-
-    <!-- Section to Delete Expired Events -->
-    <div>
-        <h3>Delete Expired Events</h3>
-        <button class="delete-button" onclick="deleteExpiredEvents()">Delete All Expired Events</button>
-    </div>
+    <!-- Button to open the "Create Event" modal -->
+    <button class="create-event-button" onclick="openCreateEventModal()">Create Event</button>
+    <button onclick="deleteExpiredEvents()" class="delete-button">Delete All Expired Events</button>
 </div>
-<!-- Registered Users Modal -->
-<div id="users-modal">
-    <h3>Registered Users</h3>
-    <ul id="users-list">
-        <!-- User list will be dynamically populated -->
-    </ul>
-    <button onclick="closeUsersModal()">Close</button>
-</div>
-<div id="overlay" onclick="closeUsersModal()"></div>
 
-<!-- Edit Modal -->
+<!-- Modal for creating an event -->
+<div id="create-event-modal">
+    <h3>Create New Event</h3>
+    <form id="create-event-form">
+        <label for="title">Event Title:</label>
+        <input type="text" id="title" name="title" required>
+        
+         
+        <label for="description">Description:</label>
+        <textarea id="description" name="description" rows="4" required></textarea>
+        
+        <label for="time">Event Date and Time:</label>
+        <input type="datetime-local" id="time" name="time" required>
+        
+        <label for="venue">Venue:</label>
+        <input type="text" id="venue" name="venue" required>
+        
+        <label for="image">Event Image:</label>
+        <input type="file" id="image" name="image" accept="image/*" required>
+        
+        <button type="submit">Create Event</button>
+        <button type="button" onclick="closeCreateEventModal()">Cancel</button>
+    </form>
+</div>
+
+<!-- Modal for editing event time -->
 <div id="edit-modal">
     <h3>Edit Event Time</h3>
     <form id="edit-form">
@@ -256,16 +235,26 @@
         <input type="datetime-local" id="edit-time" name="edit-time">
         <div style="margin-top:20px; text-align:right;">
             <button type="button" onclick="saveEdit()">Save</button>
-            <button type="button" onclick="closeModal()">Cancel</button>
+            <button type="button" onclick="closeEditModal()">Cancel</button>
         </div>
     </form>
 </div>
-<div id="overlay" onclick="closeModal()"></div>
 
-<div class="back-home">
-    <a id="home-link" href="#">Back to Home</a>
+<!-- Modal for showing registered users -->
+<div id="users-modal">
+    <h3>Registered Users</h3>
+    <ul id="users-list">
+        <!-- User list will be dynamically populated -->
+    </ul>
+    <button onclick="closeUsersModal()">Close</button>
 </div>
 
+<!-- Overlay for modals -->
+<div id="overlay" onclick="closeAllModals()"></div>
+<!-- Back to Home Button -->
+<div class="back-home">
+    <button id="BackHomeButton">Back to Home</button>
+</div>
 <footer>
     <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
 </footer>
@@ -278,23 +267,21 @@
         try {
             const response = await fetch('/api/events');
             const events = await response.json();
-    
+
             if (!response.ok) {
                 throw new Error(events.error || 'Failed to fetch events.');
             }
-    
+
             const tableBody = document.getElementById('event-table-body');
             tableBody.innerHTML = ''; // Clear existing rows
-    
+
             events.forEach(event => {
-                const registeredUsers = Object.entries(event.registeredUsers || {}).map(([email, name]) => ({ email, name }));
-    
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${event.title}</td>
                     <td>${event.time ? new Date(event.time).toLocaleString() : 'No time set'}</td>
                     <td>
-                        <button class="details-button" onclick="showRegisteredUsers('${event.eventId}', ${JSON.stringify(registeredUsers)})">Show Details</button>
+                        <button class="details-button" onclick="showRegisteredUsers('${event.eventId}')">Show Details</button>
                         <button class="edit-button" onclick="editEvent('${event.eventId}', '${event.time || ''}')">Edit</button>
                         <button class="delete-button" onclick="deleteEvent('${event.eventId}')">Delete</button>
                     </td>
@@ -306,61 +293,46 @@
             alert('Error fetching events. Please try again later.');
         }
     }
-// Upload CSV file
-document.getElementById('csv-upload').addEventListener('change', async function (event) {
-    const file = event.target.files[0];
-    if (!file) return;
 
-    const formData = new FormData();
-    formData.append('csv', file);
-
-    try {
-        const response = await fetch('/api/uploadCsv', {
-            method: 'POST',
-            body: formData,
-        });
-
-        const result = await response.json();
-        if (!response.ok) {
-            throw new Error(result.error || 'Failed to upload CSV.');
-        }
-
-        alert(`${result.message}`);
-        fetchEvents(); // Refresh the event list
-    } catch (error) {
-        console.error('Error uploading CSV:', error.message);
-        alert('Error uploading CSV. Please check your file.');
-    }
-});
-//display user details
-function showRegisteredUsers(eventId, registeredUsers) {
-    try {
-        const usersList = document.getElementById('users-list');
-        usersList.innerHTML = ''; // Clear existing list
-
-        if (registeredUsers.length > 0) {
-            registeredUsers.forEach(user => {
-                const listItem = document.createElement('li');
-                listItem.textContent = `${user.name} (${user.email})`;
-                usersList.appendChild(listItem);
-            });
-        } else {
-            usersList.innerHTML = '<li>No registered users found.</li>';
-        }
-
-        document.getElementById('users-modal').style.display = 'block';
+    // Show the "Create Event" modal
+    function openCreateEventModal() {
+        document.getElementById('create-event-modal').style.display = 'block';
         document.getElementById('overlay').style.display = 'block';
-    } catch (error) {
-        console.error('Error displaying registered users:', error.message);
-        alert('Error displaying registered users. Please try again later.');
     }
-}
 
-function closeUsersModal() {
-    document.getElementById('users-modal').style.display = 'none';
-    document.getElementById('overlay').style.display = 'none';
-}
-    // Show the edit modal
+    function closeCreateEventModal() {
+        document.getElementById('create-event-modal').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    // Handle the creation of a new event
+    document.getElementById('create-event-form').addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+
+        try {
+            const response = await fetch('/api/events', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to create event.');
+            }
+
+            alert('Event created successfully!');
+            closeCreateEventModal();
+            fetchEvents(); // Refresh the event list
+        } catch (error) {
+            console.error('Error creating event:', error.message);
+            alert('Error creating event. Please try again.');
+        }
+    });
+
+    // Show the "Edit Event Time" modal
     function editEvent(eventId, currentTime) {
         currentEventId = eventId;
 
@@ -375,7 +347,7 @@ function closeUsersModal() {
         overlay.style.display = 'block';
     }
 
-    // Save the edited time
+    // Save the updated event time
     async function saveEdit() {
         const editTimeInput = document.getElementById('edit-time');
         const newTime = editTimeInput.value ? new Date(editTimeInput.value).toISOString() : null;
@@ -396,22 +368,19 @@ function closeUsersModal() {
 
             alert('Event updated successfully!');
             fetchEvents(); // Refresh the event list
-            closeModal(); // Close the modal
+            closeEditModal(); // Close the modal
         } catch (error) {
             console.error('Error editing event:', error.message);
             alert('Error editing event. Please try again.');
         }
     }
 
-    // Close the modal
-    function closeModal() {
-        const editModal = document.getElementById('edit-modal');
-        const overlay = document.getElementById('overlay');
-        editModal.style.display = 'none';
-        overlay.style.display = 'none';
+    function closeEditModal() {
+        document.getElementById('edit-modal').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
     }
 
-    // Delete an event
+    // Delete a specific event
     async function deleteEvent(eventId) {
         if (!confirm('Are you sure you want to delete this event?')) return;
 
@@ -432,8 +401,10 @@ function closeUsersModal() {
         }
     }
 
-    // Delete expired events
+    // Delete all expired events
     async function deleteExpiredEvents() {
+        if (!confirm('Are you sure you want to delete all expired events?')) return;
+
         try {
             const response = await fetch('/api/deleteExpiredEvents', {
                 method: 'DELETE',
@@ -453,15 +424,63 @@ function closeUsersModal() {
         }
     }
 
+    // Show the "Show Registered Users" modal
+    async function showRegisteredUsers(eventId) {
+        try {
+            const response = await fetch(`/api/events/${eventId}/registered-users`);
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Failed to fetch registered users.');
+            }
+
+            const usersList = document.getElementById('users-list');
+            usersList.innerHTML = ''; // Clear existing list
+
+            if (result.registeredUsers.length > 0) {
+                result.registeredUsers.forEach(user => {
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${user.name} (${user.email})`;
+                    usersList.appendChild(listItem);
+                });
+            } else {
+                usersList.innerHTML = '<li>No registered users found.</li>';
+            }
+
+            document.getElementById('users-modal').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        } catch (error) {
+            console.error('Error fetching registered users:', error.message);
+            alert('Error fetching registered users. Please try again later.');
+        }
+    }
+
+    function closeUsersModal() {
+        document.getElementById('users-modal').style.display = 'none';
+        document.getElementById('overlay').style.display = 'none';
+    }
+
+    function closeAllModals() {
+        closeCreateEventModal();
+        closeEditModal();
+        closeUsersModal();
+    }
+    // JavaScript for Back to Home Button
+document.getElementById('BackHomeButton').addEventListener('click', () => {
+    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+    const userid = new URLSearchParams(window.location.search).get('userid'); // Get userid from URL
+
+    if (!token) {
+        alert('No token found. Please log in.');
+        return;
+    }
+
+    // Redirect to index_logined.html with userid and token in the query string
+    window.location.href = `index_logined.html?userid=${userid}&token=${token}`;
+});
+
     // Fetch events on page load
     document.addEventListener('DOMContentLoaded', fetchEvents);
-
-    document.addEventListener('DOMContentLoaded', function() {    
-        document.getElementById('home-link').addEventListener('click', function() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `index_logined.html?userid=${userId}`; 
-        });
-    });
 </script>
 
 </body>

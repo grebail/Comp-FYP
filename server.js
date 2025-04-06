@@ -80,6 +80,10 @@ app.use(session({
         saveUninitialized: false
     }));
 
+
+
+// Serve the "uploads" folder as static content
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // API route to create an EPC
 app.post('/api/epc', async (req, res) => {
     try {
@@ -259,7 +263,7 @@ app.get('/api/events', async (req, res) => {
         // Fetch all events from the database
         const events = await Event.find({});
 
-        // Map the event data to include registered users
+        // Map the event data to include all necessary fields
         const eventData = events.map(event => {
             // Convert the registeredUsers map to a regular object for easy handling
             const registeredUsers = {};
@@ -272,8 +276,9 @@ app.get('/api/events', async (req, res) => {
                 title: event.title,
                 venue: event.venue,
                 time: event.time,
+                description: event.description, // Include description
+                image: event.image, // Include image filename
                 registeredUsers, // Object with emails as keys and user names as values
-                eventLink: event.eventLink,
             };
         });
 
@@ -285,134 +290,120 @@ app.get('/api/events', async (req, res) => {
     }
 });
 
-// Configure multer for file upload
-const upload = multer({ dest: 'uploads/' }); // Temporary storage for uploaded files
-const { v4: uuidv4 } = require('uuid');
 
-app.post('/api/uploadCsv', upload.single('csv'), async (req, res) => {
+
+// Configure multer for file uploads
+const upload = multer({ dest: 'uploads/' }); // Files will be stored in the "uploads" directory
+
+// API to create a new event
+app.post('/api/events', upload.single('image'), async (req, res) => {
     try {
-        const filePath = req.file.path; // Path to the uploaded file
-        const rows = []; // Array to collect rows for processing later
+        const { title, description, time, venue } = req.body;
 
-        // Parse the CSV file
-        fs.createReadStream(filePath)
-            .pipe(csv({ headers: ['title', 'venue', 'time', 'eventLink'], skipEmptyLines: true }))
-            .on('data', (row) => {
-                rows.push(row); // Collect rows for processing later
-            })
-            .on('end', async () => {
-                try {
-                    for (const row of rows) {
-                        // Sanitize and validate fields
-                        const title = row.title?.trim();
-                        const venue = row.venue?.trim();
-                        const timeRaw = row.time?.trim();
-                        const time = new Date(timeRaw); // Convert sanitized time to a Date object
-                        const eventLink = row.eventLink?.trim();
+        // Validate required fields
+        if (!title || !description || !time || !venue || !req.file) {
+            return res.status(400).json({ error: 'All fields are required: title, description, time, venue, and image.' });
+        }
 
-                        // Validate required fields
-                        if (!title || !venue || isNaN(time.getTime()) || !eventLink) {
-                            console.error(`Invalid row data: ${JSON.stringify(row)}`);
-                            continue; // Skip invalid rows
-                        }
+        // Create a new event object
+        const newEvent = new Event({
+            title,
+            description,
+            time: new Date(time), // Convert to Date object
+            venue,
+            image: req.file.filename, // Save the uploaded image filename
+        });
 
-                        // Check if the event already exists by title
-                        const existingEvent = await Event.findOne({ title });
+        // Save the event to the database
+        await newEvent.save();
 
-                        if (existingEvent) {
-                            // Update the existing event with new fields (excluding the title)
-                            existingEvent.venue = venue;
-                            existingEvent.time = time;
-                            existingEvent.eventLink = eventLink;
-                            await existingEvent.save();
-                            console.log(`Updated event: ${title}`);
-                        } else {
-                            // Create a new event if it doesn't already exist
-                            const newEvent = new Event({
-                                eventId: uuidv4(), // Generate a unique eventId
-                                title,
-                                venue,
-                                time,
-                                eventLink,
-                                registeredUsers: {}, // Initialize an empty map for registered users
-                            });
-                            await newEvent.save();
-                            console.log(`Created new event: ${title}`);
-                        }
-                    }
-
-                    res.status(200).json({ message: 'CSV processed successfully. Duplicate events were updated.' });
-                } catch (error) {
-                    console.error('Error processing rows:', error.message);
-                    res.status(500).json({ error: 'Failed to process events.' });
-                } finally {
-                    // Clean up temporary files
-                    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-                }
-            })
-            .on('error', (error) => {
-                console.error('Error reading the CSV file:', error.message);
-                res.status(500).json({ error: 'Error processing the CSV file.' });
-                if (fs.existsSync(filePath)) fs.unlinkSync(filePath); // Clean up temporary file on error
-            });
+        res.status(201).json({ message: 'Event created successfully!', event: newEvent });
     } catch (error) {
-        console.error('Error in /api/uploadCsv:', error.message);
-        res.status(500).json({ error: 'Internal server error.' });
+        console.error('Error creating event:', error.message);
+        res.status(500).json({ error: 'An error occurred while creating the event.' });
     }
 });
 
 
 
-app.put('/api/events/:eventId', async (req, res) => {
+// API to edit an event time
+app.put('/api/events/:id', async (req, res) => {
     try {
-        const { eventId } = req.params;
         const { time } = req.body;
 
-        const updatedFields = {};
-        if (time !== undefined) updatedFields.time = time ? new Date(time) : null;
+        if (!time) {
+            return res.status(400).json({ error: 'Event time is required.' });
+        }
 
-        const event = await Event.findOneAndUpdate({ eventId }, updatedFields, { new: true });
+        // Find and update the event time
+        const updatedEvent = await Event.findOneAndUpdate(
+            { eventId: req.params.id },
+            { time: new Date(time) }, // Convert to Date object
+            { new: true }
+        );
 
-        if (!event) {
+        if (!updatedEvent) {
             return res.status(404).json({ error: 'Event not found.' });
         }
 
-        res.status(200).json({ message: 'Event updated successfully.', event });
+        res.status(200).json({ message: 'Event time updated successfully!', event: updatedEvent });
     } catch (error) {
-        console.error('Error updating event:', error.message);
-        res.status(500).json({ error: 'Internal server error.' });
+        console.error('Error editing event:', error.message);
+        res.status(500).json({ error: 'An error occurred while editing the event.' });
     }
 });
 
-app.delete('/api/events/:eventId', async (req, res) => {
+// API to delete an event
+app.delete('/api/events/:id', async (req, res) => {
     try {
-        const { eventId } = req.params;
+        const deletedEvent = await Event.findOneAndDelete({ eventId: req.params.id });
 
-        const event = await Event.findOneAndDelete({ eventId });
-
-        if (!event) {
+        if (!deletedEvent) {
             return res.status(404).json({ error: 'Event not found.' });
         }
 
-        res.status(200).json({ message: 'Event deleted successfully.' });
+        res.status(200).json({ message: 'Event deleted successfully!' });
     } catch (error) {
         console.error('Error deleting event:', error.message);
-        res.status(500).json({ error: 'Internal server error.' });
+        res.status(500).json({ error: 'An error occurred while deleting the event.' });
     }
 });
 
+// API to delete expired events
 app.delete('/api/deleteExpiredEvents', async (req, res) => {
     try {
         const now = new Date();
-        const result = await Event.deleteMany({ time: { $lt: now } }); // Delete events with a time earlier than the current date
-        res.status(200).json({ message: `Deleted ${result.deletedCount} expired events.` });
+
+        // Delete all events where the time has passed
+        const result = await Event.deleteMany({ time: { $lt: now } });
+
+        res.status(200).json({
+            message: 'Expired events deleted successfully!',
+            deletedCount: result.deletedCount,
+        });
     } catch (error) {
         console.error('Error deleting expired events:', error.message);
-        res.status(500).json({ error: 'Internal server error.' });
+        res.status(500).json({ error: 'An error occurred while deleting expired events.' });
     }
 });
 
+// API to get registered users for an event
+app.get('/api/events/:id/registered-users', async (req, res) => {
+    try {
+        const event = await Event.findOne({ eventId: req.params.id });
 
+        if (!event) {
+            return res.status(404).json({ error: 'Event not found.' });
+        }
+
+        const registeredUsers = Array.from(event.registeredUsers.entries()).map(([email, name]) => ({ email, name }));
+
+        res.status(200).json({ registeredUsers });
+    } catch (error) {
+        console.error('Error fetching registered users:', error.message);
+        res.status(500).json({ error: 'An error occurred while fetching registered users.' });
+    }
+});
 // Function to send room booking confirmation email
 async function sendRoomBookingConfirmationEmail(bookingDetails) {
     try {
@@ -634,11 +625,11 @@ Library Team`;
         // Send email using SendGrid
         const response = await sgMail.send(msg);
 
-        console.log(`Email sent successfully to ${toAddress}.`);
-        return response;
+        console.log(`Email sent successfully to ${toAddress}. Response:`, response);
+        return response; // Return SendGrid response for further processing
     } catch (error) {
         console.error(`Error sending email to ${userDetails.email || 'Unknown Email'}:`, error.message);
-        throw error;
+        throw error; // Propagate the error
     }
 }
 
@@ -647,6 +638,7 @@ function formatDateToUTC(date) {
     const utcDate = new Date(date);
     return utcDate.toUTCString(); // Format date in UTC
 }
+// Route to manually send reminder emails
 // Route to manually send reminder emails
 app.post('/send-reminder-emails', async (req, res) => {
     try {
@@ -680,6 +672,8 @@ app.post('/send-reminder-emails', async (req, res) => {
             return res.status(404).json({ message: 'No users with loans due in the next 3 days.' });
         }
 
+        const emailResults = []; // To store the results of email sending
+
         for (const user of usersWithLoans) {
             if (!user.email) {
                 console.error(`User ${user.name || 'Unknown'} is missing an email address.`);
@@ -699,14 +693,29 @@ app.post('/send-reminder-emails', async (req, res) => {
 
             if (upcomingLoans.length > 0) {
                 try {
-                    await sendEmail(user, upcomingLoans);
+                    const sendResult = await sendEmail(user, upcomingLoans); // Send email
+                    emailResults.push({
+                        user: user.name || 'Unknown User',
+                        email: user.email,
+                        status: 'Success',
+                        sendGridResponse: sendResult,
+                    });
                 } catch (error) {
-                    console.error(`Failed to send email to ${user.email}. Error:`, error.message);
+                    emailResults.push({
+                        user: user.name || 'Unknown User',
+                        email: user.email,
+                        status: 'Failed',
+                        error: error.message,
+                    });
                 }
             }
         }
 
-        res.status(200).json({ message: 'Reminder emails sent successfully!' });
+        // Return the results of the email sending process
+        res.status(200).json({
+            message: 'Reminder emails processed successfully!',
+            emailResults: emailResults,
+        });
     } catch (error) {
         console.error('Error sending reminder emails:', error.message);
         res.status(500).json({ error: 'Error sending reminder emails.' });

@@ -439,9 +439,10 @@
     // Room Booking link redirect
         document.getElementById('room-booking-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
+            const token = localStorage.getItem('token')
             if (userId) {
                 // Redirect to room booking with user ID
-                window.location.href = `room_booking.html?userid=${userId}`;
+                window.location.href = `room_booking.html?userid=${userId}&token=${token}`;
             } else {
                 console.error('No user ID found in URL. Redirecting to login...');
                 window.location.href = 'login.html'; // Redirect to login if user ID is missing
@@ -450,25 +451,27 @@
         // Event booking and promo link redirect
         document.getElementById('event-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `event_booking.html?userid=${userId}`; // Redirect to event booking with user ID
+            const token = localStorage.getItem('token');
+            window.location.href = `event_booking.html?userid=${userId}&token=${token}`; // Redirect to event booking with user ID
         });
 
         // Privacy policy link redirect
         document.getElementById('privacy-policy-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
+    
             window.location.href = `privacy-policy_logined.html?userid=${userId}`;
         })
 
         // Library Location link redirect
         document.getElementById('lib-location-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `lib-location_logined.html?userid=${userId}`;
+            window.location.href = `lib-location_logined.html?userid=${userId}&token=${token}`;
         })
 
         // Contact link redirect
         document.getElementById('contact-link').addEventListener('click', function () {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `contact_logined.html?userid=${userId}`;
+            window.location.href = `contact_logined.html?userid=${userId}&token=${token}`;
         })
     </script>
 </html>

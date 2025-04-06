@@ -23,7 +23,7 @@
             max-width: 600px;
             position: relative;
             overflow: hidden;
-            margin: 0 auto;
+            margin: 20px auto;
         }
         .promo-slider {
             display: flex;
@@ -37,7 +37,7 @@
             place-items: center;
         }
         .promo-slide img {
-            width: 25%;
+            width: 100%;
             height: auto;
             border-radius: 8px;
         }
@@ -69,9 +69,19 @@
             padding: 15px;
             border-radius: 5px;
             transition: box-shadow 0.3s;
+            display: flex;
+            gap: 15px;
         }
         .event:hover { box-shadow: 0 0 10px rgba(0, 0, 0, 0.2); }
-
+        .event img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        .event-details {
+            flex: 1;
+        }
         .book-button {
             background: #218838;
             color: #fff;
@@ -81,7 +91,7 @@
             border-radius: 5px;
             margin-right: 10px;
             transition: background 0.3s;
-        }        
+        }
         .detail-button {
             background: #0056b3;
             color: #fff;
@@ -89,21 +99,11 @@
             padding: 10px 20px;
             cursor: pointer;
             border-radius: 5px;
-            margin-right: 10px;
             transition: background 0.3s;
         }
         .book-button:hover { background: #2ebc4c; }
         .detail-button:hover { background: #034fa1; }
 
-        footer {
-            background: linear-gradient(to left, #55ba59, #27732b);
-            color: #fff;
-            padding: 10px;
-            text-align: center;
-            position: relative;
-            bottom: 0;
-            width: 100%;
-        }
         .modal {
             display: none;
             position: fixed;
@@ -135,24 +135,29 @@
             text-decoration: none;
             cursor: pointer;
         }
-
-                /* Back to Home Button */
-                .back-home {
+        footer {
+            background: linear-gradient(to left, #55ba59, #27732b);
+            color: #fff;
+            padding: 10px;
+            text-align: center;
+            position: relative;
+            bottom: 0;
+            width: 100%;
+        }
+        .back-home {
             text-align: center;
             margin: 20px 0;
         }
-
         .back-home a {
-            background-color: #55ba59; /* Green background */
+            background-color: #55ba59;
             color: white;
             padding: 10px 20px;
             text-decoration: none;
             border-radius: 5px;
             transition: background-color 0.3s;
         }
-
         .back-home a:hover {
-            background-color: #45a049; /* Darker green on hover */
+            background-color: #45a049;
         }
     </style>
 </head>
@@ -176,9 +181,11 @@
     <button class="scroll-button scroll-right" onclick="slideRight()">&#10095;</button>
 </div>
 
-<!-- Booking Section -->
 <div class="container">
     <h2>Explore Our Events</h2>
+    <div id="event-list">
+        <!-- Events will be dynamically populated here -->
+    </div>
 </div>
 
 <!-- Details Modal -->
@@ -186,17 +193,22 @@
     <div class="modal-content">
         <span class="close" onclick="closeModal()">&times;</span>
         <h2>Event Details</h2>
+        <img id="event-image-info" src="" alt="Event Image" style="max-width: 100%; border-radius: 8px;">
         <p><strong>Title:</strong> <span id="event-title-info"></span></p>
         <p><strong>Venue:</strong> <span id="event-venue-info"></span></p>
         <p><strong>Date:</strong> <span id="event-date-info"></span></p>
         <p><strong>Time:</strong> <span id="event-time-info"></span></p>
-        <p><strong>Description:</strong> <span id="event-content-info"></span></p>
+        <p><strong>Description:</strong> <span id="event-description-info"></span></p>
     </div>
 </div>
 
 <div class="back-home">
     <a id="home-link" href="#">Back to Home</a>
 </div>
+
+<footer>
+    <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
+</footer>
 
 <script>
     let currentIndex = 0;
@@ -231,46 +243,38 @@
         updateSliderPosition();
     }, 5000);
 
-    // Function to open the details modal and populate it with event information
-function openDetailsModal(eventName, eventDescription, eventVenue, eventTime, eventContent) {
-    document.getElementById('event-title-info').innerText = eventName;
-    document.getElementById('event-venue-info').innerText = eventVenue;
-    document.getElementById('event-date-info').innerText = new Date(eventTime).toLocaleDateString();
-    document.getElementById('event-time-info').innerText = new Date(eventTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('event-content-info').innerText = eventContent;
-    document.getElementById('infoModal').style.display = 'block';
-}
-
-    // Function to close the modal
-    function closeModal() {
-        document.getElementById('infoModal').style.display = 'none';
-    }
-
     document.addEventListener('DOMContentLoaded', async function () {
         try {
-            // Fetch events from the API
             const response = await fetch('/api/events');
             const events = await response.json();
-    
+
             if (!response.ok) {
                 throw new Error(events.error || 'Failed to fetch events.');
             }
-    
-            // Display events dynamically
-            const container = document.querySelector('.container');
-            container.innerHTML = '<h2>Explore Our Events</h2>'; // Clear existing content
-    
+
+            const eventList = document.getElementById('event-list');
+            eventList.innerHTML = ''; // Clear existing content
+
             events.forEach(event => {
                 const eventDiv = document.createElement('div');
                 eventDiv.classList.add('event');
                 eventDiv.innerHTML = `
-                    <h3>${event.title}</h3>
-                    <p>Date: ${new Date(event.time).toLocaleDateString()}</p>
-                    <p>Time: ${new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                    <button class="book-button" onclick="bookEvent('${event.title}')">Book Now</button>
-                    <button class="detail-button" onclick="openDetailsModal('${event.title}', 'Event description for ${event.title}', '${event.venue}', '${event.time}', '${event.eventContent}')">Details</button>
+                    <img src="/uploads/${event.image}" alt="${event.title}">
+                    <div class="event-details">
+                        <h3>${event.title}</h3>
+                        <p><strong>Date:</strong> ${new Date(event.time).toLocaleDateString()}</p>
+                        <p><strong>Time:</strong> ${new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        <button class="book-button" onclick="bookEvent('${event.title}')">Book Now</button>
+                        <button class="detail-button" onclick="openDetailsModal(
+                            '${event.title}', 
+                            '${event.venue}', 
+                            '${event.time}', 
+                            '${encodeURIComponent(event.description)}', 
+                            '/uploads/${event.image}'
+                        )">Details</button>
+                    </div>
                 `;
-                container.appendChild(eventDiv);
+                eventList.appendChild(eventDiv);
             });
         } catch (error) {
             console.error('Error fetching events:', error.message);
@@ -278,17 +282,62 @@ function openDetailsModal(eventName, eventDescription, eventVenue, eventTime, ev
         }
     });
 
-    document.addEventListener('DOMContentLoaded', function() {
-        document.getElementById('home-link').addEventListener('click', function() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `index_userlogined.html?userid=${userId}`;
-        });
-    });
-</script>
+    function openDetailsModal(title, venue, time, description, image) {
+        document.getElementById('event-title-info').innerText = title;
+        document.getElementById('event-venue-info').innerText = venue;
+        document.getElementById('event-date-info').innerText = new Date(time).toLocaleDateString();
+        document.getElementById('event-time-info').innerText = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        document.getElementById('event-description-info').innerText = decodeURIComponent(description);
+        document.getElementById('event-image-info').src = image;
+        document.getElementById('infoModal').style.display = 'block';
+    }
 
-<footer>
-    <p>&copy; 2024-2025 Smart Library. All rights reserved.</p>
-</footer>
+    function closeModal() {
+        document.getElementById('infoModal').style.display = 'none';
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        const userId = new URLSearchParams(window.location.search).get('userid');
+        const token = new URLSearchParams(window.location.search).get('token');
+        const homeLink = document.getElementById('home-link');
+    
+        if (userId && token) {
+            // Properly construct the URL with both userid and token
+            homeLink.href = `index_userlogined.html?userid=${userId}&token=${token}`;
+        } else {
+            console.error('Missing userId or token in URL.');
+            homeLink.href = 'login.html'; // Redirect to login if parameters are missing
+        }
+    });
+
+    async function bookEvent(eventName) {
+        const userId = new URLSearchParams(window.location.search).get('userid');
+
+        if (!userId) {
+            alert('User not logged in. Please log in to book this event.');
+            return;
+        }
+
+        try {
+            const response = await fetch('/api/bookEvent', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ eventName, userId }),
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || 'Booking failed.');
+            }
+
+            alert(result.message);
+        } catch (error) {
+            console.error('Error booking event:', error.message);
+            alert('Error booking event. Please try again later.');
+        }
+    }
+</script>
 
 </body>
 </html>

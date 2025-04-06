@@ -403,10 +403,19 @@
             });
         
             // Function to navigate back to home
-            function backHome() {
-                const userId = new URLSearchParams(window.location.search).get('userid');
-                window.location.href = `index_userlogined.html?userid=${userId}`;
-            }
+           // Function to navigate back to home
+function backHome() {
+    const userId = new URLSearchParams(window.location.search).get('userid');
+    const token = new URLSearchParams(window.location.search).get('token');
+
+    if (userId && token) {
+        // Redirect to home with both userid and token
+        window.location.href = `index_userlogined.html?userid=${userId}&token=${token}`;
+    } else {
+        console.error('Missing userId or token in URL. Redirecting to login...');
+        window.location.href = 'login.html'; // Redirect to login if parameters are missing
+    }
+}
         
     </script>
 </body>
