@@ -184,37 +184,46 @@
     </div>-->
 
     <script>
-        function handleLogin(event) {
-            event.preventDefault();
-            const username = document.getElementById('login-username').value;
-            const password = document.getElementById('login-password').value;
+function handleLogin(event) {
+    event.preventDefault();
+    const username = document.getElementById('login-username').value;
+    const password = document.getElementById('login-password').value;
 
-            fetch('/login', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        username,
-                        password
-                    }),
-                })
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Login failed: ' + response.statusText + ' - User Not Found or incorrect input!');
-                    }
-                    return response.json();
-                })
-                .then(data => {
-                    console.log('Login successful:', data); // Debugging
-                    localStorage.setItem('token', data.token); // Store token
-                    console.log('Redirecting to:', data.redirect); // Debugging
-                    window.location.href = data.redirect; // Redirect based on role
-                })
-                .catch(error => {
-                    console.error('Login error:', error); // Debugging
-                    document.getElementById('error-message').innerText = error.message;
-                });
+    fetch('/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Login failed: User not found or incorrect input!');
+        }
+        return response.json();
+    })
+    .then(data => {
+        localStorage.setItem('token', data.token); // Store authentication token
+
+        // Attempt to redirect to the app
+        window.location.href = 'myapp://room-booking';
+
+        // Fallback logic
+        let appOpened = false;
+        const timeout = setTimeout(() => {
+            if (!appOpened) {
+                window.location.href = '/room_booking.html'; // Fallback to web page
+            }
+        }, 2000);
+
+        // Detect if the app opened (browser loses focus)
+        window.addEventListener('blur', () => {
+            appOpened = true;
+            clearTimeout(timeout); // Cancel fallback if app opens
+        }, { once: true });
+    })
+    .catch(error => {
+        document.getElementById('error-message').innerText = error.message;
+    });
+}
         }
 
         document.getElementById('togglePassword').addEventListener('click', function() {
