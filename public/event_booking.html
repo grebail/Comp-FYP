@@ -190,7 +190,7 @@
         <p><strong>Venue:</strong> <span id="event-venue-info"></span></p>
         <p><strong>Date:</strong> <span id="event-date-info"></span></p>
         <p><strong>Time:</strong> <span id="event-time-info"></span></p>
-        <p><strong>Event Link:</strong> <a id="event-link-info" href="#" target="_blank">Click Here</a></p>
+        <p><strong>Description:</strong> <span id="event-content-info"></span></p>
     </div>
 </div>
 
@@ -232,12 +232,12 @@
     }, 5000);
 
     // Function to open the details modal and populate it with event information
-function openDetailsModal(eventName, eventDescription, eventVenue, eventTime, eventLink) {
+function openDetailsModal(eventName, eventDescription, eventVenue, eventTime, eventContent) {
     document.getElementById('event-title-info').innerText = eventName;
     document.getElementById('event-venue-info').innerText = eventVenue;
     document.getElementById('event-date-info').innerText = new Date(eventTime).toLocaleDateString();
     document.getElementById('event-time-info').innerText = new Date(eventTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    document.getElementById('event-link-info').href = eventLink;
+    document.getElementById('event-content-info').innerText = eventContent;
     document.getElementById('infoModal').style.display = 'block';
 }
 
@@ -268,7 +268,7 @@ function openDetailsModal(eventName, eventDescription, eventVenue, eventTime, ev
                     <p>Date: ${new Date(event.time).toLocaleDateString()}</p>
                     <p>Time: ${new Date(event.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     <button class="book-button" onclick="bookEvent('${event.title}')">Book Now</button>
-                    <button class="detail-button" onclick="openDetailsModal('${event.title}', 'Event description for ${event.title}', '${event.venue}', '${event.time}', '${event.eventLink}')">Details</button>
+                    <button class="detail-button" onclick="openDetailsModal('${event.title}', 'Event description for ${event.title}', '${event.venue}', '${event.time}', '${event.eventContent}')">Details</button>
                 `;
                 container.appendChild(eventDiv);
             });
