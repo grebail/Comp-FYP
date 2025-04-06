@@ -1793,65 +1793,101 @@ app.get('/api/userPurchases', authenticateToken, async (req, res) => {
 });
 
 // API endpoint to create a user purchase
+function generateEPC(prefix, copyIndex) {
+    const randomNumber = Math.floor(100 + Math.random() * 900); // Generate a random 3-digit number
+    const suffix = String(copyIndex).padStart(3, '0'); // Pad the copy index with leading zeros to make it 3 digits
+    return `${prefix}${randomNumber}${suffix}`;
+}
 app.post('/api/userPurchases', authenticateToken, async (req, res) => {
-    const { googleId, userid, quantity } = req.body;
+    const { industryIdentifier, userid, quantity } = req.body;
 
     // Validate request body
-    if (!googleId || !userid || !quantity) {
-        return res.status(400).json({ error: 'Missing googleId, userid, or quantity.' });
+    if (!industryIdentifier || !userid || !quantity) {
+        return res.status(400).json({ error: 'Missing industryIdentifier, userid, or quantity.' });
     }
 
     // Ensure userid matches the authenticated user
     if (userid !== req.user.id) {
-        console.log(`Permission denied. User ID: ${userid}, Authenticated User ID: ${req.user.id}`);
         return res.status(403).json({ error: 'You do not have permission to make this purchase.' });
     }
 
     try {
-        // Fetch book details based on googleId
-        const book = await Book.findOne({ googleId });
+        // Fetch book details based on the industryIdentifier (ISBN)
+        const book = await Book.findOne({ industryIdentifier });
         if (!book) {
             return res.status(404).json({ error: 'Book not found' });
         }
 
         // Check if a purchase with the same industryIdentifier already exists
-        const existingPurchase = await BookBuy.findOne({ industryIdentifier: book.industryIdentifier });
-        if (existingPurchase) {
-            return res.status(409).json({ error: 'Purchase already exists for this ISBN.' });
+        let existingPurchase = await BookBuy.findOne({ industryIdentifier });
+
+        const copies = [];
+        const startingIndex = existingPurchase ? existingPurchase.copies.length + 1 : 1;
+
+        // Define the EPC prefix (e.g., 010203)
+        const epcPrefix = '010203';
+
+        // Generate copies with unique `copyId`, `locationId`, and `epc`
+        for (let i = 0; i < quantity; i++) {
+            const copyIndex = startingIndex + i; // Calculate the current copy index
+            const copyId = `${industryIdentifier}-${String(copyIndex).padStart(3, '0')}`;
+            const locationId = generateLocationId(
+                industryIdentifier,
+                book.title,
+                book.authors,
+                book.publishedDate,
+                book.categories[0] || 'Unknown',
+                copyIndex
+            );
+            const epc = generateEPC(epcPrefix, copyIndex); // Generate the EPC with the prefix and copy index
+
+            copies.push({
+                copyId,
+                bookLocation: 'Stanley Ho Library', // Default location
+                locationId,
+                availability: true,
+                status: 'in library',
+                epc,
+            });
         }
 
-        // Generate copies with unique `copyId`s
-        const copies = Array.from({ length: quantity }, (_, index) => ({
-            copyId: `${googleId}-${index + 1}`, // Unique copyId
-            bookLocation: 'Main Library', // Default location
-            locationId: '001', // Default location ID
-        }));
+        if (existingPurchase) {
+            // Add new copies to the existing purchase record
+            existingPurchase.copies.push(...copies);
+            existingPurchase.quantity += quantity;
+            await existingPurchase.save();
 
-        // Create a new purchase record
-        const purchase = new BookBuy({
-            userid: userid,
-            googleId: book.googleId,
-            industryIdentifier: Array.isArray(book.industryIdentifier) ? book.industryIdentifier : [book.industryIdentifier],
-            title: book.title,
-            subtitle: book.subtitle,
-            authors: book.authors,
-            publisher: book.publisher,
-            publishedDate: book.publishedDate,
-            description: book.description,
-            pageCount: book.pageCount,
-            categories: book.categories,
-            language: book.language,
-            coverImage: book.coverImage,
-            purchaseDate: new Date(),
-            quantity: quantity,
-            copies: copies,
-        });
+            return res.status(200).json({
+                message: 'Purchase updated successfully',
+                purchaseInfo: existingPurchase,
+            });
+        } else {
+            // Create a new purchase record
+            const newPurchase = new BookBuy({
+                userid,
+                industryIdentifier: Array.isArray(industryIdentifier) ? industryIdentifier : [industryIdentifier],
+                title: book.title,
+                subtitle: book.subtitle,
+                authors: book.authors,
+                publisher: book.publisher,
+                publishedDate: book.publishedDate,
+                description: book.description,
+                pageCount: book.pageCount,
+                categories: book.categories,
+                language: book.language,
+                coverImage: book.coverImage,
+                purchaseDate: new Date(),
+                quantity,
+                copies,
+            });
 
-        const savedPurchase = await purchase.save();
-        res.status(201).json({
-            message: 'Purchase recorded successfully',
-            purchaseInfo: savedPurchase,
-        });
+            const savedPurchase = await newPurchase.save();
+
+            return res.status(201).json({
+                message: 'Purchase recorded successfully',
+                purchaseInfo: savedPurchase,
+            });
+        }
     } catch (error) {
         console.error('Error recording purchase:', error);
         res.status(500).json({ error: 'Error recording purchase' });

@@ -112,75 +112,50 @@
         const params = new URLSearchParams(window.location.search);
         const userid = params.get('userid');
         const tokenFromUrl = params.get('token');
-
+    
         // Store the token in localStorage if not already stored
         if (tokenFromUrl) {
             localStorage.setItem('token', tokenFromUrl);
         }
-
-        // Function to fetch purchase history
+    
         async function fetchPurchaseHistory() {
             const token = localStorage.getItem('token');
             if (!token) {
                 displayError('No token found. Please log in.');
                 return;
             }
-
+    
             try {
                 const response = await fetch(`/api/userPurchases?userid=${userid}`, {
                     method: 'GET',
                     headers: { 'Authorization': `Bearer ${token}` },
                 });
-
+    
                 if (!response.ok) {
-                    const errorData = await response.text();
-                    displayError(errorData || 'Failed to fetch purchase history.');
+                    document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
+                    document.getElementById('errorMessage').innerText = ''; // Clear any error messages
                     return;
                 }
-
+    
                 const history = await response.json();
                 displayBooks(history);
             } catch (error) {
                 displayError('An error occurred while fetching purchase history.');
             }
         }
-
-        // Function to delete a book copy
-        async function deleteBook(copyId) {
-            const token = localStorage.getItem('token');
-            try {
-                const response = await fetch(`/api/userPurchases?copyId=${copyId}&userid=${userid}`, {
-                    method: 'DELETE',
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
-                });
-
-                if (!response.ok) {
-                    const errorData = await response.text();
-                    displayError(errorData || 'Failed to delete the book copy.');
-                    return;
-                }
-
-                // Refresh the purchase history after deletion
-                fetchPurchaseHistory();
-            } catch (error) {
-                displayError('An error occurred while trying to delete the book copy.');
-            }
-        }
-
-        // Function to display books and their copies
-        async function displayBooks(history) {
-            if (history.length === 0) {
+    
+        function displayBooks(history) {
+            if (!history || history.length === 0) {
                 document.getElementById('historyContent').innerHTML = '<p>No purchase history found.</p>';
+                document.getElementById('errorMessage').innerText = ''; // Clear any error messages
                 return;
             }
-
+    
             const historyHTML = history.map(book => {
                 const formattedDate = book.purchaseDate
                     ? new Date(book.purchaseDate).toLocaleDateString()
                     : 'Unknown Date';
-
+    
                 const copiesHTML = book.copies.map(copy => `
                     <div class="copy-item">
                         <p><strong>Copy ID:</strong> ${copy.copyId}</p>
@@ -188,7 +163,7 @@
                         <button class="delete-button" onclick="deleteBook('${copy.copyId}')">Delete Copy</button>
                     </div>
                 `).join('');
-
+    
                 return `
                     <div class="book-item">
                         <img src="${book.coverImage || 'default_cover_image.png'}" alt="${book.title || 'Unknown Title'} cover" class="book-cover" />
@@ -204,26 +179,34 @@
                     </div>
                 `;
             }).join('');
-
+    
             document.getElementById('historyContent').innerHTML = historyHTML;
         }
-
-        // Function to display error messages
+    
         function displayError(message) {
-            document.getElementById('errorMessage').innerHTML = message;
+            document.getElementById('errorMessage').innerText = message;
         }
-
-        // Event listener for Back home button
+    
         document.getElementById('BackHomeButton').addEventListener('click', () => {
-            window.location.href = `index_logined.html?userid=${userid}`;
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+    
+            window.location.href = `index_logined.html?userid=${userid}&token=${token}`;
         });
-
-        // Event listener for Back catalog button
+    
         document.getElementById('BackCatalogButton').addEventListener('click', () => {
-            window.location.href = `books-catalog.html?userid=${userid}`;
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+    
+            window.location.href = `books-catalog.html?userid=${userid}&token=${token}`;
         });
-
-        // Start fetching purchase history when the page loads
+    
         window.onload = fetchPurchaseHistory;
     </script>
 
