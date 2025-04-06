@@ -210,7 +210,9 @@ function handleLogin(event) {
         let appOpened = false;
         const timeout = setTimeout(() => {
             if (!appOpened) {
-                window.location.href = '/room_booking.html'; // Fallback to web page
+                window.location.href = data.redirect; // Fallback to web page
+            } else {
+                window.location.href = '/room_booking.html';
             }
         }, 2000);
 
