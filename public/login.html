@@ -184,48 +184,48 @@
     </div>
 
     <script>
-function handleLogin(event) {
-    event.preventDefault();
+        function handleLogin(event) {
+    event.preventDefault(); // Prevent form submission from refreshing the page
+
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
 
+    // Send login request to the server
     fetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password })
     })
     .then(response => {
         if (!response.ok) {
-            throw new Error('Login failed: User not found or incorrect input!');
+            throw new Error('Login failed: Incorrect username or password');
         }
         return response.json();
     })
     .then(data => {
-        localStorage.setItem('token', data.token); // Store authentication token
+        // Store the authentication token (if your app uses one)
+        localStorage.setItem('token', data.token);
 
-        // Attempt to redirect to the app
-        window.location.href = 'myapp://room-booking';
+        // Check if the user came from the app
+        const urlParams = new URLSearchParams(window.location.search);
+        const fromApp = urlParams.get('from') === 'app';
 
-        // Fallback logic
-        let appOpened = false;
-        const timeout = setTimeout(() => {
-            if (!appOpened) {
-                window.location.href = data.redirect; // Fallback to web page
-            } else {
-                window.location.href = '/room_booking.html';
-            }
-        }, 2000);
-
-        // Detect if the app opened (browser loses focus)
-        window.addEventListener('blur', () => {
-            appOpened = true;
-            clearTimeout(timeout); // Cancel fallback if app opens
-        }, { once: true });
+        if (fromApp) {
+            // Redirect back to the app
+            window.location.href = 'myapp://main';
+        } else {
+            // Redirect to the website’s main page
+            window.location.href = data.redirect;
+        }
     })
     .catch(error => {
+        // Display error message on the page
         document.getElementById('error-message').innerText = error.message;
     });
 }
+
+// Attach the function to your login form’s submit event
+document.getElementById('login-form').addEventListener('submit', handleLogin);
 
         document.getElementById('togglePassword').addEventListener('click', function() {
             const passwordInput = document.getElementById('login-password');
