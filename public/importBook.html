@@ -405,58 +405,61 @@ document.getElementById('nextPageButton').addEventListener('click', () => {
     
 
         // Display books (updated to handle limited records)
-function displayBooks(purchases) {
-    const tableBody = document.getElementById('bookTableBody');
-    tableBody.innerHTML = '';
-
-    if (purchases.length === 0) {
-        tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center;">No books available</td></tr>`;
-        return;
-    }
-
-    purchases.forEach((purchase) => {
-        const bookRow = document.createElement('tr');
-        bookRow.innerHTML = `
-            <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
-            <td>${purchase.title || 'Unknown Title'}</td>
-            <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
-            <td class="quantity-column">${purchase.quantity || 0}</td>
-            <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
-            <td colspan="6"></td>
-        `;
-        tableBody.appendChild(bookRow);
-
-        purchase.copies.forEach((copy) => {
-            const copyRow = document.createElement('tr');
-            copyRow.classList.add('copy-row');
-            copyRow.innerHTML = `
-                <td colspan="5"></td>
-                <td><input type="text" value="${copy.copyId || ''}" class="copy-id" /></td>
-                <td>
-                    <select class="book-location">
-                        <option value="Stanley Ho Library" ${
-                            copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''
-                        }>Stanley Ho Library</option>
-                        <option value="Ho Sik Yee Library" ${
-                            copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''
-                        }>Ho Sik Yee Library</option>
-                    </select>
-                </td>
-                <td>
-                    <input type="text" value="${copy.locationId || ''}" class="location-id" disabled />
-                </td>
-                <td><input type="checkbox" ${copy.availability ? 'checked' : ''} class="availability" /></td>
-                <td><input type="text" value="${copy.epc || ''}" class="epc" /></td>
-                <td>
-                    <button class="save-button" onclick="saveChanges('${copy._id}', this)">Save</button>
-                    <button class="delete-button" onclick="deleteCopy('${copy._id}')">Delete</button>
-                </td>
-            `;
-            tableBody.appendChild(copyRow);
-        });
-    });
-}
-
+        function displayBooks(purchases) {
+            const tableBody = document.getElementById('bookTableBody');
+            tableBody.innerHTML = '';
+        
+            if (purchases.length === 0) {
+                tableBody.innerHTML = `<tr><td colspan="11" style="text-align: center;">No books available</td></tr>`;
+                return;
+            }
+        
+            purchases.forEach((purchase) => {
+                const bookRow = document.createElement('tr');
+                bookRow.innerHTML = `
+                    <td>${purchase.industryIdentifier.join(', ') || 'N/A'}</td>
+                    <td>${purchase.title || 'Unknown Title'}</td>
+                    <td>${purchase.authors.join(', ') || 'Unknown Author'}</td>
+                    <td class="quantity-column">${purchase.quantity || 0}</td>
+                    <td>${new Date(purchase.purchaseDate).toLocaleDateString()}</td>
+                    <td colspan="5"></td>
+                    <td>
+                        <!-- Add Delete Book Button -->
+                        <button class="delete-button" onclick="deleteBook('${purchase._id}')">Delete Book</button>
+                    </td>
+                `;
+                tableBody.appendChild(bookRow);
+        
+                purchase.copies.forEach((copy) => {
+                    const copyRow = document.createElement('tr');
+                    copyRow.classList.add('copy-row');
+                    copyRow.innerHTML = `
+                        <td colspan="5"></td>
+                        <td><input type="text" value="${copy.copyId || ''}" class="copy-id" /></td>
+                        <td>
+                            <select class="book-location">
+                                <option value="Stanley Ho Library" ${
+                                    copy.bookLocation === 'Stanley Ho Library' ? 'selected' : ''
+                                }>Stanley Ho Library</option>
+                                <option value="Ho Sik Yee Library" ${
+                                    copy.bookLocation === 'Ho Sik Yee Library' ? 'selected' : ''
+                                }>Ho Sik Yee Library</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" value="${copy.locationId || ''}" class="location-id" disabled />
+                        </td>
+                        <td><input type="checkbox" ${copy.availability ? 'checked' : ''} class="availability" /></td>
+                        <td><input type="text" value="${copy.epc || ''}" class="epc" /></td>
+                        <td>
+                            <button class="save-button" onclick="saveChanges('${copy._id}', this)">Save</button>
+                            <button class="delete-button" onclick="deleteCopy('${copy._id}')">Delete</button>
+                        </td>
+                    `;
+                    tableBody.appendChild(copyRow);
+                });
+            });
+        }
         function saveChanges(copyId, button) {
             const row = button.closest('tr');
 
@@ -520,6 +523,24 @@ function displayBooks(purchases) {
         function updateBookCount(count) {
             document.getElementById('bookCount').textContent = count;
         }
+        async function deleteBook(bookId) {
+            if (!confirm('Are you sure you want to delete this book and all its copies?')) return;
+        
+            try {
+                const response = await fetch(`/api/deleteBook/${bookId}`, { method: 'DELETE' });
+        
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Failed to delete book.');
+                }
+        
+                alert('Book deleted successfully!');
+                fetchAllPurchases(); // Refresh the list after deletion
+            } catch (error) {
+                alert('Error deleting book: ' + error.message);
+                console.error('Error deleting book:', error);
+            }
+        }
 
         document.getElementById('backToCatalogButton').addEventListener('click', () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -576,6 +597,19 @@ function displayBooks(purchases) {
             displaySuccess('Search reset.'); // Optional: Show a success message
             fetchAllPurchases(); // Reload all purchases
         }
+        document.getElementById('BackCatalogButton').addEventListener('click', () => {
+            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const userid = urlParams.get('userid'); // Retrieve the userid from the URL
+        
+            if (!token) {
+                displayError('No token found. Please log in.');
+                return;
+            }
+        
+            // Redirect to the catalog page with userid and token
+            window.location.href = `books-catalog.html?userid=${userid}`;
+        });
         window.onload = fetchAllPurchases;
     </script>
 

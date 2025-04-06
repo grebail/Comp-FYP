@@ -1481,15 +1481,21 @@ app.get('/api/books/:googleId', async (req, res) => {
 
 
 // API endpoint to get book details by ISBN
-app.get('/api/books/isbn/:isbn', async(req, res) => {
+// API endpoint to get book details by ISBN
+// API endpoint to get book details by ISBN
+app.get('/api/books/isbn/:isbn', async (req, res) => {
     const { isbn } = req.params;
 
     try {
+        // Check if the book already exists in the local database by ISBN
         let book = await Book.findOne({ industryIdentifier: isbn });
 
         if (!book) {
-            // Fetch from Google Books API if not found in database
-            const response = await axios.get(`https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`);
+            // If the book is not found, fetch from Google Books API
+            const googleBooksApiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}&key=AIzaSyCBY9btOSE4oWKYDJp_u5KrRI7rHocFB8A`;
+            console.log('Fetching from Google Books API:', googleBooksApiUrl);
+
+            const response = await axios.get(googleBooksApiUrl);
             const items = response.data.items;
 
             if (!items || items.length === 0) {
@@ -1498,6 +1504,15 @@ app.get('/api/books/isbn/:isbn', async(req, res) => {
 
             const googleBook = items[0]; // Assuming the first result is the desired book
 
+            // Check if the book with the same googleId already exists
+            const existingBook = await Book.findOne({ googleId: googleBook.id });
+
+            if (existingBook) {
+                console.log(`Book with googleId ${googleBook.id} already exists. Returning the existing book.`);
+                return res.json(existingBook); // Return the existing book
+            }
+
+            // Create a new book entry from Google Books API data
             const newBook = new Book({
                 googleId: googleBook.id,
                 industryIdentifier: isbn,
@@ -1519,8 +1534,9 @@ app.get('/api/books/isbn/:isbn', async(req, res) => {
                 previewLink: googleBook.volumeInfo.previewLink || '',
             });
 
+            // Save the new book to the database
             await newBook.save();
-            book = newBook; // Update book reference to the newly saved book
+            book = newBook; // Update the reference to the newly saved book
         }
 
         res.json(book);
@@ -1529,7 +1545,6 @@ app.get('/api/books/isbn/:isbn', async(req, res) => {
         res.status(500).json({ error: 'Error fetching book details' });
     }
 });
-
 // Book Management (librarian only)
 app.get('/books', authenticateToken, async(req, res) => {
     if (req.user.role !== 'librarian') return res.sendStatus(403);
@@ -2396,7 +2411,31 @@ app.put('/api/editBookCopy/:id', async (req, res) => {
         res.status(500).json({ error: 'Failed to update book copy.' });
     }
 });
+// API endpoint to delete a book by its ObjectId
+app.delete('/api/deleteBook/:id', async (req, res) => {
+    const { id } = req.params;
 
+    // Validate the ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+        return res.status(400).json({ error: 'Invalid ObjectId format for id.' });
+    }
+
+    try {
+        // Find and delete the book by its ObjectId
+        const book = await BookBuy.findById(id);
+
+        if (!book) {
+            return res.status(404).json({ error: 'Book not found.' });
+        }
+
+        await BookBuy.deleteOne({ _id: id });
+
+        res.status(200).json({ message: 'Book deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting book:', error);
+        res.status(500).json({ error: 'Failed to delete book.' });
+    }
+});
 // Helper function to fetch and update current loans
 async function updateCurrentLoans(userId) {
     try {
@@ -3005,7 +3044,7 @@ app.post('/api/epc',  async (req, res) => {
 
 // Start server and create default admin
 app.listen(PORT, async() => {
-    console.log(`Server running on http://localhost:${PORT}`);
+    console.log(`Server running on http://:${PORT}`);
     await createDefaultAdmin();
 });
 

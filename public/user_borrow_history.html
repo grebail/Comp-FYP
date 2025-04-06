@@ -253,8 +253,24 @@
         }
 
         async function fetchCoverImage(isbn) {
-            const response = await fetch(`https://covers.openlibrary.org/b/isbn/${isbn}-M.jpg`);
-            return response.ok ? response.url : 'default_cover_image.png';
+            try {
+                const googleBooksApiUrl = `https://www.googleapis.com/books/v1/volumes?q=isbn:${isbn}`;
+                const response = await fetch(googleBooksApiUrl);
+    
+                if (!response.ok) {
+                    console.error(`Failed to fetch cover image for ISBN ${isbn}`);
+                    return 'https://via.placeholder.com/120x180?text=No+Image'; // Fallback image
+                }
+    
+                const data = await response.json();
+                const book = data.items?.[0]; // Get the first result
+                const coverImage = book?.volumeInfo?.imageLinks?.thumbnail;
+    
+                return coverImage || 'https://via.placeholder.com/120x180?text=No+Image'; // Fallback image
+            } catch (error) {
+                console.error(`Error fetching cover image for ISBN ${isbn}:`, error);
+                return 'https://via.placeholder.com/120x180?text=No+Image'; // Fallback image
+            }
         }
 
         async function displayBooks(history) {

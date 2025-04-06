@@ -124,28 +124,27 @@
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         }
-
+    
         // Extract parameters from the URL
-        const googleId = getQueryParam('googleId');
         const userId = getQueryParam('userid');
         const isbn = getQueryParam('isbn');
         const userToken = getQueryParam('token') || localStorage.getItem('token'); // Get token from URL or fallback to localStorage
-
-        console.log('googleId:', googleId);
-        console.log('userId:', userId);
+    
+        console.log('User ID:', userId);
         console.log('ISBN:', isbn);
         console.log('User Token:', userToken);
-
+    
         // Validate parameters
-        if (!googleId && !isbn) {
-            document.getElementById('bookDetails').innerHTML = `<p>Missing required parameters: googleId or ISBN.</p>`;
-            throw new Error('Missing required parameters: googleId or ISBN.');
+        if (!isbn) {
+            document.getElementById('bookDetails').innerHTML = `<p>Missing required parameter: ISBN.</p>`;
+            throw new Error('Missing required parameter: ISBN.');
         }
-
-        // Fetch book details
-        function fetchBookDetails(id, isIsbn = false) {
-            const endpoint = isIsbn ? `/api/books/isbn/${id}` : `/api/books/${id}`;
-            console.log(`Fetching details from: ${endpoint}`);
+    
+        // Fetch book details by ISBN
+        function fetchBookDetails(isbn) {
+            const endpoint = `/api/books/isbn/${isbn}`;
+            console.log(`Fetching book details from: ${endpoint}`);
+    
             return fetch(endpoint, {
                 headers: {
                     'Authorization': `Bearer ${userToken}` // Use token for authentication
@@ -156,43 +155,27 @@
                         throw new Error(`Error ${response.status}: Book not found.`);
                     }
                     return response.json();
-                });
-        }
-
-        // Attempt to fetch book by googleId, fallback to isbn if not found
-        if (googleId) {
-            fetchBookDetails(googleId)
-                .then(displayBookDetails)
-                .catch(() => {
-                    console.warn('Failed to fetch by googleId. Trying by ISBN...');
-                    if (isbn) {
-                        fetchBookDetails(isbn, true)
-                            .then(displayBookDetails)
-                            .catch(error => {
-                                document.getElementById('bookDetails').innerHTML = `<p>${error.message}</p>`;
-                            });
-                    } else {
-                        document.getElementById('bookDetails').innerHTML = `<p>Book not found and ISBN is missing.</p>`;
-                    }
-                });
-        } else if (isbn) {
-            fetchBookDetails(isbn, true)
-                .then(displayBookDetails)
+                })
+                .then(book => {
+                    console.log('Book details fetched successfully:', book);
+                    displayBookDetails(book);
+                })
                 .catch(error => {
+                    console.error('Error fetching book details:', error);
                     document.getElementById('bookDetails').innerHTML = `<p>${error.message}</p>`;
                 });
         }
-
+    
         // Display book details
         function displayBookDetails(book) {
             const bookDetails = `
-                <img src="${book.coverImage}" alt="${book.title} cover" class="book-cover" />
-                <div><strong>Title:</strong> ${book.title}</div>
+                <img src="${book.coverImage || 'https://via.placeholder.com/200x300?text=No+Image'}" alt="${book.title || 'No Title'} cover" class="book-cover" />
+                <div><strong>Title:</strong> ${book.title || 'N/A'}</div>
                 <div><strong>Subtitle:</strong> ${book.subtitle || 'N/A'}</div>
-                <div><strong>Author(s):</strong> ${book.authors.join(', ')}</div>
+                <div><strong>Author(s):</strong> ${book.authors ? book.authors.join(', ') : 'N/A'}</div>
                 <div><strong>Publisher:</strong> ${book.publisher || 'N/A'}</div>
-                <div><strong>Published Date:</strong> ${book.publishedDate}</div>
-                <div><strong>ISBN:</strong> ${book.industryIdentifier}</div>
+                <div><strong>Published Date:</strong> ${book.publishedDate || 'N/A'}</div>
+                <div><strong>ISBN:</strong> ${book.industryIdentifier || 'N/A'}</div>
                 <div><strong>Description:</strong> ${book.description || 'N/A'}</div>
                 <div><strong>Page Count:</strong> ${book.pageCount || 'N/A'}</div>
                 <div><strong>Categories:</strong> ${book.categories ? book.categories.join(', ') : 'N/A'}</div>
@@ -200,6 +183,9 @@
             `;
             document.getElementById('bookDetails').innerHTML = bookDetails;
         }
+    
+        // Fetch book details on page load
+        fetchBookDetails(isbn);
 
         // Fetch book copies
         function fetchBookCopies() {
