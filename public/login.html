@@ -184,8 +184,8 @@
     </div>
 
     <script>
-        function handleLogin(event) {
-    event.preventDefault(); // Prevent form submission from refreshing the page
+    function handleLogin(event) {
+        event.preventDefault(); // Prevent form submission from refreshing the page
 
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
@@ -212,7 +212,7 @@
 
         if (fromApp) {
             // Redirect back to the app
-            window.location.href = 'myapp://main';
+            window.location.href = 'myapp://main?token=' + data.token;
         } else {
             // Redirect to the website’s main page
             window.location.href = data.redirect;
