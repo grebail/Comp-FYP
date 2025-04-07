@@ -480,12 +480,14 @@
 
         // Library Location link redirect
         document.getElementById('lib-location-link').addEventListener('click', function () {
+            const token = localStorage.getItem('token');
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `lib-location_logined.html?userid=${userId}&token=${token}`;
         })
 
         // Contact link redirect
         document.getElementById('contact-link').addEventListener('click', function () {
+            const token = localStorage.getItem('token');
             const userId = new URLSearchParams(window.location.search).get('userid');
             window.location.href = `contact_logined.html?userid=${userId}&token=${token}`;
         })
