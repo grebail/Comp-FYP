@@ -2435,7 +2435,7 @@ app.get('/api/userDetails', authenticateToken, async (req, res) => {
     try {
         let userDetails = await UserDetails.findOne({ userId: userid });
 
-        // If user details do not exist, create a new user with a generated library card
+        // If user details do not exist, create a new document
         if (!userDetails) {
             const libraryCard = generateLibraryCardId();
 

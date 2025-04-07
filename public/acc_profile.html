@@ -224,34 +224,33 @@
         }
     }
     
-    async function fetchUserDetails(retryCount = 0) {
-        const userId = new URLSearchParams(window.location.search).get('userid'); // Get userId from URL
-        const token = localStorage.getItem('token'); // Retrieve the token from local storage
+    async function fetchUserDetails() {
+        const userId = new URLSearchParams(window.location.search).get('userid');
+        const token = localStorage.getItem('token');
     
         try {
-            const userResponse = await fetch(`/api/userDetails?userid=${userId}`, {
+            const response = await fetch(`/api/userDetails?userid=${userId}`, {
                 method: 'GET',
                 headers: {
                     'Authorization': `Bearer ${token}`,
                 },
             });
     
-            if (!userResponse.ok) {
+            if (!response.ok) {
                 throw new Error('Failed to fetch user details');
             }
     
-            const userDetails = await userResponse.json();
-            console.log('Fetched User Details:', userDetails); // Log the fetched user details
+            const userDetails = await response.json();
     
-            populateUserDetails(userDetails);
+            // Populate fields if user details exist
+            document.getElementById('name').value = userDetails.name || '';
+            document.getElementById('email').value = userDetails.email || '';
+            document.getElementById('phone').value = userDetails.phone || '';
+            document.getElementById('library-card').value = userDetails.libraryCard || 'Generating...';
     
-            // Poll only if the library card is not generated yet
-            if (!userDetails.libraryCard && retryCount < 10) {
-                console.log('Library card not generated yet, retrying...');
-                setTimeout(() => fetchUserDetails(retryCount + 1), 2000); // Retry after 2 seconds
-            } else if (!userDetails.libraryCard) {
-                console.error('Failed to generate library card after multiple retries.');
-                alert('Library card generation is taking longer than expected. Please try again later.');
+            // If the name field is empty, prompt the user to input their details
+            if (!userDetails.name) {
+                alert('Please input your user details and click "Save Changes".');
             }
         } catch (error) {
             console.error('Error fetching user details:', error);
@@ -259,20 +258,15 @@
         }
     }
     
-    document.addEventListener('DOMContentLoaded', function () {
-        fetchUserDetails(); // Fetch user details when the page loads
-    });
-
-    
     async function saveChanges(event) {
         event.preventDefault();
+    
+        const userId = new URLSearchParams(window.location.search).get('userid');
+        const token = localStorage.getItem('token');
     
         const name = document.getElementById('name').value;
         const email = document.getElementById('email').value;
         const phone = document.getElementById('phone').value;
-    
-        const userId = new URLSearchParams(window.location.search).get('userid');
-        const token = localStorage.getItem('token');
     
         try {
             const response = await fetch('/api/userDetails', {
@@ -281,19 +275,15 @@
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    userId,
-                    name,
-                    email,
-                    phone,
-                }),
+                body: JSON.stringify({ userId, name, email, phone }),
             });
     
             if (!response.ok) {
                 throw new Error('Failed to save user details');
             }
     
-            alert("Your changes have been saved.");
+            alert('Save chnages successful! ');
+            fetchUserDetails(); // Reload the user details after saving
         } catch (error) {
             console.error('Error saving user details:', error);
             alert('Error saving user details. Please try again.');
@@ -323,15 +313,17 @@
             displayCurrentLoans(currentLoans);
         } catch (error) {
             console.error('Error fetching current loans:', error);
-            alert('Error fetching current loans. Please try again.');
+            const loansList = document.querySelector('.borrowing-info ul');
+            loansList.innerHTML = '<li>You have no current loans.</li>';
         }
     }
+    
     function displayCurrentLoans(loans) {
         const loansList = document.querySelector('.borrowing-info ul');
         loansList.innerHTML = '';
     
         if (!loans || loans.length === 0) {
-            loansList.innerHTML = '<li>No current loans.</li>';
+            loansList.innerHTML = '<li>You have no current loans.</li>';
             return;
         }
     
@@ -360,100 +352,89 @@
     });
 
  
-        async function fetchRoomBookings() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            const token = localStorage.getItem('token'); // Retrieve the token from local storage
+    async function fetchRoomBookings() {
+        const userId = new URLSearchParams(window.location.search).get('userid');
+        const token = localStorage.getItem('token'); // Retrieve the token from local storage
     
-            try {
-                const response = await fetch(`/api/roomBookings?userid=${userId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
+        try {
+            const response = await fetch(`/api/roomBookings?userid=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
     
-                if (!response.ok) {
-                    throw new Error('Failed to fetch room bookings');
-                }
-    
-                const roomBookings = await response.json();
-                displayRoomBookings(roomBookings);
-            } catch (error) {
-                console.error('Error fetching room bookings:', error);
-                alert('Error fetching room bookings. Please try again.');
+            if (!response.ok) {
+                throw new Error('Failed to fetch room bookings');
             }
-        }
     
-        function displayRoomBookings(bookings) {
+            const roomBookings = await response.json();
+            displayRoomBookings(roomBookings);
+        } catch (error) {
+            console.error('Error fetching room bookings:', error);
             const roomBookingsList = document.getElementById('room-bookings-list');
-            roomBookingsList.innerHTML = ''; // Clear any existing bookings
+            roomBookingsList.innerHTML = '<li>You have no room bookings.</li>';
+        }
+    }
     
-            if (!bookings || bookings.length === 0) {
-                roomBookingsList.innerHTML = '<li>No room bookings found.</li>';
-                return;
-            }
+    function displayRoomBookings(bookings) {
+        const roomBookingsList = document.getElementById('room-bookings-list');
+        roomBookingsList.innerHTML = ''; // Clear any existing bookings
     
-            bookings.forEach(booking => {
-                const listItem = document.createElement('li');
-                const bookingDate = new Date(booking.date).toLocaleDateString();
-                listItem.textContent = `${booking.roomName} | ${bookingDate} | ${booking.timeslot}`;
-                roomBookingsList.appendChild(listItem);
-            });
+        if (!bookings || bookings.length === 0) {
+            roomBookingsList.innerHTML = '<li>You have no room bookings.</li>';
+            return;
         }
     
-        async function fetchEventBookings() {
-            const userId = new URLSearchParams(window.location.search).get('userid');
-            const token = localStorage.getItem('token'); // Retrieve the token from local storage
-    
-            try {
-                const response = await fetch(`/api/eventBookings?userid=${userId}`, {
-                    method: 'GET',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                    },
-                });
-    
-                if (!response.ok) {
-                    throw new Error('Failed to fetch event bookings');
-                }
-    
-                const eventBookings = await response.json();
-                displayEventBookings(eventBookings);
-            } catch (error) {
-                console.error('Error fetching event bookings:', error);
-                alert('Error fetching event bookings. Please try again.');
-            }
-        }
-    
-        function displayEventBookings(bookings) {
-            const eventBookingsList = document.getElementById('event-bookings-list');
-            eventBookingsList.innerHTML = ''; // Clear any existing bookings
-    
-            if (!bookings || bookings.length === 0) {
-                eventBookingsList.innerHTML = '<li>No event bookings found.</li>';
-                return;
-            }
-    
-            bookings.forEach(event => {
-                const listItem = document.createElement('li');
-                const eventDate = new Date(event.time).toLocaleString();
-                listItem.innerHTML = `<strong>${event.title}</strong> at ${event.venue} on ${eventDate} <a href="${event.eventLink}" target="_blank">Details</a>`;
-                eventBookingsList.appendChild(listItem);
-            });
-        }
-    
-        document.addEventListener('DOMContentLoaded', function() {
-            // Fetch and display user details, loans, room bookings, and event bookings on page load
-            fetchUserDetails();
-            fetchCurrentLoans();
-            fetchRoomBookings();
-            fetchEventBookings();
-    
-            document.getElementById('home-link').addEventListener('click', function() {
-                const userId = new URLSearchParams(window.location.search).get('userid');
-                window.location.href = `index_userlogined.html?userid=${userId}`;
-            });
+        bookings.forEach(booking => {
+            const listItem = document.createElement('li');
+            const bookingDate = new Date(booking.date).toLocaleDateString();
+            listItem.textContent = `${booking.roomName} | ${bookingDate} | ${booking.timeslot}`;
+            roomBookingsList.appendChild(listItem);
         });
+    }
+    
+    async function fetchEventBookings() {
+        const userId = new URLSearchParams(window.location.search).get('userid');
+        const token = localStorage.getItem('token'); // Retrieve the token from local storage
+    
+        try {
+            const response = await fetch(`/api/eventBookings?userid=${userId}`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+    
+            if (!response.ok) {
+                throw new Error('Failed to fetch event bookings');
+            }
+    
+            const eventBookings = await response.json();
+            displayEventBookings(eventBookings);
+        } catch (error) {
+            console.error('Error fetching event bookings:', error);
+            const eventBookingsList = document.getElementById('event-bookings-list');
+            eventBookingsList.innerHTML = '<li>You have no event bookings.</li>';
+        }
+    }
+    
+    function displayEventBookings(bookings) {
+        const eventBookingsList = document.getElementById('event-bookings-list');
+        eventBookingsList.innerHTML = ''; // Clear any existing bookings
+    
+        if (!bookings || bookings.length === 0) {
+            eventBookingsList.innerHTML = '<li>You have no event bookings.</li>';
+            return;
+        }
+    
+        bookings.forEach(event => {
+            const listItem = document.createElement('li');
+            const eventDate = new Date(event.time).toLocaleString();
+            listItem.innerHTML = `<strong>${event.title}</strong> at ${event.venue} on ${eventDate} <a href="${event.eventLink}" target="_blank">Details</a>`;
+            eventBookingsList.appendChild(listItem);
+        });
+    }
   
 </script>
 
