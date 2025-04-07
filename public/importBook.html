@@ -597,19 +597,23 @@ document.getElementById('nextPageButton').addEventListener('click', () => {
             displaySuccess('Search reset.'); // Optional: Show a success message
             fetchAllPurchases(); // Reload all purchases
         }
-        document.getElementById('BackCatalogButton').addEventListener('click', () => {
-            const token = localStorage.getItem('token'); // Retrieve the token from localStorage
-            const urlParams = new URLSearchParams(window.location.search);
-            const userid = urlParams.get('userid'); // Retrieve the userid from the URL
-        
-            if (!token) {
-                displayError('No token found. Please log in.');
-                return;
-            }
-        
-            // Redirect to the catalog page with userid and token
-            window.location.href = `books-catalog.html?userid=${userid}`;
-        });
+       
+        const backButton = document.getElementById('backToCatalogButton');
+if (backButton) {
+    backButton.addEventListener('click', () => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('userid');
+
+        if (userId) {
+            window.location.href = `https://comp-fyp.onrender.com/books-catalog.html?userid=${userId}`;
+        } else {
+            alert('User ID is missing in the URL.');
+        }
+    });
+} else {
+    console.error('Back to Catalog button not found in the DOM.');
+}
+          
         window.onload = fetchAllPurchases;
     </script>
 
