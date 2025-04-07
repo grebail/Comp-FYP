@@ -373,7 +373,7 @@
                 // Display success message and redirect to app after 1 second
                 document.getElementById('welcome-msg').textContent = 'Successful login, back to My Library App';
                 setTimeout(() => {
-                    window.location.href = `myapp://main?userid=${userId}&token=${token}`;
+                    window.location.href = 'myapp://main';
                 }, 1000);
                 return;
             }
