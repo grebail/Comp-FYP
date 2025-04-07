@@ -213,7 +213,7 @@
         const fromApp = urlParams.get('from') === 'app';
 
         if (fromApp) {
-            window.location.href = `index_userlogined.html?userid=${data.userid}&token=${data.token}`;
+            window.location.href = `index_userlogined.html?userid=${data.userid}`;
         } else {
             window.location.href = data.redirect;
         }
