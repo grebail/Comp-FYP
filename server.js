@@ -2008,102 +2008,6 @@ app.get('/api/allUserPurchases', authenticateToken, async (req, res) => {
 });
 
 // Update locationId for a specific book copy
-app.put('/api/updateLocationId/:copyId', async (req, res) => {
-    const { copyId } = req.params;
-    const { locationId } = req.body;
-
-    if (!locationId) {
-        return res.status(400).json({ error: 'locationId is required' });
-    }
-
-    try {
-        const book = await BookBuy.findOne({ 'copies._id': copyId });
-        if (!book) {
-            return res.status(404).json({ error: 'Book or copy not found' });
-        }
-
-        const copy = book.copies.id(copyId);
-        if (!copy) {
-            return res.status(404).json({ error: 'Copy not found in the book' });
-        }
-
-        copy.locationId = locationId;
-        await book.save();
-
-        res.status(200).json({ message: 'locationId updated successfully', book });
-    } catch (error) {
-        res.status(500).json({ error: 'Failed to update locationId' });
-    }
-});
-
-
-
-app.post('/api/importBooks', upload.single('file'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded. Please select a CSV file.' });
-    }
-
-    const results = [];
-    const errors = [];
-    const csvHeaders = [
-        'title',
-        'authors',
-        'publisher',
-        'publishedDate',
-        'description',
-        'pageCount',
-        'categories',
-        'language',
-        'coverImage',
-        'copyId',
-        'bookLocation',
-        'locationId',
-        'availability',
-        'status',
-        'industryIdentifier',
-        'epc'
-    ];
-
-    try {
-        const fileStream = fs.createReadStream(req.file.path, { encoding: 'utf8' });
-
-        fileStream
-            .pipe(csv({ headers: csvHeaders, skipLines: 1 })) // Skip the header row
-            .on('data', (data) => {
-                const sanitizedData = Object.fromEntries(
-                    Object.entries(data)
-                        .filter(([key]) => csvHeaders.includes(key)) // Keep only valid fields
-                        .map(([key, value]) => [key, value?.trim() || '']) // Trim all values
-                );
-
-                if (Object.values(sanitizedData).some((value) => value)) {
-                    results.push(sanitizedData);
-                }
-            })
-            .on('end', async () => {
-                try {
-                    await processBooks(results, errors);
-
-                    // Delete the uploaded file after processing
-                    fs.unlinkSync(req.file.path);
-
-                    // Send response to the client
-                    sendResponse(res, errors);
-                } catch (error) {
-                    console.error('Error processing books:', error.message);
-                    res.status(500).json({ error: 'Failed to process books.', details: error.message });
-                }
-            })
-            .on('error', (error) => {
-                console.error('Error parsing CSV:', error.message);
-                res.status(400).json({ error: 'Error parsing CSV file.', details: error.message });
-            });
-    } catch (error) {
-        console.error('Error handling file upload:', error.message);
-        res.status(500).json({ error: 'Error handling file upload.', details: error.message });
-    }
-});
-
 function generateLocationId(isbn, title, authors, publishedDate, category, copyIndex = 1) {
     const lccCodes = {
         "Art": "N",
@@ -2270,19 +2174,6 @@ async function processBooks(books, errors) {
             errors.push({ error: 'Failed to process book.', book, details: error.message });
         }
     }
-}
-// Function to validate date format
-function isValidDate(dateString) {
-    const date = new Date(dateString);
-    return !isNaN(date.getTime()); // Check if date is valid
-}
-
-// Function to send response to the client
-function sendResponse(res, errors) {
-    res.status(201).json({
-        message: 'Books imported successfully!',
-        errors: errors.length > 0 ? errors : undefined,
-    });
 }
 
 // API endpoint to export all purchases to CSV
