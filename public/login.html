@@ -220,8 +220,6 @@
             })
             .then(authResponse => {
                 if (!authResponse.ok) {
-                    throw new Error('Session not established');
-                }
                 window.location.href = `myapp://main?userid=${data.userid}&token=${data.token}`;
             })
             .catch(error => {
