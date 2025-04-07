@@ -206,7 +206,7 @@
     .then(data => {
         // Store the authentication token (if your app uses one)
         localStorage.setItem('token', data.token);
-        localStorage.setItem('userid', data,token);
+        localStorage.setItem('userid', data.userid);
 
         // Check if the user came from the app
         const urlParams = new URLSearchParams(window.location.search);
