@@ -206,26 +206,14 @@
     .then(data => {
         // Store the authentication token (if your app uses one)
         localStorage.setItem('token', data.token);
+        localStorage.setItem('userid', data.userid);
 
         // Check if the user came from the app
         const urlParams = new URLSearchParams(window.location.search);
         const fromApp = urlParams.get('from') === 'app';
 
         if (fromApp) {
-            // Ensure browser session is active before redirecting
-            fetch('/check-auth', {
-                method: 'GET',
-                credentials: 'include'
-            })
-            .then(authResponse => {
-                if (!authResponse.ok) {
-                    throw new Error('Session not established');
-                }
-                window.location.href = `myapp://main?userid=${data.userid}&token=${data.token}`;
-            })
-            .catch(error => {
-                document.getElementById('error-message').innerText = error.message;
-            });
+            window.location.href = `myapp://main?userid=${data.userid}&token=${data.token}`;
         } else {
             window.location.href = data.redirect;
         }
