@@ -360,7 +360,7 @@
     document.addEventListener('DOMContentLoaded', async function () {
         // Extract userid from the query parameters
         const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('userid');
+        const userId = localStorage.get('userid');
         const token = localStorage.get('token');
         const fromApp = urlParams.get('from') === 'app';
     
