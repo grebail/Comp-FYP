@@ -1683,12 +1683,12 @@ app.get('/api/booksWithRatings', async (req, res) => {
 // API to get books purchased within the last month
 app.get('/api/newArrivals', async (req, res) => {
     try {
-        const oneMonthAgo = new Date();
-        oneMonthAgo.setMonth(oneMonthAgo.getMonth() - 1); // Calculate the date one month ago
+        const now = new Date();
+        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1); // First day of the current month
 
-        // Query books purchased within the last month
+        // Query books purchased from the start of the current month
         const newBooks = await BookBuy.find({
-            purchaseDate: { $gte: oneMonthAgo },
+            purchaseDate: { $gte: startOfMonth },
         });
 
         res.status(200).json({ data: newBooks });
@@ -2006,6 +2006,100 @@ app.get('/api/allUserPurchases', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Error fetching user purchases' });
     }
 });
+// Update locationId for a specific book copy
+app.put('/api/updateLocationId/:copyId', async (req, res) => {
+    const { copyId } = req.params;
+    const { locationId } = req.body;
+
+    if (!locationId) {
+        return res.status(400).json({ error: 'locationId is required' });
+    }
+
+    try {
+        const book = await BookBuy.findOne({ 'copies._id': copyId });
+        if (!book) {
+            return res.status(404).json({ error: 'Book or copy not found' });
+        }
+
+        const copy = book.copies.id(copyId);
+        if (!copy) {
+            return res.status(404).json({ error: 'Copy not found in the book' });
+        }
+
+        copy.locationId = locationId;
+        await book.save();
+
+        res.status(200).json({ message: 'locationId updated successfully', book });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to update locationId' });
+    }
+});
+
+
+
+app.post('/api/importBooks', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded. Please select a CSV file.' });
+    }
+
+    const results = [];
+    const errors = [];
+    const csvHeaders = [
+        'title',
+        'authors',
+        'publisher',
+        'publishedDate',
+        'description',
+        'pageCount',
+        'categories',
+        'language',
+        'coverImage',
+        'copyId',
+        'bookLocation',
+        'locationId', // This will be recalculated
+        'availability',
+        'status',
+        'industryIdentifier',
+        'epc'
+    ];
+
+    try {
+        const fileStream = fs.createReadStream(req.file.path, { encoding: 'utf8' });
+
+        fileStream
+            .pipe(csv({ headers: csvHeaders, skipLines: 1 }))
+            .on('data', (data) => {
+                const sanitizedData = Object.fromEntries(
+                    Object.entries(data)
+                        .filter(([key]) => csvHeaders.includes(key))
+                        .map(([key, value]) => [key, value?.trim() || ''])
+                );
+
+                if (Object.values(sanitizedData).some((value) => value)) {
+                    results.push(sanitizedData);
+                }
+            })
+            .on('end', async () => {
+                try {
+                    await processBooks(results, errors);
+
+                    fs.unlinkSync(req.file.path); // Delete the uploaded file
+                    sendResponse(res, errors);
+                } catch (error) {
+                    console.error('Error processing books:', error.message);
+                    res.status(500).json({ error: 'Failed to process books.', details: error.message });
+                }
+            })
+            .on('error', (error) => {
+                console.error('Error parsing CSV:', error.message);
+                res.status(400).json({ error: 'Error parsing CSV file.', details: error.message });
+            });
+    } catch (error) {
+        console.error('Error handling file upload:', error.message);
+        res.status(500).json({ error: 'Error handling file upload.', details: error.message });
+    }
+});
+
 
 // Update locationId for a specific book copy
 function generateLocationId(isbn, title, authors, publishedDate, category, copyIndex = 1) {
@@ -2063,6 +2157,87 @@ function generateLocationId(isbn, title, authors, publishedDate, category, copyI
         "Adventure": "PZ",
         "Parenting": "HQ",
         "Philosophy & Religion": "B",
+        "Poetry & Drama": "PN",
+        "Literature": "PN",
+        "Anthologies": "PN",
+        "Juvenile Fiction": "PZ",
+        "Juvenile Nonfiction": "PZ",
+        "Historical Fiction": "PS",
+        "Action & Adventure": "PZ",
+        "Science & Nature": "Q",
+        "Nature": "QH",
+        "Sports": "GV",
+        "Travel & Adventure": "G",
+        "Western": "PS",
+        "Crafts & Handiwork": "TT",
+        "Christmas Fiction": "PZ",
+        "Holiday": "GT",
+        "Drama & Plays": "PN",
+        "Religion & Spirituality": "BL",
+        "Fantasy & Magic": "PZ",
+        "Short Stories": "PN",
+        "Christian Fiction": "PS",
+        "Inspirational": "BL",
+        "Cooking & Food": "TX",
+        "Diet & Nutrition": "RA",
+        "Health & Healing": "RM",
+        "Body, Mind & Spirit": "BF",
+        "Science & Technology": "Q",
+        "Biography": "CT",
+        "Memoir": "CT",
+        "Military History": "U",
+        "Political History": "D",
+        "Photography & Art": "TR",
+        "Music & Performing Arts": "M",
+        "Economics": "HB",
+        "Business": "HF",
+        "Entrepreneurship": "HD",
+        "Finance": "HG",
+        "Marketing": "HF",
+        "Management": "HD",
+        "Leadership": "HD",
+        "Education Theory": "LB",
+        "Teaching": "LB",
+        "Self-Improvement": "BF",
+        "Psychological Fiction": "PS",
+        "Satire": "PN",
+        "Classics": "PN",
+        "Urban Fiction": "PS",
+        "Graphic Novels": "PN6728",
+        "Manga": "PN6790",
+        "Science Experiments": "Q",
+        "Mathematics & Numbers": "QA",
+        "Physics": "QC",
+        "Chemistry": "QD",
+        "Astronomy": "QB",
+        "Engineering": "T",
+        "Programming": "QA76",
+        "Computing": "QA76",
+        "Artificial Intelligence": "Q",
+        "Robotics": "TJ",
+        "Medical Science": "R",
+        "Dentistry": "RK",
+        "Pharmacy": "RS",
+        "Environmental Science": "GE",
+        "Ecology": "QH",
+        "Social Issues": "HN",
+        "Family & Relationships": "HQ",
+        "Gender Studies": "HQ",
+        "LGBTQ+ Studies": "HQ",
+        "Cultural Studies": "GN",
+        "Performing Arts": "NX",
+        "Art History": "N",
+        "Design": "NK",
+        "Fashion": "TT",
+        "Interior Design": "NK",
+        "Architecture": "NA",
+        "Photography & Video": "TR",
+        "Film & Video": "PN1993",
+        "General Reference": "Z",
+        "Dictionaries": "PE",
+        "Encyclopedias": "AE",
+        "Social sciences": "SS",
+        "Boarding schools": "BS",
         "Unknown": "UNKNOWN"
     };
 
@@ -2083,6 +2258,7 @@ function generateLocationId(isbn, title, authors, publishedDate, category, copyI
     console.log("Generated locationId:", locationId); // Debug log
     return locationId;
 }
+
 async function saveEPC(epcData) {
     try {
         console.log(`Checking if EPC exists: ${epcData.epc}`);
@@ -2109,7 +2285,6 @@ async function processBooks(books, errors) {
         try {
             const requiredFields = ['title', 'authors', 'industryIdentifier', 'copyId', 'bookLocation', 'epc'];
 
-            // Check for missing fields
             const missingFields = requiredFields.filter((field) => !book[field] || book[field].trim() === '');
             if (missingFields.length > 0) {
                 errors.push({
@@ -2117,34 +2292,72 @@ async function processBooks(books, errors) {
                     book,
                     missingFields
                 });
-                continue; // Skip this book
+                continue;
             }
 
-            // Sanitize and validate fields
             const isAvailable = book.availability?.toLowerCase() === 'true';
             const sanitizedStatus = ['borrowed', 'in return box', 'in library'].includes(book.status?.toLowerCase())
                 ? book.status.toLowerCase()
                 : 'in library';
 
-            // Handle existing book or create a new one
             const existingBook = await BookBuy.findOne({ industryIdentifier: book.industryIdentifier.trim() });
+
             if (existingBook) {
-                // Add a new copy to the existing book
+                // Update existing book fields
+                existingBook.title = book.title.trim();
+                existingBook.authors = book.authors.split(',').map((a) => a.trim());
+                existingBook.publisher = book.publisher?.trim() || '';
+                existingBook.publishedDate = book.publishedDate?.trim() || '';
+                existingBook.description = book.description?.trim() || '';
+                existingBook.pageCount = parseInt(book.pageCount, 10) || 0;
+                existingBook.categories = book.categories?.split(',').map((c) => c.trim()) || [];
+                existingBook.language = book.language?.trim() || '';
+                existingBook.coverImage = book.coverImage?.trim() || '';
+
+                // Check if the copy already exists
                 const existingCopy = existingBook.copies.find((copy) => copy.copyId === book.copyId.trim());
                 if (!existingCopy) {
+                    // Add new copy with recalculated locationId
+                    const newLocationId = generateLocationId(
+                        book.industryIdentifier.trim(),
+                        book.title.trim(),
+                        book.authors.split(',').map((a) => a.trim()),
+                        book.publishedDate?.trim(),
+                        book.categories?.split(',')[0] || 'Unknown',
+                        existingBook.copies.length + 1 // Increment copy index
+                    );
                     existingBook.copies.push({
                         copyId: book.copyId.trim(),
                         bookLocation: book.bookLocation.trim(),
-                        locationId: generateLocationId(book.industryIdentifier, book.title, book.authors),
+                        locationId: newLocationId,
                         availability: isAvailable,
                         status: sanitizedStatus,
                         epc: book.epc.trim()
                     });
-                    existingBook.quantity = existingBook.copies.length;
-                    await existingBook.save();
+                } else {
+                    // Update locationId for existing copy
+                    existingCopy.locationId = generateLocationId(
+                        book.industryIdentifier.trim(),
+                        book.title.trim(),
+                        book.authors.split(',').map((a) => a.trim()),
+                        book.publishedDate?.trim(),
+                        book.categories?.split(',')[0] || 'Unknown',
+                        existingBook.copies.indexOf(existingCopy) + 1 // Use current index
+                    );
                 }
+
+                existingBook.quantity = existingBook.copies.length; // Update quantity to match number of copies
+                await existingBook.save();
             } else {
-                // Create a new book with the given copy
+                // Create a new book
+                const newLocationId = generateLocationId(
+                    book.industryIdentifier.trim(),
+                    book.title.trim(),
+                    book.authors.split(',').map((a) => a.trim()),
+                    book.publishedDate?.trim(),
+                    book.categories?.split(',')[0] || 'Unknown',
+                    1 // First copy
+                );
                 const newBook = new BookBuy({
                     title: book.title.trim(),
                     authors: book.authors.split(',').map((a) => a.trim()),
@@ -2161,7 +2374,7 @@ async function processBooks(books, errors) {
                         {
                             copyId: book.copyId.trim(),
                             bookLocation: book.bookLocation.trim(),
-                            locationId: generateLocationId(book.industryIdentifier, book.title, book.authors),
+                            locationId: newLocationId,
                             availability: isAvailable,
                             status: sanitizedStatus,
                             epc: book.epc.trim()
@@ -2175,7 +2388,19 @@ async function processBooks(books, errors) {
         }
     }
 }
+// Function to validate date format
+function isValidDate(dateString) {
+    const date = new Date(dateString);
+    return !isNaN(date.getTime()); // Check if date is valid
+}
 
+// Function to send response to the client
+function sendResponse(res, errors) {
+    res.status(201).json({
+        message: 'Books imported successfully!',
+        errors: errors.length > 0 ? errors : undefined,
+    });
+}
 // API endpoint to export all purchases to CSV
 const { Parser } = require('json2csv'); // Import the Parser from json2csv
 

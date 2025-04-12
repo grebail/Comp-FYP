@@ -393,6 +393,65 @@
             left: 0;
             width: 100%;
         }
+        /* Modal Styles */
+/* Modal Styles - Horizontal Layout */
+.modal {
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background-color: rgba(0, 0, 0, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    width: 90%;
+    max-width: 90%;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+    position: relative;
+    overflow-x: auto; /* Allow horizontal scrolling */
+    white-space: nowrap; /* Prevent content from wrapping */
+    display: flex;
+    flex-direction: row; /* Arrange items horizontally */
+    gap: 20px; /* Space between items */
+}
+
+.close-button {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 20px;
+    font-weight: bold;
+    color: #333;
+    cursor: pointer;
+    z-index: 1001;
+}
+
+.close-button:hover {
+    color: #ff0000;
+}
+
+#newArrivalsContainer {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    flex-wrap: nowrap; /* Prevent wrapping */
+    overflow-x: auto; /* Enable scrolling for overflow */
+}
+
+.modal .book-card {
+    flex: 0 0 auto; /* Prevent shrinking, maintain width */
+    width: 200px; /* Fixed width for book cards */
+    text-align: center;
+}
 
     </style>
 </head>
@@ -452,6 +511,15 @@
 <div class="search-container">
     <button onclick="askDefaultQuestion()" class="default-question-button">Recommend Me a Book</button>
 </div>
+</div>
+<div id="newArrivalsModal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-button" onclick="closeModal()">&times;</span>
+        <h2>New Arrivals</h2>
+        <div id="newArrivalsContainer">
+            <!-- New arrival books will be dynamically inserted here -->
+        </div>
+    </div>
 </div>
     </main>
 
@@ -646,11 +714,12 @@
                     rankingHTML = `<div class="ranking-badge">${ranking}</div>`;
                 }
         
-                // Check if the book is a new arrival (added within the last 3 days)
+                // Check if the book is a new arrival (purchased in the current month and year)
                 const purchaseDate = new Date(book.purchaseDate);
-                const threeDaysAgo = new Date();
-                threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-                const isNewArrival = purchaseDate >= threeDaysAgo;
+                const now = new Date();
+                const isNewArrival =
+                    purchaseDate.getMonth() === now.getMonth() &&
+                    purchaseDate.getFullYear() === now.getFullYear();
         
                 let newArrivalHTML = '';
                 if (isNewArrival) {
@@ -692,40 +761,94 @@
         let searchHistory = []; // To store search history
 
 
-        //show new book arrivals
-        async function showNewArrivals() {
-            showLoader();
-            try {
-                const response = await fetch('/api/newArrivals', {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                    },
-                });
         
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Error fetching new arrivals:', errorText);
-                    alert('Failed to fetch new arrivals. Please check the console for details.');
-                    return;
-                }
-        
-                const result = await response.json();
-                if (result.data && Array.isArray(result.data)) {
-                    console.log('New Arrivals:', result.data);
-        
-                    // Display the books in the catalog
-                    displayBooks(0, result.data);
-                } else {
-                    alert('No new arrivals found.');
-                    console.error('Expected an array but got:', result.data);
-                }
-            } catch (error) {
-                console.error('Error fetching new arrivals:', error);
-                alert('Failed to fetch new arrivals. Please try again later.');
-            } finally {
-                hideLoader();
-            }
+    
+// Show new arrivals in the modal
+async function showNewArrivals() {
+    showLoader();
+
+    try {
+        const response = await fetch('/api/newArrivals', {
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Error fetching new arrivals:', errorText);
+            alert('Failed to fetch new arrivals. Please check the console for details.');
+            return;
         }
+
+        const result = await response.json();
+        if (result.data && Array.isArray(result.data)) {
+            console.log('New Arrivals:', result.data);
+
+            // Populate the modal with new arrivals
+            displayNewArrivalsModal(result.data);
+        } else {
+            alert('No new arrivals found.');
+            console.error('Expected an array but got:', result.data);
+        }
+    } catch (error) {
+        console.error('Error fetching new arrivals:', error);
+        alert('Failed to fetch new arrivals. Please try again later.');
+    } finally {
+        hideLoader();
+    }
+}
+
+// Display new arrivals in the modal
+function displayNewArrivalsModal(newArrivals) {
+    const modal = document.getElementById('newArrivalsModal');
+    const container = document.getElementById('newArrivalsContainer');
+    container.innerHTML = ''; // Clear previous content
+
+    // Populate the modal with new arrival books
+    newArrivals.forEach((book) => {
+        const card = document.createElement('div');
+        card.className = 'book-card';
+
+        card.innerHTML = `
+            <img src="${book.coverImage || 'default-cover.jpg'}" alt="${book.title} cover" class="book-cover" />
+            <div class="book-title">${book.title || 'N/A'}</div>
+            <span class="new-arrival-tag">New Arrival</span>
+            <div class="book-author">Author: ${book.authors?.join(', ') || 'N/A'}</div>
+            <div class="book-published">Published: ${book.publishedDate || 'N/A'}</div>
+        `;
+        container.appendChild(card);
+    });
+
+    modal.style.display = 'flex'; // Show the modal
+}
+
+// Close the modal
+function closeModal() {
+    const modal = document.getElementById('newArrivalsModal');
+    modal.style.display = 'none';
+}
+// Add "New Arrival" tags to books in the main catalog
+// Function to filter books as new arrivals by checking the purchase date
+function addNewArrivalTags(books) {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    books.forEach((book) => {
+        const purchaseDate = new Date(book.purchaseDate);
+
+        // Mark as new arrival only if the book was purchased in the current month and year
+        book.isNewArrival =
+            purchaseDate.getMonth() === currentMonth &&
+            purchaseDate.getFullYear() === currentYear;
+    });
+
+    // Call the function to render books with new arrival tags
+    displayBooks(currentStartIndex, books);
+}
+
+
 
         async function naturalLanguageSearch() {
             const query = document.getElementById('searchInput').value.toLowerCase().trim();
