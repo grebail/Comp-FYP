@@ -158,6 +158,52 @@
         #edit-modal button {
             margin: 5px;
         }
+        .details-button {
+            background-color: #1565c0;
+            color: white;
+            border: none;
+            padding: 7px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .details-button:hover {
+            background-color: #1e88e5;
+        }
+        
+        #details-modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            z-index: 1000;
+        }
+        
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+        
+        #details-modal h3 {
+            margin-bottom: 15px;
+            color: #1565c0;
+        }
+        
+        .modal-content {
+            margin-bottom: 10px;
+        }
 
     </style>
 </head>
@@ -179,7 +225,7 @@
                     <th>Room Name</th>
                     <th>Date</th>
                     <th>Timeslot</th>
-                    <th>User Email</th>
+                    
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -221,7 +267,15 @@
     </form>
    
 </div>
+<!-- Modal for showing details -->
+<div id="details-modal">
+    <h3>Booking Details</h3>
+    <div class="modal-content" id="modal-user-name">Name: <span></span></div>
+    <div class="modal-content" id="modal-user-email">Email: <span></span></div>
+    <button onclick="closeDetailsModal()">Close</button>
+</div>
 
+<div id="overlay" onclick="closeDetailsModal()"></div>
 <div id="overlay" onclick="closeModal()"></div>
 
 <div class="back-home">
@@ -255,8 +309,9 @@
                     <td>${booking.roomName}</td>
                     <td>${booking.date}</td>
                     <td>${booking.timeslot}</td>
-                    <td>${booking.userId}</td>
+                    
                     <td>
+                        <button class="details-button" onclick="showDetails('${booking.bookingId}')">Show Details</button>
                         <button class="edit-button" onclick="editBooking('${booking.bookingId}', '${booking.date}', '${booking.timeslot}')">Edit</button>
                         <button class="delete-button" onclick="deleteBooking('${booking.bookingId}')">Delete</button>
                     </td>
@@ -354,6 +409,34 @@
             window.location.href = `index_logined.html?userid=${userId}`;
         });
     });
+    // Show booking details in the modal
+async function showDetails(bookingId) {
+    try {
+        const response = await fetch(`/api/bookings/${bookingId}/details`);
+        const details = await response.json();
+
+        if (!response.ok) {
+            throw new Error(details.error || 'Failed to fetch booking details.');
+        }
+
+        // Populate modal with user details
+        document.querySelector('#modal-user-name span').innerText = details.userName;
+        document.querySelector('#modal-user-email span').innerText = details.userEmail;
+
+        // Show modal
+        document.getElementById('details-modal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    } catch (error) {
+        console.error('Error fetching booking details:', error.message);
+        alert('Error fetching booking details. Please try again.');
+    }
+}
+
+// Close the details modal
+function closeDetailsModal() {
+    document.getElementById('details-modal').style.display = 'none';
+    document.getElementById('overlay').style.display = 'none';
+}
     // Delete expired bookings
 async function deleteExpiredBookings() {
     if (confirm('Are you sure you want to delete all expired bookings?')) {

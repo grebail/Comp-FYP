@@ -556,16 +556,63 @@ app.get('/api/bookings', async (req, res) => {
     res.json(bookings);
     
 });
+// API to get registered user details for a booking
+// API to get registered user details for a specific booking
+app.get('/api/bookings/:id/details', async (req, res) => {
+    try {
+        // Find the booking by its ID
+        const booking = await RoomBooking.findOne({ bookingId: req.params.id });
+
+        if (!booking) {
+            return res.status(404).json({ error: 'Booking not found.' });
+        }
+
+        // The user's name and email are already stored in the RoomBooking schema
+        res.status(200).json({
+            userName: booking.username,
+            userEmail: booking.userEmail,
+        });
+    } catch (error) {
+        console.error('Error fetching booking details:', error.message);
+        res.status(500).json({ error: 'An error occurred while fetching booking details.' });
+    }
+});
 //librarian to edit booking
+// Librarian to edit booking
 app.put('/api/bookings/:id', async (req, res) => {
     const { date, timeslot } = req.body;
-    await RoomBooking.findByIdAndUpdate(req.params.id, { date, timeslot });
-    res.json({ message: 'Booking updated successfully' });
+    try {
+        const updatedBooking = await RoomBooking.findOneAndUpdate(
+            { bookingId: req.params.id }, // Use custom bookingId
+            { date, timeslot }, // Fields to update
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedBooking) {
+            return res.status(404).json({ error: 'Booking not found.' });
+        }
+
+        res.json({ message: 'Booking updated successfully', updatedBooking });
+    } catch (error) {
+        console.error('Error updating booking:', error.message);
+        res.status(500).json({ error: 'An error occurred while updating the booking.' });
+    }
 });
 //librarian to delete booking
+// Librarian to delete booking
 app.delete('/api/bookings/:id', async (req, res) => {
-    await RoomBooking.findByIdAndDelete(req.params.id);
-    res.json({ message: 'Booking deleted successfully' });
+    try {
+        const deletedBooking = await RoomBooking.findOneAndDelete({ bookingId: req.params.id }); // Use bookingId to delete
+
+        if (!deletedBooking) {
+            return res.status(404).json({ error: 'Booking not found.' });
+        }
+
+        res.json({ message: 'Booking deleted successfully', deletedBooking });
+    } catch (error) {
+        console.error('Error deleting booking:', error.message);
+        res.status(500).json({ error: 'An error occurred while deleting the booking.' });
+    }
 });
 // Delete expired bookings
 app.delete('/api/bookings/expired', async (req, res) => {
@@ -578,7 +625,6 @@ app.delete('/api/bookings/expired', async (req, res) => {
         res.status(500).json({ error: 'Internal server error' });
     }
 });
-
 
 // Function to send email using SendGrid
 // Function to send email using SendGrid
