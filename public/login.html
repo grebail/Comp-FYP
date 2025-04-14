@@ -190,11 +190,14 @@
     const username = document.getElementById('login-username').value;
     const password = document.getElementById('login-password').value;
 
+    const urlParams = new URLSearchParams(window.location.search);
+    const fromParam = urlParams.get('from'); // "app" or null
+
     // Send login request to the server
     fetch('/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, from: fromParam }),
         credentials: 'include'
     })
     .then(response => {
@@ -209,15 +212,11 @@
         localStorage.setItem('userid', data.userid);
 
         // Check if the user came from the app
-        const urlParams = new URLSearchParams(window.location.search);
-        const fromApp = urlParams.get('from') === 'app';
-        const fromParam = new URLSearchParams(window.location.search).get('from');
+        //const urlParams = new URLSearchParams(window.location.search);
+        //const fromApp = urlParams.get('from') === 'app';
+        //const fromParam = new URLSearchParams(window.location.search).get('from');
 
-        if (fromApp === 'app') {
-            window.location.href = `${data.redirect}&from=app`;
-        } else {
-            window.location.href = 'google.com';
-        }
+        window.location.href = data.redirect;
     })
     .catch(error => {
         // Display error message on the page

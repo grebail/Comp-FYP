@@ -1124,12 +1124,18 @@ app.post('/login', async (req, res) => {
         console.log(`User logged in: ${user.username}, Role: ${user.role}`);
 
         // Generate redirect URL based on role
-        const redirectUrl =
-            user.role === 'admin'
-                ? '/admin.html'
-                : user.role === 'librarian'
-                ? `/index_logined.html?userid=${user._id}`
-                : `/index_userlogined.html?userid=${user._id}`;
+        let redirectUrl;
+        if (user.role === 'admin') {
+            redirectUrl = '/admin.html';
+        } else if (user.role === 'librarian') {
+            redirectUrl = `/index_logined.html?userid=${user._id}`;
+        } else {
+            // For regular users, include "from=app" if present
+            redirectUrl = `/index_userlogined.html?userid=${user._id}`;
+            if (from === 'app') {
+                redirectUrl += '&from=app'; // Append "from=app" for app logins
+            }
+        }
 
         // Return token and redirect URL
         console.log('Response:', { token, redirect: redirectUrl });
