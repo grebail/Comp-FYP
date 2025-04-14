@@ -214,7 +214,7 @@
         const fromParam = new URLSearchParams(window.location.search).get('from');
 
         if (fromParam === 'app') {
-            window.location.href = `index_userlogined.html?userid=${userid}&from=app`;
+            window.location.href = `index_userlogined.html?userid=${data.userid}&from=app`;
         } else {
             window.location.href = data.redirect;
         }
