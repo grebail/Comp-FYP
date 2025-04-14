@@ -258,19 +258,6 @@
                 max-width: 300px;
             }
         }
-        .return-to-app-button {
-            background-color: #1976d2;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background-color 0.3s;
-            margin-left: 10px;
-        }
-        .return-to-app-button:hover {
-            background-color: #1565c0;
-        }
     </style>
 </head>
 
@@ -283,10 +270,6 @@
             <input type="search" id="search-input" placeholder="Search...">
             <button type="submit">Search</button>
         </form>
-
-        <button id="return-to-app" class="return-to-app-button" style="display: none;">
-            Return to App
-        </button>
     </header>
 
     <nav>
@@ -381,15 +364,6 @@
         const token = urlParams.get('token');
         const fromApp = urlParams.get('from') === 'app';
     
-        if (fromApp) {
-            document.getElementById('return-to-app').style.display = 'inline';
-        }
-
-        document.getElementById('return-to-app').addEventListener('click', function () {
-        if (userId) {
-            window.location.href = `myapp://main?userid=${userId}`;
-        }
-    });
 
         if (fromApp) {
         // Redirect back to app after a short delay
