@@ -212,9 +212,10 @@
         const urlParams = new URLSearchParams(window.location.search);
         //const fromApp = urlParams.get('from') === 'app';
         const fromParam = new URLSearchParams(window.location.search).get('from');
+        const fromApp = req.body.from === 'app';
 
-        if (req.query.from === 'app') {
-            res.redirect(`/index_userlogined.html?userid=${data.userid}&token=${data.token}from=app`);
+        if (fromApp === 'app') {
+            window.location.href = data.redirect;
         } else {
             window.location.href = data.redirect;
         }
