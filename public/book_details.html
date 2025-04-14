@@ -233,7 +233,7 @@
        // Generate QR Code for borrowing selected copies
        // Generate individual QR codes for borrowing selected copies
 // Generate individual QR codes for borrowing selected copies, and clear existing QR codes on subsequent clicks
-function generateQRCode() {
+async function generateQRCode() {
     const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
 
     if (selectedCopies.length === 0) {
@@ -241,45 +241,83 @@ function generateQRCode() {
         return;
     }
 
-    // Clear existing QR codes if already generated
-    const existingQrContainer = document.getElementById('qrCodesContainer');
-    if (existingQrContainer) {
-        existingQrContainer.remove();
+    // Log selected copies for debugging
+    console.log('Selected Copies:', selectedCopies);
+
+    // Create QR code container if it doesn't exist
+    const qrCodeContainer = document.getElementById('qrCodesContainer') || createQrCodeContainer();
+
+    for (const copyId of selectedCopies) {
+        try {
+            // Log the API request payload
+            console.log('Requesting token for Copy ID:', copyId);
+
+            const response = await fetch('/api/generateToken', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // User's main token
+                },
+                body: JSON.stringify({ userId, isbn, copyId })
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to fetch token for Copy ID: ${copyId}. Status: ${response.status}`);
+            }
+
+            const { token } = await response.json();
+
+            if (!token) {
+                throw new Error('No token received from server.');
+            }
+
+            // Log the generated token
+            console.log(`Generated Token for Copy ID ${copyId}:`, token);
+
+            // QR code URL with the secure token
+            const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${token}`;
+
+            // Display the QR code
+            displayQrCode(qrCodeValue, copyId, qrCodeContainer);
+        } catch (error) {
+            console.error('Error generating QR code:', error);
+            alert(`Error generating QR code for Copy ID: ${copyId}. ${error.message}`);
+        }
     }
+}
 
-    // Create a container for the new QR codes
-    const qrContainer = document.createElement('div');
-    qrContainer.id = "qrCodesContainer";
-    qrContainer.style.display = 'flex';
-    qrContainer.style.flexWrap = 'wrap';
-    qrContainer.style.gap = '10px';
-    qrContainer.style.marginTop = '20px';
+// Helper: Create a container for QR codes
+function createQrCodeContainer() {
+    const container = document.createElement('div');
+    container.id = 'qrCodesContainer';
+    container.style.display = 'flex';
+    container.style.flexWrap = 'wrap';
+    container.style.gap = '10px';
+    container.style.marginTop = '20px';
+    document.getElementById('copiesSection').appendChild(container);
+    return container;
+}
 
-    // Generate QR codes for each selected copy
-    selectedCopies.forEach(copyId => {
-        const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${userToken}`;
-        const qrCodeImg = document.createElement('img');
-        qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrCodeValue)}&size=200x200`;
-        qrCodeImg.alt = `QR Code for Copy ID: ${copyId}`;
-        qrCodeImg.style.margin = '10px';
+// Helper: Display QR code
+function displayQrCode(value, copyId, container) {
+    const qrCodeImg = document.createElement('img');
+    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(value)}&size=200x200`;
+    qrCodeImg.alt = `QR Code for Copy ID: ${copyId}`;
+    qrCodeImg.style.margin = '10px';
 
-        const qrCodeLabel = document.createElement('div');
-        qrCodeLabel.style.textAlign = 'center';
-        qrCodeLabel.style.fontSize = '14px';
-        qrCodeLabel.style.marginTop = '5px';
-        qrCodeLabel.textContent = `Copy ID: ${copyId}`;
+    const qrCodeLabel = document.createElement('div');
+    qrCodeLabel.style.textAlign = 'center';
+    qrCodeLabel.style.fontSize = '14px';
+    qrCodeLabel.style.marginTop = '5px';
+    qrCodeLabel.textContent = `Copy ID: ${copyId}`;
 
-        const qrCodeWrapper = document.createElement('div');
-        qrCodeWrapper.style.display = 'inline-block';
-        qrCodeWrapper.style.textAlign = 'center';
-        qrCodeWrapper.appendChild(qrCodeImg);
-        qrCodeWrapper.appendChild(qrCodeLabel);
+    const qrCodeWrapper = document.createElement('div');
+    qrCodeWrapper.style.display = 'inline-block';
+    qrCodeWrapper.style.textAlign = 'center';
+    qrCodeWrapper.appendChild(qrCodeImg);
+    qrCodeWrapper.appendChild(qrCodeLabel);
 
-        qrContainer.appendChild(qrCodeWrapper);
-    });
-
-    // Append the new QR codes to the copies section
-    document.getElementById('copiesSection').appendChild(qrContainer);
+    container.appendChild(qrCodeWrapper);
 }
 
         // Borrow selected copies
