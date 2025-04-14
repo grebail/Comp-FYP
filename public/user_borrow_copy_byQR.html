@@ -72,11 +72,10 @@
             return urlParams.get(param);
         }
 
-        const params = new URLSearchParams(window.location.search);
-        const isbn = params.get('isbn');
-        const userId = params.get('userid');
-        const copies = params.get('copies')?.split(',') || params.get('copyId')?.split(',');
-        const userToken = getQueryParam('token') || localStorage.getItem('token');
+        const isbn = getQueryParam('isbn');
+        const userId = getQueryParam('userid');
+        const copies = getQueryParam('copyId')?.split(',') || [];
+        const userToken = getQueryParam('token');
 
         console.log('userId:', userId);
         console.log('ISBN:', isbn);
@@ -104,64 +103,40 @@
             document.getElementById('bookDetails').innerHTML = html;
         }
 
-        function displayBorrowedDetails(borrowedCopies) {
-            const html = `
-                <h3>Borrowed Copies</h3>
-                <ul>
-                    ${borrowedCopies.map(copy => `
-                        <li>
-                            <strong>Copy ID:</strong> ${copy.copyId} |
-                            <strong>Due Date:</strong> ${new Date(copy.dueDate).toLocaleDateString()}
-                        </li>`).join('')}
-                </ul>
-            `;
-            document.getElementById('bookDetails').insertAdjacentHTML('beforeend', html);
-        }
-
-        async function borrowSelectedCopies() {
+        async function validateToken() {
             try {
-                if (!copies || copies.length === 0) {
-                    throw new Error('No copies available to borrow.');
+                if (!userToken || !userId || !isbn || !copies.length) {
+                    throw new Error('Missing required parameters: token, userId, isbn, or copyId.');
                 }
-
-                // Ask the user to confirm which copy they are borrowing
-                const selectedCopy = copies[0]; // Use the first copy as the default selection
-                const confirmation = confirm(`You are about to borrow Copy ID: ${selectedCopy}. Do you want to proceed?`);
-                if (!confirmation) {
-                    displayError('Borrowing process canceled by the user.');
-                    return;
-                }
-
-                const response = await fetch(`/api/books/copy_borrow`, {
+        
+                const response = await fetch('/api/validateQRCodeToken', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'Authorization': `Bearer ${userToken}`
                     },
                     body: JSON.stringify({
-                        userid: userId,
+                        userId, // This is the `id` field from the token
                         isbn,
-                        copyId: selectedCopy,
+                        copyId: copies[0]
                     })
                 });
-
+        
+                if (!response.ok) {
+                    const errorResponse = await response.json();
+                    throw new Error(errorResponse.error || 'Token validation failed.');
+                }
+        
                 const data = await response.json();
-
-                if (!response.ok || data.error) {
-                    throw new Error(data.error || 'Failed to borrow copies.');
-                }
-
-                displaySuccess(data.message || 'Copies borrowed successfully!');
-                displayBorrowedDetails(data.borrowedCopies);
-
-                if (data.redirectUrl) {
-                    window.location.href = data.redirectUrl;
-                }
+                console.log('Token validated successfully:', data);
+                displaySuccess('Token validated successfully.');
+                return true;
             } catch (error) {
-                displayError(error.message || 'Failed to borrow copies. Please try again.');
+                console.error('Error validating token:', error);
+                displayError(error.message || 'Failed to validate token.');
+                return false;
             }
         }
-
         async function fetchBookDetails() {
             try {
                 if (!isbn) {
@@ -170,13 +145,55 @@
 
                 const response = await fetch(`/api/books/isbn/${isbn}`);
                 if (!response.ok) {
-                    throw new Error('Book not found by ISBN.');
+                    const errorResponse = await response.json();
+                    throw new Error(errorResponse.error || 'Failed to fetch book details.');
                 }
 
                 const book = await response.json();
                 displayBookDetails(book);
             } catch (error) {
-                displayError(error.message);
+                console.error('Error fetching book details:', error);
+                displayError(error.message || 'Failed to fetch book details.');
+            }
+        }
+
+        async function borrowSelectedCopies() {
+            try {
+                if (!copies.length) {
+                    throw new Error('No copies available to borrow.');
+                }
+        
+                const selectedCopy = copies[0];
+                const confirmation = confirm(`You are about to borrow Copy ID: ${selectedCopy}. Do you want to proceed?`);
+                if (!confirmation) {
+                    displayError('Borrowing process canceled by the user.');
+                    return;
+                }
+        
+                const response = await fetch('/api/books/copy_borrow', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userToken}`
+                    },
+                    body: JSON.stringify({
+                        userid: userId,
+                        isbn,
+                        copyId: selectedCopy
+                    })
+                });
+        
+                if (!response.ok) {
+                    const errorText = await response.text(); // Read plain-text error response
+                    throw new Error(errorText || 'Failed to borrow copies.');
+                }
+        
+                const data = await response.json();
+                displaySuccess(data.message || 'Copies borrowed successfully!');
+                console.log('Borrowed copies:', data.borrowedCopies);
+            } catch (error) {
+                console.error('Error borrowing copies:', error);
+                displayError(error.message || 'Failed to borrow copies. Please try again.');
             }
         }
 
@@ -185,12 +202,15 @@
         });
 
         document.getElementById('BorrowHistoryButton').addEventListener('click', () => {
-            window.location.href = `user-books-catalog.html?userid=${userId}&token=${userToken}`;
+            window.location.href = `user_borrow_history.html?userid=${userId}&token=${userToken}`;
         });
 
         window.onload = async () => {
-            await fetchBookDetails();
-            await borrowSelectedCopies();
+            const isValid = await validateToken();
+            if (isValid) {
+                await fetchBookDetails();
+                await borrowSelectedCopies();
+            }
         };
     </script>
 
