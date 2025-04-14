@@ -364,10 +364,10 @@
         const token = urlParams.get('token');
         const fromApp = urlParams.get('from') === 'app';
     
-        if (fromApp) {
+        if (urlParams.fromApp) {
         // Redirect back to app after a short delay
         setTimeout(() => {
-            window.location.href = `myapp://main?userid=${userId}`;
+            window.location.href = `myapp://main?userid=${urlParams.get('userid')}`;
         }, 2000); // 2-second delay to show message
     }
 
