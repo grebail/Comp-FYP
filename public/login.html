@@ -210,9 +210,8 @@
 
         // Check if the user came from the app
         const urlParams = new URLSearchParams(window.location.search);
-        //const fromApp = urlParams.get('from') === 'app';
+        const fromApp = urlParams.get('from') === 'app';
         const fromParam = new URLSearchParams(window.location.search).get('from');
-        const fromApp = req.body.from === 'app';
 
         if (fromApp === 'app') {
             window.location.href = `${data.redirect}&from=app`;
