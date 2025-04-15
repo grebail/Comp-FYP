@@ -810,7 +810,7 @@ app.post('/api/generateToken', (req, res) => {
         res.status(500).json({ error: 'Failed to generate token' });
     }
 });
-pp.post('/api/refreshToken', (req, res) => {
+app.post('/api/refreshToken', (req, res) => {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
