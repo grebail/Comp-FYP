@@ -796,7 +796,7 @@ app.post('/api/generateToken', (req, res) => {
         isbn,
         copyId,
         iat: Math.floor(Date.now() / 1000), // Issued at (current timestamp)
-        exp: Math.floor(Date.now() / 1000) + 5 * 60, // Token expires in 5 minutes
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // Token expires in one day (24 hours)
     };
 
     try {
@@ -810,7 +810,6 @@ app.post('/api/generateToken', (req, res) => {
         res.status(500).json({ error: 'Failed to generate token' });
     }
 });
-
 app.post('/api/validateQRCodeToken', (req, res) => {
     const { userId, isbn, copyId } = req.body;
     const authHeader = req.headers.authorization;
