@@ -810,6 +810,45 @@ app.post('/api/generateToken', (req, res) => {
         res.status(500).json({ error: 'Failed to generate token' });
     }
 });
+app.post('/api/refreshToken', (req, res) => {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Missing or invalid token' });
+    }
+
+    const oldToken = authHeader.split(' ')[1];
+
+    try {
+        // Decode the old token without verifying expiration
+        const decoded = jwt.verify(oldToken, SECRET_KEY, { ignoreExpiration: true });
+
+        // Check if the token is still valid (not expired too long ago)
+        const now = Math.floor(Date.now() / 1000);
+        const timeSinceExpiry = now - decoded.exp;
+        if (timeSinceExpiry > 30 * 60) { // Token expired more than 30 minutes ago
+            return res.status(403).json({ error: 'Token expired too long ago. Please log in again.' });
+        }
+
+        // Create a new token with a new expiration date
+        const newToken = jwt.sign(
+            {
+                id: decoded.id,
+                isbn: decoded.isbn,
+                copyId: decoded.copyId,
+                iat: now,
+                exp: now + 24 * 60 * 60, // New expiration: 24 hours
+            },
+            SECRET_KEY
+        );
+
+        res.status(200).json({ token: newToken });
+    } catch (error) {
+        console.error('Error refreshing token:', error);
+        res.status(403).json({ error: 'Invalid token' });
+    }
+});
+
 app.post('/api/validateQRCodeToken', (req, res) => {
     const { userId, isbn, copyId } = req.body;
     const authHeader = req.headers.authorization;
