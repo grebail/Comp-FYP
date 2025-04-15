@@ -153,7 +153,7 @@
                 updateReturnBoxes(data.returnBoxes || []);
                 if (selectedReaderIp) {
                     const box = data.returnBoxes.find(b => b.readerIp === selectedReaderIp);
-                    currentBooks = box ? box.epcs : [];
+                    currentBooks = box ? box.EPCs : [];
                     if (currentBookIndex >= currentBooks.length) {
                         currentBookIndex = Math.max(0, currentBooks.length - 1);
                     }
@@ -201,7 +201,7 @@
                         <span class="status status-${statusClass}">${box.status}</span>
                     </div>
                 `;
-                boxDiv.onclick = () => showBooks(box.readerIp, box.epcs);
+                boxDiv.onclick = () => showBooks(box.readerIp, box.EPCs);
             });
         }
 
@@ -238,7 +238,7 @@
                     <strong>${currentBook.title || 'Unknown Title'}</strong><br>
                     Author: ${currentBook.author ? currentBook.author.join(', ') : 'Unknown Author'}<br>
                     Status: ${currentBook.status || 'Unknown'}<br>
-                    EPC: ${currentBook.epc}
+                    EPC: ${currentBook.EPC}
                 `;
             } else {
                 currentBookDiv.innerHTML = 'No books detected.';

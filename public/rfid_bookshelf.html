@@ -153,7 +153,7 @@
                 updateBookshelf(data.shelves);
                 if (selectedReaderIp) {
                     const shelf = data.shelves.find(s => s.readerIp === selectedReaderIp);
-                    currentBooks = shelf ? shelf.epcs : [];
+                    currentBooks = shelf ? shelf.EPCs : [];
                     if (currentBookIndex >= currentBooks.length) {
                         currentBookIndex = Math.max(0, currentBooks.length - 1);
                     }
@@ -201,7 +201,7 @@
                         <span class="status status-${statusClass}">${shelf.status}</span>
                     </div>
                 `;
-                shelfDiv.onclick = () => showBooks(shelf.readerIp, shelf.epcs);
+                shelfDiv.onclick = () => showBooks(shelf.readerIp, shelf.EPCs);
             });
         }
 
@@ -238,7 +238,7 @@
                     <strong>${currentBook.title || 'Unknown Title'}</strong><br>
                     Author: ${currentBook.author ? currentBook.author.join(', ') : 'Unknown Author'}<br>
                     Status: ${currentBook.status || 'Unknown'}<br>
-                    EPC: ${currentBook.epc}
+                    EPC: ${currentBook.EPC}
                 `;
             } else {
                 currentBookDiv.innerHTML = 'No books detected.';
