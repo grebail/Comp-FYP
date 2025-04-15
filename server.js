@@ -35,7 +35,7 @@ const Comment = require('./models/commentSchema');
 const AdminBook = require('./models/adminBookSchema');
 const BookBuy = require('./models/buyBookSchema');
 const UserDetails = require('./models/userDetailsSchema');
-const EPC  = require('./models/EPCSchema');
+const EPC  = require('./models/epcSchema');
 const Shelf = require('./models/shelfSchema');
 const ReturnBox = require('./models/returnBoxSchema');
 
