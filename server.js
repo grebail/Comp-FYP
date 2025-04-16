@@ -782,6 +782,7 @@ countBooks();
 
 // Token generation of QR code function
 // Token generation endpoint
+// Token generation endpoint
 app.post('/api/generateToken', (req, res) => {
     const { userId, isbn, copyId } = req.body;
 
@@ -789,20 +790,16 @@ app.post('/api/generateToken', (req, res) => {
         return res.status(400).json({ error: 'Missing required parameters: userId, isbn, or copyId' });
     }
 
-    // Log the parameters being passed to generate the token
-    console.log('Generating token with:', { userId, isbn, copyId });
-
     const payload = {
         id: userId,
-        isbn, // Make sure ISBN is being added here
-        copyId, // Make sure Copy ID is being added here
+        isbn,
+        copyId,
         iat: Math.floor(Date.now() / 1000),
-        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // Token expires in 1 day
+        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60 // Token expires in 1 day
     };
 
     try {
         const token = jwt.sign(payload, SECRET_KEY);
-        console.log('Generated Token Payload:', payload); // Log the payload for debugging
         res.status(200).json({ token });
     } catch (error) {
         console.error('Error generating token:', error);
@@ -823,10 +820,9 @@ app.post('/api/refreshToken', (req, res) => {
         // Decode the old token without verifying expiration
         const decoded = jwt.verify(oldToken, SECRET_KEY, { ignoreExpiration: true });
 
-        // Check if the token is still valid (not expired too long ago)
         const now = Math.floor(Date.now() / 1000);
         const timeSinceExpiry = now - decoded.exp;
-        if (timeSinceExpiry > 30 * 60) { // Token expired more than 30 minutes ago
+        if (timeSinceExpiry > 30 * 60) { // Expired more than 30 minutes ago
             return res.status(403).json({ error: 'Token expired too long ago. Please log in again.' });
         }
 
@@ -837,7 +833,7 @@ app.post('/api/refreshToken', (req, res) => {
                 isbn: decoded.isbn,
                 copyId: decoded.copyId,
                 iat: now,
-                exp: now + 24 * 60 * 60, // New expiration: 24 hours
+                exp: now + 24 * 60 * 60 // New expiration: 24 hours
             },
             SECRET_KEY
         );
@@ -848,7 +844,6 @@ app.post('/api/refreshToken', (req, res) => {
         res.status(403).json({ error: 'Invalid token' });
     }
 });
-
 app.post('/api/validateQRCodeToken', (req, res) => {
     const { userId, isbn, copyId } = req.body;
     const authHeader = req.headers.authorization;
@@ -860,26 +855,12 @@ app.post('/api/validateQRCodeToken', (req, res) => {
     const token = authHeader.split(' ')[1];
 
     try {
-        // Verify the token
         const decoded = jwt.verify(token, SECRET_KEY);
-         // Log the decoded token and request body
-         console.log('Decoded Token:', decoded);
-         console.log('Request Body:', { userId, isbn, copyId });
 
-        // Ensure the token contains the correct information
         if (decoded.id !== userId || decoded.isbn !== isbn || decoded.copyId !== copyId) {
-            console.log('Token validation mismatch:', {
-                decodedId: decoded.id,
-                providedId: userId,
-                decodedIsbn: decoded.isbn,
-                providedIsbn: isbn,
-                decodedCopyId: decoded.copyId,
-                providedCopyId: copyId,
-            });
             return res.status(403).json({ error: 'Invalid token data. Mismatched id, isbn, or copyId.' });
         }
 
-        // Token is valid
         res.status(200).json({ message: 'Token validated successfully', data: decoded });
     } catch (error) {
         console.error('Token validation failed:', error.message);
@@ -1255,6 +1236,7 @@ const createDefaultAdmin = async() => {
 };
 
 // User Login
+// User Login
 app.post('/login', async (req, res) => {
     const { username, password, from } = req.body;
 
@@ -1267,12 +1249,16 @@ app.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Invalid credentials' });
         }
 
-        // Generate JWT token
-        const token = jwt.sign(
-            { id: user._id, role: user.role }, // Payload
-            SECRET_KEY, // Secret key
-            { expiresIn: '1h' } // Token expiration
-        );
+        // Generate JWT token with full payload
+        const payload = {
+            id: user._id,
+            role: user.role,
+            username: user.username,
+            iat: Math.floor(Date.now() / 1000),
+            exp: Math.floor(Date.now() / 1000) + 60 * 60 // Token expires in 1 hour
+        };
+
+        const token = jwt.sign(payload, SECRET_KEY);
 
         // Log successful login
         console.log(`User logged in: ${user.username}, Role: ${user.role}`);
@@ -1292,9 +1278,7 @@ app.post('/login', async (req, res) => {
         }
 
         // Return token and redirect URL
-        console.log('Response:', { token, redirect: redirectUrl });
         return res.json({ token, redirect: redirectUrl });
-       
     } catch (error) {
         console.error('Login error:', error);
         return res.status(500).json({ error: 'Internal server error' });
