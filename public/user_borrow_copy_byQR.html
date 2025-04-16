@@ -18,7 +18,7 @@
             color: #1565c0;
         }
 
-        .book-details {
+        .book-details,.borrowed-details{
             background: white;
             padding: 20px;
             border-radius: 5px;
@@ -63,6 +63,7 @@
     <div id="bookDetails" class="book-details"></div>
     <div id="errorMessage" class="error-message"></div>
     <div id="successMessage" class="success-message"></div>
+    <div id="borrowedDetails" class="borrowed-details"></div>
     <button id="BorrowHistoryButton">Borrow History</button>
     <button id="backToCatalogButton">Back to Catalog</button>
 
@@ -242,10 +243,21 @@
         }
 
         document.getElementById('backToCatalogButton').addEventListener('click', () => {
+            if (!userId || !userToken) {
+                displayError('Session missing. Redirecting to login.');
+                window.location.href = '/login.html'; // Redirect to login if userId or token is missing
+                return;
+            }
             window.location.href = `user-books-catalog.html?userid=${userId}&token=${userToken}`;
         });
 
         document.getElementById('BorrowHistoryButton').addEventListener('click', () => {
+            if (!userId || !userToken) {
+                displayError('Session missing. Redirecting to login.');
+                window.location.href = '/login.html'; // Redirect to login if userId or token is missing
+                return;
+            }
+            // Redirect to Borrow History with the token and userId
             window.location.href = `user_borrow_history.html?userid=${userId}&token=${userToken}`;
         });
 
