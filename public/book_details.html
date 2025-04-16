@@ -40,6 +40,16 @@
             margin-top: 20px;
         }
 
+        .copy-item {
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+        }
+
+        .copy-item input[type="checkbox"] {
+            margin-right: 10px;
+        }
+
         .borrow-button {
             display: block;
             margin-top: 20px;
@@ -109,68 +119,32 @@
     </footer>
 
     <script>
-        // Utility function to get query parameters from the URL
-    function getQueryParam(param) {
-        const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get(param);
-    }
-
-    // Extract parameters from the URL
-    const userId = getQueryParam('userid');
-    const userToken = getQueryParam('token');
-    const isbn = getQueryParam('isbn');
-
-    // Log parameters for debugging
-    console.log('Extracted User ID:', userId);
-    console.log('Extracted User Token:', userToken);
-    console.log('Extracted ISBN:', isbn);
-
-    // Save userId and token in the server session
-    async function saveSessionData(userId, token) {
-        try {
-            const response = await fetch('/api/saveSessionData', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ userId, token }),
-            });
-
-            if (!response.ok) {
-                throw new Error('Failed to save session data');
-            }
-
-            console.log('Session data saved successfully in the backend');
-        } catch (error) {
-            console.error('Error saving session data:', error);
-            alert('Failed to save session data. Please log in again.');
-            window.location.href = '/login.html'; // Redirect to login page
+        // Utility function to get query parameters
+        function getQueryParam(param) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(param);
         }
-    }
-
-    // Save the session data if `userId` and `userToken` are present
-    if (userId && userToken) {
-        saveSessionData(userId, userToken);
-    } else {
-        console.warn('Missing userId or token in the URL. Session data not saved.');
-    }
-
+    
+        // Extract parameters from the URL
+        const userId = getQueryParam('userid');
+        const isbn = getQueryParam('isbn');
+        const userToken = getQueryParam('token') || localStorage.getItem('token'); // Get token from URL or fallback to localStorage
+    
         console.log('User ID:', userId);
-
-        console.log('User Token:', userToken);
         console.log('ISBN:', isbn);
-
+        console.log('User Token:', userToken);
+    
         // Validate parameters
         if (!isbn) {
             document.getElementById('bookDetails').innerHTML = `<p>Missing required parameter: ISBN.</p>`;
             throw new Error('Missing required parameter: ISBN.');
         }
-
+    
         // Fetch book details by ISBN
         function fetchBookDetails(isbn) {
             const endpoint = `/api/books/isbn/${isbn}`;
             console.log(`Fetching book details from: ${endpoint}`);
-
+    
             return fetch(endpoint, {
                 headers: {
                     'Authorization': `Bearer ${userToken}` // Use token for authentication
@@ -191,7 +165,7 @@
                     document.getElementById('bookDetails').innerHTML = `<p>${error.message}</p>`;
                 });
         }
-
+    
         // Display book details
         function displayBookDetails(book) {
             const bookDetails = `
@@ -209,14 +183,9 @@
             `;
             document.getElementById('bookDetails').innerHTML = bookDetails;
         }
-
+    
         // Fetch book details on page load
         fetchBookDetails(isbn);
-
-        // Back button event listener
-        document.getElementById('goBackButton').addEventListener('click', () => {
-            window.location.href = `user-books-catalog.html`;
-        });
 
         // Fetch book copies
         function fetchBookCopies() {
@@ -272,73 +241,51 @@ async function generateQRCode() {
         return;
     }
 
+    // Log selected copies for debugging
     console.log('Selected Copies:', selectedCopies);
+
+    // Create QR code container if it doesn't exist
+    const qrCodeContainer = document.getElementById('qrCodesContainer') || createQrCodeContainer();
 
     for (const copyId of selectedCopies) {
         try {
-            const tokenResponse = await fetch('/api/generateToken', {
+            // Log the API request payload
+            console.log('Requesting token for Copy ID:', copyId);
+
+            const response = await fetch('/api/generateToken', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('token')}` // User's main token
                 },
-                body: JSON.stringify({ userId, isbn, copyId }),
+                body: JSON.stringify({ userId, isbn, copyId })
             });
 
-            if (!tokenResponse.ok) {
-                throw new Error('Failed to generate token for QR code.');
+            if (!response.ok) {
+                throw new Error(`Failed to fetch token for Copy ID: ${copyId}. Status: ${response.status}`);
             }
 
-            const { token } = await tokenResponse.json();
+            const { token } = await response.json();
 
-            // Generate the QR code URL with the generated token
-            const qrCodeUrl = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?isbn=${isbn}&copyId=${copyId}&token=${encodeURIComponent(token)}`;
-            console.log('Generated QR Code URL:', qrCodeUrl);
+            if (!token) {
+                throw new Error('No token received from server.');
+            }
+
+            // Log the generated token
+            console.log(`Generated Token for Copy ID ${copyId}:`, token);
+
+            // QR code URL with the secure token
+            const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${token}`;
 
             // Display the QR code
-            displayQrCode(qrCodeUrl, copyId, createQrCodeContainer());
+            displayQrCode(qrCodeValue, copyId, qrCodeContainer);
         } catch (error) {
             console.error('Error generating QR code:', error);
             alert(`Error generating QR code for Copy ID: ${copyId}. ${error.message}`);
         }
     }
 }
-// Helper: Create a container for QR codes
-function createQrCodeContainer() {
-    let container = document.getElementById('qrCodesContainer');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'qrCodesContainer';
-        container.style.display = 'flex';
-        container.style.flexWrap = 'wrap';
-        container.style.gap = '10px';
-        container.style.marginTop = '20px';
-        document.getElementById('copiesSection').appendChild(container);
-    }
-    return container;
-}
 
-// Helper: Display QR code
-function displayQrCode(value, copyId, container) {
-    const qrCodeImg = document.createElement('img');
-    qrCodeImg.src = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(value)}&size=200x200`;
-    qrCodeImg.alt = `QR Code for Copy ID: ${copyId}`;
-    qrCodeImg.style.margin = '10px';
-
-    const qrCodeLabel = document.createElement('div');
-    qrCodeLabel.style.textAlign = 'center';
-    qrCodeLabel.style.fontSize = '14px';
-    qrCodeLabel.style.marginTop = '5px';
-    qrCodeLabel.textContent = `Copy ID: ${copyId}`;
-
-    const qrCodeWrapper = document.createElement('div');
-    qrCodeWrapper.style.display = 'inline-block';
-    qrCodeWrapper.style.textAlign = 'center';
-    qrCodeWrapper.appendChild(qrCodeImg);
-    qrCodeWrapper.appendChild(qrCodeLabel);
-
-    // Append the QR code wrapper to the container
-    container.appendChild(qrCodeWrapper);
-}
 // Helper: Create a container for QR codes
 function createQrCodeContainer() {
     const container = document.createElement('div');
@@ -420,7 +367,6 @@ function displayQrCode(value, copyId, container) {
 
         // Fetch book copies on page load
         fetchBookCopies();
-        // Additional logic for QR code generation and borrowing copies omitted for brevity
     </script>
 </body>
 
