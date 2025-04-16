@@ -226,25 +226,25 @@
     
         const params = new URLSearchParams(window.location.search);
         const userid = params.get('userid');
-        const token = localStorage.getItem('token');
+        const token = params.get('token');
 
         async function fetchBorrowHistory() {
             if (!token) {
                 displayError('No token found. Please log in.');
                 return;
             }
-
+        
             try {
                 const response = await fetch(`/api/userBorrows?userid=${userid}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
+                    headers: { 'Authorization': `Bearer ${token}` } // Use the token from the query parameters
                 });
-
+        
                 if (!response.ok) {
                     const errorData = await response.text();
                     displayError(errorData || 'Failed to fetch borrow history.');
                     return;
                 }
-
+        
                 const history = await response.json();
                 displayBooks(history);
             } catch (error) {
@@ -388,11 +388,11 @@
         }
 
         document.getElementById('BackHomeButton').addEventListener('click', () => {
-            window.location.href = `index_userlogined.html?userid=${userid}`;
+            window.location.href = `index_userlogined.html?userid=${userid}&token=${token}`;
         });
 
         document.getElementById('BackCatalogButton').addEventListener('click', () => {
-            window.location.href = `user-books-catalog.html?userid=${userid}`;
+            window.location.href = `user-books-catalog.html?userid=${userid}&token=${token}`;
         });
 
         window.onload = fetchBorrowHistory;
