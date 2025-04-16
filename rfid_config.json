@@ -1,4 +1,13 @@
 {
-    "shelves": [],
+    "shelves": [
+        {
+            "name": "Bookshelf 1",
+            "ip": "192.168.1.101"
+        },
+        {
+            "name": "Bookshelf 2",
+            "ip": "192.168.1.102"
+        }
+    ],
     "return_boxes": []
 }
