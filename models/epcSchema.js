@@ -8,11 +8,16 @@ const epcSchema = new mongoose.Schema({
     status: { 
         type: String, 
         enum: ['borrowed', 'in return box', 'in library'], // Restrict to these values
-        default: 'in return box', // Default status
+        default: 'in library'
     }, industryIdentifier: {
         type: [String],
     },
-    timestamp: { type: Date, default: Date.now } // Automatically add a timestamp
+    timestamp: { type: Date, default: Date.now },
+    readerIp: { type: String, default: null },
+    logs: [{
+    message: String,
+    timestamp: { type: Number, default: Date.now }
+  }]
 });
 
 // Export the EPC model
