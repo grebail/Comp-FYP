@@ -76,14 +76,17 @@
         console.log('ISBN:', isbn);
         console.log('Copy ID:', copyId);
 
+        // Display success messages
         function displaySuccess(message) {
             document.getElementById('successMessage').innerText = message;
         }
 
+        // Display error messages
         function displayError(message) {
             document.getElementById('errorMessage').innerText = message;
         }
 
+        // Display book details
         function displayBookDetails(book) {
             const html = `
                 <img src="${book.coverImage || 'https://via.placeholder.com/200x300?text=No+Image'}" alt="${book.title || 'No Title'} cover" class="book-cover">
@@ -97,6 +100,7 @@
             document.getElementById('bookDetails').innerHTML = html;
         }
 
+        // Display borrowed details
         function displayBorrowedDetails(borrowedCopies) {
             const borrowedDetails = document.getElementById('borrowedDetails');
             if (!borrowedCopies || borrowedCopies.length === 0) {
@@ -118,26 +122,53 @@
             borrowedDetails.innerHTML = borrowedHTML;
         }
 
-        async function fetchBookDetails() {
+        // Fetch session data
+        async function fetchSessionData() {
             try {
-                const response = await fetch(`/api/books/isbn/${isbn}`, {
+                const response = await fetch('/api/getSessionData', { method: 'GET' });
+
+                if (!response.ok) {
+                    throw new Error('Failed to fetch session data.');
+                }
+
+                const data = await response.json();
+                userId = data.userId;
+                userToken = data.token;
+
+                console.log('Session Data Retrieved:', { userId, userToken });
+            } catch (error) {
+                console.error('Error fetching session data:', error);
+                attemptTokenRefresh(); // Attempt to refresh the token
+            }
+        }
+
+        // Attempt to refresh the token if expired
+        async function attemptTokenRefresh() {
+            console.log('Attempting to refresh token...');
+            try {
+                const response = await fetch('/api/refreshToken', {
+                    method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${userToken}`
                     }
                 });
 
                 if (!response.ok) {
-                    throw new Error('Failed to fetch book details.');
+                    throw new Error('Failed to refresh token.');
                 }
 
-                const book = await response.json();
-                displayBookDetails(book);
+                const data = await response.json();
+                userToken = data.token; // Update the token
+                console.log('Token refreshed successfully');
+                await initializePage(); // Retry initialization
             } catch (error) {
-                console.error('Error fetching book details:', error);
-                displayError(error.message || 'Failed to fetch book details.');
+                console.error('Token refresh failed:', error);
+                alert('Session expired. Redirecting to login.');
+                window.location.href = '/login.html'; // Redirect to login page
             }
         }
 
+        // Borrow the copy
         async function borrowCopy() {
             try {
                 if (!copyId) {
@@ -171,23 +202,14 @@
             }
         }
 
-        async function fetchSessionData() {
+        // Initialize the page
+        async function initializePage() {
             try {
-                const response = await fetch('/api/getSessionData', { method: 'GET' });
-
-                if (!response.ok) {
-                    throw new Error('Failed to fetch session data. Please log in again.');
-                }
-
-                const data = await response.json();
-                userId = data.userId;
-                userToken = data.token;
-
-                console.log('Session Data Retrieved:', { userId, userToken });
+                await fetchSessionData(); // Fetch session data
+                await fetchBookDetails(); // Fetch book details
+                await borrowCopy(); // Automatically borrow the copy
             } catch (error) {
-                console.error('Error fetching session data:', error);
-                alert('Session expired. Redirecting to login.');
-                window.location.href = '/login.html'; // Redirect to login page
+                console.error('Error initializing page:', error);
             }
         }
 
@@ -199,16 +221,7 @@
             window.location.href = `user_borrow_history.html?userid=${userId}&token=${userToken}`;
         });
 
-        // Initialize the page
-        window.onload = async () => {
-            try {
-                await fetchSessionData(); // Fetch session data
-                await fetchBookDetails(); // Fetch book details
-                await borrowCopy(); // Automatically borrow the copy
-            } catch (error) {
-                console.error('Error initializing page:', error);
-            }
-        };
+        window.onload = initializePage;
     </script>
 </body>
 
