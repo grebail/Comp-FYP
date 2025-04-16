@@ -87,11 +87,11 @@ app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 // API route to create an EPC
 app.post('/api/EPC', async (req, res) => {
     try {
-        const { EPC, title, author, status, industryIdentifier  } = req.body;
+        const { epc, title, author, status, industryIdentifier  } = req.body;
 
         // Create a new EPC record
         const newEPC = new EPC({
-            EPC,
+            epc,
             title,
             author,
             status,
@@ -1015,14 +1015,14 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
 
         // Synchronize the status in the EPC schema
         for (const copy of borrowedCopies) {
-            if (copy.EPC) {
+            if (copy.epc) {
                 // Update the EPC status to 'borrowed'
                 await EPC.updateOne(
-                    { EPC: copy.EPC }, // Match the EPC number
+                    { epc: copy.epc }, // Match the EPC number
                     { $set: { status: 'borrowed' } } // Set status to 'borrowed'
                 );
 
-                console.log(`Synchronized EPC "${copy.EPC}" with status "borrowed".`);
+                console.log(`Synchronized EPC "${copy.epc}" with status "borrowed".`);
             }
         }
 
@@ -1042,7 +1042,7 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
                     locationId: copy.locationId || 'Unknown',
                     borrowedDate: copy.borrowedDate,
                     dueDate: copy.dueDate,
-                    EPC: copy.EPC, // Include the EPC number
+                    epc: copy.epc, // Include the EPC number
                     status: 'borrowed', // Set status to 'borrowed'
                     availability: false, // Set availability to false
                     borrowStatus: true, // Set borrowStatus to true
@@ -1063,7 +1063,7 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
                     locationId: copy.locationId || 'Unknown',
                     borrowedDate: copy.borrowedDate,
                     dueDate: copy.dueDate,
-                    EPC: copy.EPC, // Include the EPC number
+                    epc: copy.epc, // Include the EPC number
                     status: 'borrowed', // Set status to 'borrowed'
                     availability: false, // Set availability to false
                     borrowStatus: true, // Set borrowStatus to true
@@ -1077,7 +1077,7 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
         // Log the borrowed copies with their EPC numbers
         console.log('Borrowed Copies with EPC Numbers:');
         borrowedCopies.forEach(copy => {
-            console.log(`CopyId: ${copy.copyId}, EPC: ${copy.EPC}`);
+            console.log(`CopyId: ${copy.copyId}, EPC: ${copy.epc}`);
         });
 
         // Synchronize with BookBuy schema
@@ -1101,7 +1101,7 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
             message: 'Copies borrowed successfully.',
             borrowedCopies: borrowedCopies.map(copy => ({
                 copyId: copy.copyId,
-                EPC: copy.EPC, // Include the EPC number in the response
+                epc: copy.epc, // Include the EPC number in the response
                 borrowedDate: copy.borrowedDate,
                 dueDate: copy.dueDate,
                 status: copy.status,
@@ -1116,30 +1116,30 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
 });
 
 app.post('/api/books/return', async (req, res) => {
-    const { EPC } = req.body;
+    const { epc } = req.body;
 
     // Validate request body
-    if (!EPC) {
+    if (!epc) {
         return res.status(400).json({ error: 'EPC number is required.' });
     }
 
     try {
         // Find the EPC document and update its status to "in return box"
         const EPCRecord = await EPC.findOneAndUpdate(
-            { EPC }, // Find by EPC number
+            { epc }, // Find by EPC number
             { $set: { status: 'in return box' } }, // Update the status to "in return box"
             { new: true } // Return the updated document
         );
 
         if (!EPCRecord) {
-            return res.status(404).json({ error: `EPC number '${EPC}' not found.` });
+            return res.status(404).json({ error: `EPC number '${epc}' not found.` });
         }
 
-        console.log(`EPC status updated to "in return box" for EPC: ${EPC}`);
+        console.log(`EPC status updated to "in return box" for EPC: ${epc}`);
 
         // Find the UserBorrow document that contains this EPC and update the corresponding copy
         const userBorrowRecord = await UserBorrow.findOneAndUpdate(
-            { 'copies.EPC': EPC }, // Find the UserBorrow document with a copy that has this EPC
+            { 'copies.epc': epc }, // Find the UserBorrow document with a copy that has this EPC
             { 
                 $set: { 
                     'copies.$.status': 'in return box', 
@@ -1151,14 +1151,14 @@ app.post('/api/books/return', async (req, res) => {
         );
 
         if (!userBorrowRecord) {
-            return res.status(404).json({ error: `No UserBorrow record found for EPC '${EPC}'.` });
+            return res.status(404).json({ error: `No UserBorrow record found for EPC '${epc}'.` });
         }
 
-        console.log(`UserBorrow status updated to "in return box" for EPC: ${EPC}`);
+        console.log(`UserBorrow status updated to "in return box" for EPC: ${epc}`);
 
         // Find the BookBuy document and update the corresponding copy's availability
         const book = await BookBuy.findOneAndUpdate(
-            { 'copies.EPC': EPC }, // Find the BookBuy document with a copy that has this EPC
+            { 'copies.EPC': epc }, // Find the BookBuy document with a copy that has this EPC
             { 
                 $set: { 
                     'copies.$.availability': true, 
@@ -1170,14 +1170,14 @@ app.post('/api/books/return', async (req, res) => {
         );
 
         if (!book) {
-            return res.status(404).json({ error: `No BookBuy record found for EPC '${EPC}'.` });
+            return res.status(404).json({ error: `No BookBuy record found for EPC '${epc}'.` });
         }
 
-        console.log(`BookBuy availability updated to "true" for EPC: ${EPC}`);
+        console.log(`BookBuy availability updated to "true" for EPC: ${epc}`);
 
         // Respond with success
         res.status(200).json({
-            message: `Book with EPC '${EPC}' returned successfully.`,
+            message: `Book with EPC '${epc}' returned successfully.`,
             EPCRecord,
             userBorrowRecord,
             book,
@@ -1858,7 +1858,7 @@ async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
         console.log('Book Authors:', bookAuthors);
 
         // Search for EPC records with matching title and authors
-        const EPCRecords = await EPC.find({
+        const EPCRecords = await epc.find({
             title: { $regex: new RegExp(bookTitle, 'i') }, // Case-insensitive match
             author: { $all: bookAuthors }, // Match all authors exactly
         });
@@ -1888,9 +1888,9 @@ async function assignEPCsToExistingCopies(bookTitle, bookAuthors) {
         // Iterate through the copies in the BookBuy document
         for (let copy of bookBuy.copies) {
             // Assign EPC to copies that don't already have one
-            if (!copy.EPC && EPCIndex < EPCRecords.length) {
-                const assignedEPC = EPCRecords[EPCIndex].EPC; // Get the EPC number
-                copy.EPC = assignedEPC;
+            if (!copy.epc && EPCIndex < EPCRecords.length) {
+                const assignedEPC = EPCRecords[EPCIndex].epc; // Get the EPC number
+                copy.epc = assignedEPC;
                 copy.status = EPCRecords[EPCIndex].status; // Copy the status from the EPC record
 
                 // Synchronize the EPC with the UserBorrow schema
@@ -2017,7 +2017,7 @@ app.post('/api/userPurchases', authenticateToken, async (req, res) => {
                 book.categories[0] || 'Unknown',
                 copyIndex
             );
-            const EPC = generateEPC(EPCPrefix, copyIndex); // Generate the EPC with the prefix and copy index
+            const epc = generateEPC(EPCPrefix, copyIndex); // Generate the EPC with the prefix and copy index
 
             copies.push({
                 copyId,
@@ -2025,7 +2025,7 @@ app.post('/api/userPurchases', authenticateToken, async (req, res) => {
                 locationId,
                 availability: true,
                 status: 'in library',
-                EPC,
+                epc,
             });
         }
 
@@ -2214,7 +2214,7 @@ app.post('/api/importBooks', upload.single('file'), async (req, res) => {
         'availability',
         'status',
         'industryIdentifier',
-        'EPC'
+        'epc'
     ];
 
     try {
@@ -2415,21 +2415,21 @@ function generateLocationId(isbn, title, authors, publishedDate, category, copyI
 
 async function saveEPC(EPCData) {
     try {
-        console.log(`Checking if EPC exists: ${EPCData.EPC}`);
-        const existingEPC = await EPC.findOne({ EPC: EPCData.EPC });
+        console.log(`Checking if EPC exists: ${EPCData.epc}`);
+        const existingEPC = await EPC.findOne({ epc: EPCData.epc });
         if (existingEPC) {
            
-            return { duplicate: true, EPC: EPCData.EPC };
+            return { duplicate: true, EPC: EPCData.epc };
         }
 
         // Create a new EPC record
         const newEPC = new EPC(EPCData);
         await newEPC.save();
-        console.log(`EPC saved successfully: ${EPCData.EPC}`);
-        return { duplicate: false, EPC: EPCData.EPC };
+        console.log(`EPC saved successfully: ${EPCData.epc}`);
+        return { duplicate: false, epc: EPCData.epc };
     } catch (error) {
-        console.error(`Failed to save EPC: ${EPCData.EPC}`, error.message);
-        throw new Error(`Failed to save EPC: ${EPCData.EPC}`);
+        console.error(`Failed to save EPC: ${EPCData.epc}`, error.message);
+        throw new Error(`Failed to save EPC: ${EPCData.epc}`);
     }
 }
 
@@ -2437,7 +2437,7 @@ async function saveEPC(EPCData) {
 async function processBooks(books, errors) {
     for (const book of books) {
         try {
-            const requiredFields = ['title', 'authors', 'industryIdentifier', 'copyId', 'bookLocation', 'EPC'];
+            const requiredFields = ['title', 'authors', 'industryIdentifier', 'copyId', 'bookLocation', 'epc'];
 
             const missingFields = requiredFields.filter((field) => !book[field] || book[field].trim() === '');
             if (missingFields.length > 0) {
@@ -2486,7 +2486,7 @@ async function processBooks(books, errors) {
                         locationId: newLocationId,
                         availability: isAvailable,
                         status: sanitizedStatus,
-                        EPC: book.EPC.trim()
+                        epc: book.epc.trim()
                     });
                 } else {
                     // Update locationId for existing copy
@@ -2531,7 +2531,7 @@ async function processBooks(books, errors) {
                             locationId: newLocationId,
                             availability: isAvailable,
                             status: sanitizedStatus,
-                            EPC: book.EPC.trim()
+                            epc: book.epc.trim()
                         }
                     ]
                 });
@@ -2584,7 +2584,7 @@ app.get('/api/exportBooks', async (req, res) => {
                 locationId: copy.locationId || 'N/A',
                 availability: copy.availability,
                 copyId: copy.copyId || 'N/A',
-                EPC: copy.EPC || 'N/A',
+                epc: copy.epc || 'N/A',
                 quantity: purchase.quantity || 0,
             }))
         );
@@ -2673,11 +2673,11 @@ app.put('/api/editBookCopy/:id', async (req, res) => {
             return res.status(404).json({ error: 'Copy not found.' });
         }
 
-        const { copyId, bookLocation, availability, EPC, quantity } = req.body;
+        const { copyId, bookLocation, availability, epc, quantity } = req.body;
         copy.copyId = copyId;
         copy.bookLocation = bookLocation;
         copy.availability = availability;
-        copy.EPC = EPC;
+        copy.epc = epc;
         copy.quantity = quantity;
 
         await book.save();
@@ -3083,36 +3083,36 @@ app.get('/api/books/isbn/:isbn/copies', async (req, res) => {
     }
 });
 
-const detectedEpcs = { shelf: new Map(), returnBox: new Map() };
+const detectedEPCs = { shelf: new Map(), returnBox: new Map() };
 const connectionStatus = new Map();
 
 async function processShelfDetection(epc, readerIp) {
   try {
-    const existingEpc = await Epc.findOne({ epc });
+    const existingEPC = await EPC.findOne({ epc });
     const shelf = await Shelf.findOne({ readerIp });
     if (!shelf) throw new Error(`Shelf with IP ${readerIp} not found`);
     const logMessage = `${new Date().toLocaleTimeString()} - EPC '${epc}' detected by shelf reader ${readerIp}`;
-    if (existingEpc) {
-      if (existingEpc.status !== 'in library') {
-        existingEpc.status = 'in library';
-        existingEpc.readerIp = readerIp;
-        existingEpc.timestamp = Date.now();
-        existingEpc.logs = existingEpc.logs || [];
-        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
-        await existingEpc.save();
+    if (existingEPC) {
+      if (existingEPC.status !== 'in library') {
+        existingEPC.status = 'in library';
+        existingEPC.readerIp = readerIp;
+        existingEPC.timestamp = Date.now();
+        existingEPC.logs = existingEPC.logs || [];
+        existingEPC.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEPC.save();
         console.log(`EPC '${epc}' status changed to 'in library'`);
       } else {
-        existingEpc.readerIp = readerIp;
-        existingEpc.logs = existingEpc.logs || [];
-        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
-        await existingEpc.save();
+        existingEPC.readerIp = readerIp;
+        existingEPC.logs = existingEPC.logs || [];
+        existingEPC.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEPC.save();
       }
     } else {
-      const newEpc = new Epc({
+      const newEPC = new EPC({
         epc, title: 'Unknown Title', author: ['Unknown Author'], status: 'in library',
         readerIp, timestamp: Date.now(), logs: [{ message: logMessage, timestamp: Date.now() }]
       });
-      await newEpc.save();
+      await newEPC.save();
       console.log(`New EPC '${epc}' added to shelf`);
     }
   } catch (error) {
@@ -3123,31 +3123,31 @@ async function processShelfDetection(epc, readerIp) {
 
 async function processReturn(epc, readerIp) {
   try {
-    const existingEpc = await Epc.findOne({ epc });
+    const existingEPC = await EPC.findOne({ epc });
     const returnBox = await ReturnBox.findOne({ readerIp });
     if (!returnBox) throw new Error(`Return box with IP ${readerIp} not found`);
     const logMessage = `${new Date().toLocaleTimeString()} - EPC '${epc}' detected by return box reader ${readerIp}`;
-    if (existingEpc) {
-      if (existingEpc.status !== 'in return box') {
-        existingEpc.status = 'in return box';
-        existingEpc.readerIp = readerIp;
-        existingEpc.timestamp = Date.now();
-        existingEpc.logs = existingEpc.logs || [];
-        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
-        await existingEpc.save();
+    if (existingEPC) {
+      if (existingEPC.status !== 'in return box') {
+        existingEPC.status = 'in return box';
+        existingEPC.readerIp = readerIp;
+        existingEPC.timestamp = Date.now();
+        existingEPC.logs = existingEPC.logs || [];
+        existingEPC.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEPC.save();
         console.log(`EPC '${epc}' status changed to 'in return box'`);
       } else {
-        existingEpc.readerIp = readerIp;
-        existingEpc.logs = existingEpc.logs || [];
-        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
-        await existingEpc.save();
+        existingEPC.readerIp = readerIp;
+        existingEPC.logs = existingEPC.logs || [];
+        existingEPC.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEPC.save();
       }
     } else {
-      const newEpc = new Epc({
+      const newEPC = new EPC({
         epc, title: 'Unknown Title', author: ['Unknown Author'], status: 'in return box',
         readerIp, timestamp: Date.now(), logs: [{ message: logMessage, timestamp: Date.now() }]
       });
-      await newEpc.save();
+      await newEPC.save();
       console.log(`New EPC '${epc}' added to return box`);
     }
   } catch (error) {
@@ -3159,7 +3159,7 @@ async function processReturn(epc, readerIp) {
 app.post('/api/rfid-update',  async (req, res) => {
   const { readerIp, epc, type, detected = true } = req.body;
   if (!readerIp || !epc || !type) return res.status(400).json({ error: 'Missing fields' });
-  const store = type === 'shelf' ? detectedEpcs.shelf : detectedEpcs.returnBox;
+  const store = type === 'shelf' ? detectedEPCs.shelf : detectedEPCs.returnBox;
   try {
     if (detected) {
       console.log(`EPC '${epc}' detected by ${type} reader ${readerIp}`);
@@ -3169,15 +3169,15 @@ app.post('/api/rfid-update',  async (req, res) => {
     } else {
       console.log(`EPC '${epc}' no longer detected by ${type} reader ${readerIp}`);
       store.delete(epc);
-      const existingEpc = await Epc.findOne({ epc });
-      if (existingEpc && existingEpc.status !== 'borrowed') {
+      const existingEPC = await EPC.findOne({ epc });
+      if (existingEPC && existingEPC.status !== 'borrowed') {
         const logMessage = `${new Date().toLocaleTimeString()} - EPC '${epc}' no longer detected by ${type} reader ${readerIp}`;
-        existingEpc.status = 'borrowed';
-        existingEpc.readerIp = null;
-        existingEpc.timestamp = Date.now();
-        existingEpc.logs = existingEpc.logs || [];
-        existingEpc.logs.push({ message: logMessage, timestamp: Date.now() });
-        await existingEpc.save();
+        existingEPC.status = 'borrowed';
+        existingEPC.readerIp = null;
+        existingEPC.timestamp = Date.now();
+        existingEPC.logs = existingEPC.logs || [];
+        existingEPC.logs.push({ message: logMessage, timestamp: Date.now() });
+        await existingEPC.save();
         console.log(`EPC '${epc}' status changed to 'borrowed'`);
       }
     }
@@ -3197,39 +3197,39 @@ app.post('/api/connection-status', (req, res) => {
 
 app.get('/api/rfid-readers',  async (req, res) => {
   try {
-    const allEpcs = await Epc.find().lean();
+    const allEPCs = await EPC.find().lean();
     const shelves = await Shelf.find().lean();
     const returnBoxes = await ReturnBox.find().lean();
 
-    const shelfEpcs = Array.from(detectedEpcs.shelf.entries()).map(([epc, { timestamp, readerIp }]) => {
-      const dbEpc = allEpcs.find(e => e.epc === epc) || {};
+    const shelfEPCs = Array.from(detectedEPCs.shelf.entries()).map(([epc, { timestamp, readerIp }]) => {
+      const dbEPC = allEPCs.find(e => e.epc === epc) || {};
       const shelf = shelves.find(s => s.readerIp === readerIp) || { name: 'Unknown' };
-      return { epc, timestamp, readerIp, shelfName: shelf.name, logs: dbEpc.logs || [], ...dbEpc };
+      return { epc, timestamp, readerIp, shelfName: shelf.name, logs: dbEPC.logs || [], ...dbEPC };
     });
 
-    const returnBoxEpcs = Array.from(detectedEpcs.returnBox.entries()).map(([epc, { timestamp, readerIp }]) => {
-      const dbEpc = allEpcs.find(e => e.epc === epc) || {};
+    const returnBoxEPCs = Array.from(detectedEPCs.returnBox.entries()).map(([epc, { timestamp, readerIp }]) => {
+      const dbEPC = allEPCs.find(e => e.epc === epc) || {};
       const returnBox = returnBoxes.find(r => r.readerIp === readerIp) || { name: 'Unknown' };
-      return { epc, timestamp, readerIp, returnBoxName: returnBox.name, logs: dbEpc.logs || [], ...dbEpc };
+      return { epc, timestamp, readerIp, returnBoxName: returnBox.name, logs: dbEPC.logs || [], ...dbEPC };
     });
 
     const shelfReaders = shelves.map(shelf => {
-      const epcsForShelf = shelfEpcs.filter(epc => epc.readerIp === shelf.readerIp);
+      const EPCsForShelf = shelfEPCs.filter(epc => epc.readerIp === shelf.readerIp);
       return {
         readerIp: shelf.readerIp,
         name: shelf.name,
         status: connectionStatus.get(shelf.readerIp) ? 'active' : 'inactive',
-        epcs: epcsForShelf,
+        EPCs: EPCsForShelf,
       };
     });
 
     const returnBoxReaders = returnBoxes.map(box => {
-      const epcsForBox = returnBoxEpcs.filter(epc => epc.readerIp === box.readerIp);
+      const EPCsForBox = returnBoxEPCs.filter(epc => epc.readerIp === box.readerIp);
       return {
         readerIp: box.readerIp,
         name: box.name,
         status: connectionStatus.get(box.readerIp) ? 'active' : 'inactive',
-        epcs: epcsForBox,
+        EPCs: EPCsForBox,
       };
     });
 
@@ -3302,15 +3302,15 @@ app.post('/api/epc',  async (req, res) => {
   if (!epc || !title || !author || !status) return res.status(400).json({ error: 'EPC, title, author, status required' });
   if (!['borrowed', 'in return box', 'in library'].includes(status)) return res.status(400).json({ error: 'Invalid status' });
   try {
-    const existing = await Epc.findOne({ epc });
+    const existing = await EPC.findOne({ epc });
     if (existing) return res.status(400).json({ error: 'EPC exists' });
-    const newEpc = new Epc({
+    const newEPC = new EPC({
       epc, title, author, status, 
       timestamp: Date.now(), logs: [{ message: `${new Date().toLocaleTimeString()} - EPC '${epc}' manually added`, timestamp: Date.now() }]
     });
-    await newEpc.save();
+    await newEPC.save();
     console.log(`Added EPC '${epc}' with status '${status}'`);
-    res.status(201).json(newEpc);
+    res.status(201).json(newEPC);
   } catch (error) {
     console.error('Error adding EPC:', error.message);
     res.status(500).json({ error: 'Failed to add EPC' });
