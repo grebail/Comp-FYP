@@ -988,7 +988,7 @@ function addNewArrivalTags(books) {
 
         function viewHistory() {
             const userId = new URLSearchParams(window.location.search).get('userid');
-            window.location.href = `user_borrow_history.html?userid=${userId}`;
+            window.location.href = `user_borrow_history.html?userid=${userId}&token=${token}`;
         }
 
         let searchTimeout;
