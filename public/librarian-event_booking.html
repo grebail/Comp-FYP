@@ -189,6 +189,7 @@
             <tr>
                 <th>Event Title</th>
                 <th>Event Date</th>
+                <th>Image</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -267,19 +268,22 @@
         try {
             const response = await fetch('/api/events');
             const events = await response.json();
-
+    
             if (!response.ok) {
                 throw new Error(events.error || 'Failed to fetch events.');
             }
-
+    
             const tableBody = document.getElementById('event-table-body');
             tableBody.innerHTML = ''; // Clear existing rows
-
+    
             events.forEach(event => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${event.title}</td>
                     <td>${event.time ? new Date(event.time).toLocaleString() : 'No time set'}</td>
+                    <td>
+                        <img src="${event.image}" alt="${event.title}" style="width: 100px; height: auto;" />
+                    </td>
                     <td>
                         <button class="details-button" onclick="showRegisteredUsers('${event.eventId}')">Show Details</button>
                         <button class="edit-button" onclick="editEvent('${event.eventId}', '${event.time || ''}')">Edit</button>
@@ -425,36 +429,43 @@
     }
 
     // Show the "Show Registered Users" modal
-    async function showRegisteredUsers(eventId) {
-        try {
-            const response = await fetch(`/api/events/${eventId}/registered-users`);
-            const result = await response.json();
+    // Show the "Show Registered Users" modal
+// Show the "Show Registered Users" modal
+async function showRegisteredUsers(eventId) {
+    try {
+        const response = await fetch(`/api/events/${eventId}/registered-users`);
+        const result = await response.json();
 
-            if (!response.ok) {
-                throw new Error(result.error || 'Failed to fetch registered users.');
-            }
-
-            const usersList = document.getElementById('users-list');
-            usersList.innerHTML = ''; // Clear existing list
-
-            if (result.registeredUsers.length > 0) {
-                result.registeredUsers.forEach(user => {
-                    const listItem = document.createElement('li');
-                    listItem.textContent = `${user.name} (${user.email})`;
-                    usersList.appendChild(listItem);
-                });
-            } else {
-                usersList.innerHTML = '<li>No registered users found.</li>';
-            }
-
-            document.getElementById('users-modal').style.display = 'block';
-            document.getElementById('overlay').style.display = 'block';
-        } catch (error) {
-            console.error('Error fetching registered users:', error.message);
-            alert('Error fetching registered users. Please try again later.');
+        if (!response.ok) {
+            throw new Error(result.error || 'Failed to fetch registered users.');
         }
-    }
 
+        const usersList = document.getElementById('users-list');
+        usersList.innerHTML = ''; // Clear previous list
+
+        if (result.registeredUsers.length > 0) {
+            const seenEmails = new Set(); // Track unique emails
+
+            result.registeredUsers.forEach(user => {
+                if (!seenEmails.has(user.email)) {
+                    seenEmails.add(user.email);
+
+                    const listItem = document.createElement('li');
+                    listItem.textContent = `${user.name} (${user.email})`; // Display name and email
+                    usersList.appendChild(listItem);
+                }
+            });
+        } else {
+            usersList.innerHTML = '<li>No registered users found.</li>';
+        }
+
+        document.getElementById('users-modal').style.display = 'block';
+        document.getElementById('overlay').style.display = 'block';
+    } catch (error) {
+        console.error('Error fetching registered users:', error.message);
+        alert('Error fetching registered users. Please try again later.');
+    }
+}
     function closeUsersModal() {
         document.getElementById('users-modal').style.display = 'none';
         document.getElementById('overlay').style.display = 'none';

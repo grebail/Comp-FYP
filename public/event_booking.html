@@ -291,19 +291,23 @@
         try {
             const response = await fetch('/api/events');
             const events = await response.json();
-
+    
             if (!response.ok) {
                 throw new Error(events.error || 'Failed to fetch events.');
             }
-
+    
             const eventList = document.getElementById('event-list');
             eventList.innerHTML = ''; // Clear existing content
-
+    
             events.forEach(event => {
+                const imageUrl = event.image.startsWith('http') // Check if it's a full URL
+                    ? event.image
+                    : `/uploads/${event.image}`; // Construct URL if only a filename is provided
+    
                 const eventDiv = document.createElement('div');
                 eventDiv.classList.add('event');
                 eventDiv.innerHTML = `
-                    <img src="/uploads/${event.image}" alt="${event.title}">
+                    <img src="${imageUrl}" alt="${event.title}">
                     <div class="event-details">
                         <h3>${event.title}</h3>
                         <p><strong>Date:</strong> ${new Date(event.time).toLocaleDateString()}</p>
@@ -314,7 +318,7 @@
                             '${event.venue}', 
                             '${event.time}', 
                             '${encodeURIComponent(event.description)}', 
-                            '/uploads/${event.image}'
+                            '${imageUrl}'
                         )">Details</button>
                     </div>
                 `;
@@ -356,26 +360,27 @@
 
     async function bookEvent(eventName) {
         const userId = new URLSearchParams(window.location.search).get('userid');
-
+    
         if (!userId) {
             alert('User not logged in. Please log in to book this event.');
             return;
         }
-
+    
         try {
             const response = await fetch('/api/bookEvent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ eventName, userId }),
             });
-
+    
             const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(result.error || 'Booking failed.');
+    
+            if (!response.ok && result.error) {
+                throw new Error(result.error);
             }
-
-            alert(result.message);
+    
+            // Display the message returned by the API (for both success and already registered cases)
+            alert(result.message || 'Event booked successfully!');
         } catch (error) {
             console.error('Error booking event:', error.message);
             alert('Error booking event. Please try again later.');

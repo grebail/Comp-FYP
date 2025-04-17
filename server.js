@@ -234,16 +234,25 @@ app.post('/api/bookEvent', async (req, res) => {
         const userName = userDetails.name; // Assuming `name` is a field in UserDetails
         const userEmail = userDetails.email; // Assuming `email` is a field in UserDetails
 
+        // Check if the userId is already registered for this event
+        const isUserAlreadyRegistered = Array.from(event.registeredUsers.values()).some(
+            (value) => value === userId
+        );
+
+        if (isUserAlreadyRegistered) {
+            console.log(`User with ID ${userId} is already registered for event ${event.title}`);
+            return res.status(200).json({
+                message: `You have already registered for the event "${eventName}".`,
+            });
+        }
+
         // Sanitize the email address to use as a key in the Map
         const sanitizedEmail = userEmail.replace(/\./g, '[dot]');
 
-        // Check if the user is already registered
-        if (event.registeredUsers.has(sanitizedEmail)) {
-            return res.status(400).json({ error: 'User already registered for this event.' });
-        }
-
-        // Add the sanitized email and user name to the `registeredUsers` map
-        event.registeredUsers.set(sanitizedEmail, userName);
+        // Add the userId as part of the value in the `registeredUsers` map (for tracking purposes)
+        // Even if the email is the same, a different userId is treated as a separate registration
+        const uniqueKey = `${sanitizedEmail}|${userId}`; // Combine email and userId for uniqueness
+        event.registeredUsers.set(uniqueKey, userId);
         await event.save();
 
         console.log(`User ${userName} successfully registered for event ${event.title}`);
@@ -272,37 +281,63 @@ app.get('/api/events', async (req, res) => {
         // Fetch all events from the database
         const events = await Event.find({});
 
-        // Map the event data to include all necessary fields
-        const eventData = events.map(event => {
-            // Convert the registeredUsers map to a regular object for easy handling
-            const registeredUsers = {};
-            for (const [email, name] of event.registeredUsers.entries()) {
-                registeredUsers[email.replace(/\[dot\]/g, '.')] = name; // Replace '[dot]' back to '.'
-            }
+        const eventData = await Promise.all(
+            events.map(async (event) => {
+                const registeredUsers = [];
 
-            return {
-                eventId: event.eventId,
-                title: event.title,
-                venue: event.venue,
-                time: event.time,
-                description: event.description, // Include description
-                image: event.image, // Include image filename
-                registeredUsers, // Object with emails as keys and user names as values
-            };
-        });
+                // Iterate over registeredUsers map
+                for (const [email, userId] of event.registeredUsers.entries()) {
+                    try {
+                        // Ensure userId is treated as a string for comparison
+                        const userDetails = await UserDetails.findOne({ userId: userId.toString() });
 
-        // Send the formatted event data as a JSON response
+                        if (userDetails) {
+                            // Avoid duplicate entries
+                            if (!registeredUsers.some(user => user.email === email)) {
+                                registeredUsers.push({
+                                    email: email.replace(/\[dot\]/g, '.'), // Replace '[dot]' with '.'
+                                    name: userDetails.name,
+                                });
+                            }
+                        } else {
+                            console.error(`No user found for userId: ${userId}`);
+                        }
+                    } catch (err) {
+                        console.error(`Error fetching user details for userId: ${userId}`, err.message);
+                    }
+                }
+
+                // Ensure the image URL is returned correctly
+                const imageUrl = event.image.startsWith('http') // Check if the image is already a full URL
+                    ? event.image
+                    : `${req.protocol}://${req.get('host')}/uploads/${event.image}`; // Construct the full URL if it's just a filename
+
+                return {
+                    eventId: event.eventId,
+                    title: event.title,
+                    venue: event.venue,
+                    time: event.time,
+                    description: event.description,
+                    image: imageUrl, // Use the correct image URL
+                    registeredUsers, // Array of objects with name and email
+                };
+            })
+        );
+
         res.status(200).json(eventData);
     } catch (error) {
         console.error('Error fetching events:', error.message);
         res.status(500).json({ error: 'Internal server error while fetching events.' });
     }
 });
-
-
-
 // Configure multer for file uploads
-const upload = multer({ dest: 'uploads/' }); // Files will be stored in the "uploads" directory
+const upload = multer({
+    dest: 'uploads/', // Files will be stored in the "uploads" directory
+    limits: { fileSize: 5 * 1024 * 1024 }, // Limit file size to 5MB
+});
+
+// Serve static files from the "uploads" directory
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // API to create a new event
 app.post('/api/events', upload.single('image'), async (req, res) => {
@@ -314,13 +349,16 @@ app.post('/api/events', upload.single('image'), async (req, res) => {
             return res.status(400).json({ error: 'All fields are required: title, description, time, venue, and image.' });
         }
 
+        // Generate the full URL for the uploaded image
+        const imageUrl = `${req.protocol}://${req.get('host')}/uploads/${req.file.filename}`;
+
         // Create a new event object
         const newEvent = new Event({
             title,
             description,
             time: new Date(time), // Convert to Date object
             venue,
-            image: req.file.filename, // Save the uploaded image filename
+            image: imageUrl, // Save the full image URL
         });
 
         // Save the event to the database
@@ -332,8 +370,6 @@ app.post('/api/events', upload.single('image'), async (req, res) => {
         res.status(500).json({ error: 'An error occurred while creating the event.' });
     }
 });
-
-
 
 // API to edit an event time
 app.put('/api/events/:id', async (req, res) => {
@@ -363,15 +399,23 @@ app.put('/api/events/:id', async (req, res) => {
 });
 
 // API to delete an event
+// API to delete an event
 app.delete('/api/events/:id', async (req, res) => {
     try {
+        // Find and delete the event by its eventId
         const deletedEvent = await Event.findOneAndDelete({ eventId: req.params.id });
 
         if (!deletedEvent) {
             return res.status(404).json({ error: 'Event not found.' });
         }
 
-        res.status(200).json({ message: 'Event deleted successfully!' });
+        // Remove the deleted event's reference from all users' eventBookings
+        await UserDetails.updateMany(
+            { eventBookings: deletedEvent._id }, // Find users with this event in their bookings
+            { $pull: { eventBookings: deletedEvent._id } } // Remove the event reference from their bookings
+        );
+
+        res.status(200).json({ message: 'Event deleted successfully and user bookings updated!' });
     } catch (error) {
         console.error('Error deleting event:', error.message);
         res.status(500).json({ error: 'An error occurred while deleting the event.' });
