@@ -965,8 +965,29 @@ const setMidnight = (date) => {
 };
 // API endpoint to borrow a book by copyId
 
+// Helper function to format dates to UTC
+function formatDateToUTC(date) {
+    const utcDate = new Date(date);
+    return utcDate.toUTCString(); // Format date in UTC
+}
+
+// Function to send confirmation emails with formatted dates
 const sendConfirmBorrowEmail = async (emailData) => {
     try {
+        // Format dates in the email text and HTML before sending
+        if (emailData.text) {
+            emailData.text = emailData.text.replace(
+                /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
+                (match) => formatDateToUTC(match)
+            );
+        }
+        if (emailData.html) {
+            emailData.html = emailData.html.replace(
+                /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/g,
+                (match) => formatDateToUTC(match)
+            );
+        }
+
         const [response] = await sgMail.send(emailData);
         console.log(`Email sent to ${emailData.to}. SendGrid Status:`, {
             statusCode: response.statusCode,
@@ -979,6 +1000,7 @@ const sendConfirmBorrowEmail = async (emailData) => {
     }
 };
 
+// API endpoint to borrow a book by copyId
 app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
     const { userid, copyId, selectedCopies, isbn } = req.body;
 
@@ -1156,8 +1178,6 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
         res.status(500).json({ error: 'Internal server error.' });
     }
 });
-
-
 app.post('/api/books/return', async (req, res) => {
     const { epc } = req.body;
 
