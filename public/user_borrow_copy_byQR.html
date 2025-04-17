@@ -18,7 +18,7 @@
             color: #1565c0;
         }
 
-        .book-details,.borrowed-details{
+        .book-details, .borrowed-details {
             background: white;
             padding: 20px;
             border-radius: 5px;
@@ -68,19 +68,21 @@
     <button id="backToCatalogButton">Back to Catalog</button>
 
     <script>
+        // Utility function to get query parameters
         function getQueryParam(param) {
             const urlParams = new URLSearchParams(window.location.search);
             return urlParams.get(param);
         }
 
-        const isbn = getQueryParam('isbn');
+        // Extract parameters from the query string
         const userId = getQueryParam('userid');
-        const copies = getQueryParam('copyId')?.split(',') || [];
-        const userToken = getQueryParam('token');
+        const isbn = getQueryParam('isbn');
+        const copyId = getQueryParam('copyId');
+        const userToken = getQueryParam('token'); // Token directly from the QR code
 
-        console.log('userId:', userId);
+        console.log('User ID:', userId);
         console.log('ISBN:', isbn);
-        console.log('Selected Copies:', copies);
+        console.log('Copy ID:', copyId);
         console.log('User Token:', userToken);
 
         function displaySuccess(message) {
@@ -103,92 +105,64 @@
             `;
             document.getElementById('bookDetails').innerHTML = html;
         }
-        function isTokenExpired(token) {
+
+        // Validate the token using the `/api/validateQRCodeToken` endpoint
+        async function validateToken() {
             try {
-                const decoded = JSON.parse(atob(token.split('.')[1])); // Decode the payload
-                const now = Math.floor(Date.now() / 1000);
+                if (!userToken || !userId || !isbn || !copyId) {
+                    throw new Error('Missing required parameters: token, userId, isbn, or copyId.');
+                }
         
-                return decoded.exp < now; // Returns true if the token is expired
-            } catch (error) {
-                console.error('Error decoding token:', error);
-                return true; // Treat as expired if decoding fails
-            }
-        }
-        async function refreshToken() {
-            try {
-                const response = await fetch('/api/refreshToken', {
+                // Log the parameters being sent for debugging
+                console.log('Validating Token with Parameters:');
+                console.log('userId:', userId);
+                console.log('isbn:', isbn);
+                console.log('copyId:', copyId);
+                console.log('userToken:', userToken);
+        
+                // Send a POST request to validate the token
+                const response = await fetch('/api/validateQRCodeToken', {
                     method: 'POST',
                     headers: {
-                        'Authorization': `Bearer ${userToken}`,
                         'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${userToken}`, // Use the token from the query parameter
                     },
+                    body: JSON.stringify({
+                        userId,
+                        isbn,
+                        copyId,
+                    }),
                 });
         
                 if (!response.ok) {
-                    throw new Error('Failed to refresh token.');
+                    const errorResponse = await response.json();
+                    throw new Error(errorResponse.error || 'Token validation failed.');
                 }
         
                 const data = await response.json();
-                userToken = data.token; // Update the token
-                console.log('Token refreshed successfully');
+                console.log('Token validated successfully:', data);
+                displaySuccess('Token validated successfully.');
                 return true;
             } catch (error) {
-                console.error('Error refreshing token:', error);
-                displayError('Your session has expired. Please log in again.');
+                console.error('Error validating token:', error);
+                displayError(error.message || 'Failed to validate token.');
                 return false;
             }
         }
-    
-            async function validateToken() {
-                try {
-                    if (!userToken || !userId || !isbn || !copies.length) {
-                        throw new Error('Missing required parameters: token, userId, isbn, or copyId.');
-                    }
-            
-                    // Check if the token is expired
-                    if (isTokenExpired(userToken)) {
-                        console.log('Token is expired. Attempting to refresh...');
-                        const refreshed = await refreshToken();
-                        if (!refreshed) {
-                            throw new Error('Failed to refresh token. Please log in again.');
-                        }
-                    }
-            
-                    const response = await fetch('/api/validateQRCodeToken', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${userToken}`,
-                        },
-                        body: JSON.stringify({
-                            userId, // This is the `id` field from the token
-                            isbn,
-                            copyId: copies[0],
-                        }),
-                    });
-            
-                    if (!response.ok) {
-                        const errorResponse = await response.json();
-                        throw new Error(errorResponse.error || 'Token validation failed.');
-                    }
-            
-                    const data = await response.json();
-                    console.log('Token validated successfully:', data);
-                    displaySuccess('Token validated successfully.');
-                    return true;
-                } catch (error) {
-                    console.error('Error validating token:', error);
-                    displayError(error.message || 'Failed to validate token.');
-                    return false;
-                }
-            }
+
+        // Fetch book details
         async function fetchBookDetails() {
             try {
                 if (!isbn) {
                     throw new Error('No ISBN provided.');
                 }
 
-                const response = await fetch(`/api/books/isbn/${isbn}`);
+                const response = await fetch(`/api/books/isbn/${isbn}`, {
+                    headers: {
+                        'Authorization': `Bearer ${userToken}`, // Pass the token for authentication
+                    },
+                });
+
                 if (!response.ok) {
                     const errorResponse = await response.json();
                     throw new Error(errorResponse.error || 'Failed to fetch book details.');
@@ -201,20 +175,13 @@
                 displayError(error.message || 'Failed to fetch book details.');
             }
         }
-
-        async function borrowSelectedCopies() {
+        // Borrow the copy
+        async function borrowCopy() {
             try {
-                if (!copies.length) {
-                    throw new Error('No copies available to borrow.');
+                if (!copyId) {
+                    throw new Error('No copy ID provided.');
                 }
-        
-                const selectedCopy = copies[0];
-                const confirmation = confirm(`You are about to borrow Copy ID: ${selectedCopy}. Do you want to proceed?`);
-                if (!confirmation) {
-                    displayError('Borrowing process canceled by the user.');
-                    return;
-                }
-        
+
                 const response = await fetch('/api/books/copy_borrow', {
                     method: 'POST',
                     headers: {
@@ -224,28 +191,50 @@
                     body: JSON.stringify({
                         userid: userId,
                         isbn,
-                        copyId: selectedCopy
+                        copyId
                     })
                 });
-        
+
                 if (!response.ok) {
-                    const errorText = await response.text(); // Read plain-text error response
-                    throw new Error(errorText || 'Failed to borrow copies.');
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Failed to borrow the copy.');
                 }
-        
+
                 const data = await response.json();
-                displaySuccess(data.message || 'Copies borrowed successfully!');
-                console.log('Borrowed copies:', data.borrowedCopies);
+                displaySuccess(data.message || 'Copy borrowed successfully!');
+                displayBorrowedDetails(data.borrowedCopies); // Display borrowed details
             } catch (error) {
-                console.error('Error borrowing copies:', error);
-                displayError(error.message || 'Failed to borrow copies. Please try again.');
+                console.error('Error borrowing the copy:', error);
+                displayError(error.message || 'Failed to borrow the copy.');
             }
         }
 
+// Display borrowed details
+function displayBorrowedDetails(borrowedCopies) {
+    const borrowedDetails = document.getElementById('borrowedDetails');
+    if (!borrowedCopies || borrowedCopies.length === 0) {
+        borrowedDetails.innerHTML = '<p>No borrowed copies to display.</p>';
+        return;
+    }
+
+    const borrowedHTML = `
+        <h3>Borrowed Copies</h3>
+        <ul>
+            ${borrowedCopies.map(copy => `
+                <li>
+                    <strong>Copy ID:</strong> ${copy.copyId} |
+                    <strong>Due Date:</strong> ${new Date(copy.dueDate).toLocaleDateString()}
+                </li>
+            `).join('')}
+        </ul>
+    `;
+    borrowedDetails.innerHTML = borrowedHTML;
+}
+        // Button event listeners
         document.getElementById('backToCatalogButton').addEventListener('click', () => {
             if (!userId || !userToken) {
                 displayError('Session missing. Redirecting to login.');
-                window.location.href = '/login.html'; // Redirect to login if userId or token is missing
+                window.location.href = '/login.html';
                 return;
             }
             window.location.href = `user-books-catalog.html?userid=${userId}&token=${userToken}`;
@@ -254,18 +243,18 @@
         document.getElementById('BorrowHistoryButton').addEventListener('click', () => {
             if (!userId || !userToken) {
                 displayError('Session missing. Redirecting to login.');
-                window.location.href = '/login.html'; // Redirect to login if userId or token is missing
+                window.location.href = '/login.html';
                 return;
             }
-            // Redirect to Borrow History with the token and userId
             window.location.href = `user_borrow_history.html?userid=${userId}&token=${userToken}`;
         });
 
+        // On page load, validate the token and fetch book details
         window.onload = async () => {
             const isValid = await validateToken();
             if (isValid) {
+                await borrowCopy()
                 await fetchBookDetails();
-                await borrowSelectedCopies();
             }
         };
     </script>

@@ -233,7 +233,8 @@
        // Generate QR Code for borrowing selected copies
        // Generate individual QR codes for borrowing selected copies
 // Generate individual QR codes for borrowing selected copies, and clear existing QR codes on subsequent clicks
-async function generateQRCode() {
+// Generate individual QR codes for borrowing selected copies
+function generateQRCode() {
     const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
 
     if (selectedCopies.length === 0) {
@@ -247,35 +248,21 @@ async function generateQRCode() {
     // Create QR code container if it doesn't exist
     const qrCodeContainer = document.getElementById('qrCodesContainer') || createQrCodeContainer();
 
+    // Clear existing QR codes (if any) before adding new ones
+    qrCodeContainer.innerHTML = '';
+
     for (const copyId of selectedCopies) {
         try {
-            // Log the API request payload
-            console.log('Requesting token for Copy ID:', copyId);
-
-            const response = await fetch('/api/generateToken', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}` // User's main token
-                },
-                body: JSON.stringify({ userId, isbn, copyId })
-            });
-
-            if (!response.ok) {
-                throw new Error(`Failed to fetch token for Copy ID: ${copyId}. Status: ${response.status}`);
+            // Validate that the userToken exists
+            if (!userToken) {
+                throw new Error('User token is missing. Cannot generate QR codes.');
             }
 
-            const { token } = await response.json();
+            // QR code URL with the original token from the query parameter
+            const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${userToken}`;
 
-            if (!token) {
-                throw new Error('No token received from server.');
-            }
-
-            // Log the generated token
-            console.log(`Generated Token for Copy ID ${copyId}:`, token);
-
-            // QR code URL with the secure token
-            const qrCodeValue = `https://comp-fyp.onrender.com/user_borrow_copy_byQR.html?userid=${userId}&isbn=${isbn}&copyId=${copyId}&token=${token}`;
+            // Log the QR code value for debugging
+            console.log(`QR Code Value for Copy ID ${copyId}:`, qrCodeValue);
 
             // Display the QR code
             displayQrCode(qrCodeValue, copyId, qrCodeContainer);
@@ -285,7 +272,6 @@ async function generateQRCode() {
         }
     }
 }
-
 // Helper: Create a container for QR codes
 function createQrCodeContainer() {
     const container = document.createElement('div');
@@ -319,7 +305,6 @@ function displayQrCode(value, copyId, container) {
 
     container.appendChild(qrCodeWrapper);
 }
-
         // Borrow selected copies
         function borrowSelectedCopies() {
             const selectedCopies = Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map(cb => cb.value);
@@ -346,13 +331,8 @@ function displayQrCode(value, copyId, container) {
                     // Notify the user of success
                     alert(data.message || 'Copies borrowed successfully!');
         
-                    // Redirect to the user_borrow_copy page
-                    if (data.redirectUrl) {
-                        window.location.href = data.redirectUrl;
-                    } else {
-                        // Fallback to default redirection if no redirect URL is provided
-                        window.location.href = `user_borrow_copy.html?userid=${userId}&isbn=${isbn}&copies=${selectedCopies.join(',')}&token=${userToken}}`;
-                    }
+                    // Redirect to Borrow History page with token
+                    window.location.href = `user_borrow_history.html?userid=${userId}&token=${userToken}`;
                 })
                 .catch(err => {
                     console.error('Error borrowing copies:', err);

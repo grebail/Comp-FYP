@@ -792,34 +792,7 @@ countBooks();
 // Token generation of QR code function
 // Token generation endpoint
 // Token generation endpoint
-app.post('/api/generateToken', (req, res) => {
-    const { userId, isbn, copyId } = req.body;
 
-    // Validate input
-    if (!userId || !isbn || !copyId) {
-        return res.status(400).json({ error: 'Missing required parameters: userId, isbn, or copyId' });
-    }
-
-    // Create the payload for the JWT
-    const payload = {
-        id: userId, // Use "id" to match the login token structure
-        isbn,
-        copyId,
-        iat: Math.floor(Date.now() / 1000), // Issued at (current timestamp)
-        exp: Math.floor(Date.now() / 1000) + 24 * 60 * 60, // Token expires in one day (24 hours)
-    };
-
-    try {
-        // Generate the JWT
-        const token = jwt.sign(payload, SECRET_KEY);
-
-        // Send the token to the client
-        res.status(200).json({ token });
-    } catch (error) {
-        console.error('Error generating token:', error);
-        res.status(500).json({ error: 'Failed to generate token' });
-    }
-});
 app.post('/api/refreshToken', (req, res) => {
     const authHeader = req.headers.authorization;
 
@@ -860,38 +833,39 @@ app.post('/api/refreshToken', (req, res) => {
 
 
 app.post('/api/validateQRCodeToken', (req, res) => {
-    const { userId, isbn, copyId } = req.body;
+    const { userId } = req.body; // Extract only the userId from the request body
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Missing or invalid token' });
+        return res.status(401).json({ error: 'Missing or invalid token.' });
     }
 
     const token = authHeader.split(' ')[1];
 
     try {
-        // Verify the token
+        // Decode and verify the token
         const decoded = jwt.verify(token, SECRET_KEY);
 
-        // Ensure the token contains the correct information
-        if (decoded.id !== userId || decoded.isbn !== isbn || decoded.copyId !== copyId) {
+        // Log the decoded token and request body for debugging
+        console.log('Decoded Token:', decoded);
+        console.log('Request Body:', { userId });
+
+        // Check if the token contains the required userId
+        if (decoded.id !== userId) {
             console.log('Token validation mismatch:', {
                 decodedId: decoded.id,
                 providedId: userId,
-                decodedIsbn: decoded.isbn,
-                providedIsbn: isbn,
-                decodedCopyId: decoded.copyId,
-                providedCopyId: copyId,
             });
-            return res.status(403).json({ error: 'Invalid token data. Mismatched id, isbn, or copyId.' });
-        } // Token is valid
+            return res.status(403).json({ error: 'Invalid token data. Mismatched userId.' });
+        }
+
+        // If validation succeeds
         res.status(200).json({ message: 'Token validated successfully', data: decoded });
     } catch (error) {
         console.error('Token validation failed:', error.message);
-        res.status(403).json({ error: 'Invalid or expired token' });
+        res.status(403).json({ error: 'Invalid or expired token.' });
     }
 });
-
 
 // middleware of token
 const authenticateToken = (req, res, next) => {

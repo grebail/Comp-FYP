@@ -352,89 +352,100 @@
     });
 
  
-    async function fetchRoomBookings() {
-        const userId = new URLSearchParams(window.location.search).get('userid');
-        const token = localStorage.getItem('token'); // Retrieve the token from local storage
+        async function fetchRoomBookings() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            const token = localStorage.getItem('token'); // Retrieve the token from local storage
     
-        try {
-            const response = await fetch(`/api/roomBookings?userid=${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
+            try {
+                const response = await fetch(`/api/roomBookings?userid=${userId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
     
-            if (!response.ok) {
-                throw new Error('Failed to fetch room bookings');
+                if (!response.ok) {
+                    throw new Error('Failed to fetch room bookings');
+                }
+    
+                const roomBookings = await response.json();
+                displayRoomBookings(roomBookings);
+            } catch (error) {
+                console.error('Error fetching room bookings:', error);
+                alert('Error fetching room bookings. Please try again.');
             }
+        }
     
-            const roomBookings = await response.json();
-            displayRoomBookings(roomBookings);
-        } catch (error) {
-            console.error('Error fetching room bookings:', error);
+        function displayRoomBookings(bookings) {
             const roomBookingsList = document.getElementById('room-bookings-list');
-            roomBookingsList.innerHTML = '<li>You have no room bookings.</li>';
-        }
-    }
+            roomBookingsList.innerHTML = ''; // Clear any existing bookings
     
-    function displayRoomBookings(bookings) {
-        const roomBookingsList = document.getElementById('room-bookings-list');
-        roomBookingsList.innerHTML = ''; // Clear any existing bookings
-    
-        if (!bookings || bookings.length === 0) {
-            roomBookingsList.innerHTML = '<li>You have no room bookings.</li>';
-            return;
-        }
-    
-        bookings.forEach(booking => {
-            const listItem = document.createElement('li');
-            const bookingDate = new Date(booking.date).toLocaleDateString();
-            listItem.textContent = `${booking.roomName} | ${bookingDate} | ${booking.timeslot}`;
-            roomBookingsList.appendChild(listItem);
-        });
-    }
-    
-    async function fetchEventBookings() {
-        const userId = new URLSearchParams(window.location.search).get('userid');
-        const token = localStorage.getItem('token'); // Retrieve the token from local storage
-    
-        try {
-            const response = await fetch(`/api/eventBookings?userid=${userId}`, {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                },
-            });
-    
-            if (!response.ok) {
-                throw new Error('Failed to fetch event bookings');
+            if (!bookings || bookings.length === 0) {
+                roomBookingsList.innerHTML = '<li>No room bookings found.</li>';
+                return;
             }
     
-            const eventBookings = await response.json();
-            displayEventBookings(eventBookings);
-        } catch (error) {
-            console.error('Error fetching event bookings:', error);
+            bookings.forEach(booking => {
+                const listItem = document.createElement('li');
+                const bookingDate = new Date(booking.date).toLocaleDateString();
+                listItem.textContent = `${booking.roomName} | ${bookingDate} | ${booking.timeslot}`;
+                roomBookingsList.appendChild(listItem);
+            });
+        }
+    
+        async function fetchEventBookings() {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            const token = localStorage.getItem('token'); // Retrieve the token from local storage
+    
+            try {
+                const response = await fetch(`/api/eventBookings?userid=${userId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                });
+    
+                if (!response.ok) {
+                    throw new Error('Failed to fetch event bookings');
+                }
+    
+                const eventBookings = await response.json();
+                displayEventBookings(eventBookings);
+            } catch (error) {
+                console.error('Error fetching event bookings:', error);
+                alert('Error fetching event bookings. Please try again.');
+            }
+        }
+    
+        function displayEventBookings(bookings) {
             const eventBookingsList = document.getElementById('event-bookings-list');
-            eventBookingsList.innerHTML = '<li>You have no event bookings.</li>';
+            eventBookingsList.innerHTML = ''; // Clear any existing bookings
+    
+            if (!bookings || bookings.length === 0) {
+                eventBookingsList.innerHTML = '<li>No event bookings found.</li>';
+                return;
+            }
+    
+            bookings.forEach(event => {
+                const listItem = document.createElement('li');
+                const eventDate = new Date(event.time).toLocaleString();
+                listItem.innerHTML = `<strong>${event.title}</strong> at ${event.venue} on ${eventDate} <a href="${event.eventLink}" target="_blank">Details</a>`;
+                eventBookingsList.appendChild(listItem);
+            });
         }
-    }
     
-    function displayEventBookings(bookings) {
-        const eventBookingsList = document.getElementById('event-bookings-list');
-        eventBookingsList.innerHTML = ''; // Clear any existing bookings
+        document.addEventListener('DOMContentLoaded', function() {
+            // Fetch and display user details, loans, room bookings, and event bookings on page load
+            fetchUserDetails();
+            fetchCurrentLoans();
+            fetchRoomBookings();
+            fetchEventBookings();
     
-        if (!bookings || bookings.length === 0) {
-            eventBookingsList.innerHTML = '<li>You have no event bookings.</li>';
-            return;
-        }
-    
-        bookings.forEach(event => {
-            const listItem = document.createElement('li');
-            const eventDate = new Date(event.time).toLocaleString();
-            listItem.innerHTML = `<strong>${event.title}</strong> at ${event.venue} on ${eventDate} <a href="${event.eventLink}" target="_blank">Details</a>`;
-            eventBookingsList.appendChild(listItem);
+            document.getElementById('home-link').addEventListener('click', function() {
+                const userId = new URLSearchParams(window.location.search).get('userid');
+                window.location.href = `index_userlogined.html?userid=${userId}`;
+            });
         });
-    }
   
 </script>
 
