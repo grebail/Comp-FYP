@@ -138,6 +138,10 @@
         </div>
     </div>
 
+    <div class="back-home">
+        <a id="home-link" href="#">Back to Home</a>
+    </div>
+
     <script>
         let selectedReaderIp = null;
         let currentBooks = [];
@@ -281,6 +285,13 @@
 
         fetchBookshelfData();
         setInterval(fetchBookshelfData, 2000);
+
+        document.addEventListener('DOMContentLoaded', function() {    
+            document.getElementById('home-link').addEventListener('click', function() {
+                const userId = new URLSearchParams(window.location.search).get('userid');
+                window.location.href = `index_logined.html?userid=${userId}`; 
+            });
+        });
     </script>
 </body>
 </html>

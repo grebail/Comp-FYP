@@ -15,9 +15,7 @@
         body {
             font-family: 'Open Sans', sans-serif;
             background-color: #e8f5e9;
-            /* Light green background */
         }
-        /* Header */
         
         header {
             background: linear-gradient(to right, #55ba59, #27732b);
@@ -42,7 +40,6 @@
             right: 10px;
             margin: 0;
         }
-        /* Search */
         
         #search-form {
             display: flex;
@@ -55,31 +52,24 @@
         #search-input {
             padding: 10px;
             border: 2px solid #4caf50;
-            /* Green border */
             border-radius: 20px;
-            /* Increased radius for more rounded corners */
             width: 100%;
-            /* Full width on mobile */
             max-width: 400px;
-            /* Limit width on larger screens */
             transition: border-color 0.3s;
         }
         
         #search-input:focus {
             outline: none;
             border-color: #66bb6a;
-            /* Lighter green on focus */
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
         }
         
         #search-form button[type="submit"] {
             background-color: #1976d2;
-            /* Blue background */
             color: #fff;
             padding: 10px 20px;
             border: none;
             border-radius: 20px;
-            /* Increased radius for more rounded corners */
             cursor: pointer;
             transition: background-color 0.3s;
             margin-left: 10px;
@@ -87,36 +77,28 @@
         
         #search-form button[type="submit"]:hover {
             background-color: #1565c0;
-            /* Darker blue on hover */
         }
-        /* Navigation */
         
         nav {
             background-color: #1e88e5;
-            /* Bright blue */
             padding: 10px;
             text-align: center;
             flex-wrap: wrap;
-            /* Allow wrapping on smaller screens */
         }
         
         nav a {
             color: #fff;
             text-decoration: none;
             margin: 0 10px;
-            /* Reduced margin for smaller screens */
             transition: color 0.3s;
         }
         
         nav a:hover {
             color: #bbdefb;
-            /* Light blue on hover */
         }
-        /* Logout Button */
         
         .logout-button {
             background-color: #4caf50;
-            /* Green background */
             color: white;
             padding: 10px 15px;
             text-decoration: none;
@@ -127,7 +109,6 @@
         .logout-button:hover {
             background-color: #45a049;
         }
-        /* Content */
         
         .content {
             display: flex;
@@ -145,7 +126,6 @@
             flex: 1 1 300px;
             max-width: 400px;
         }
-        /* Slide Container */
         
         .slide-container {
             max-width: 200ex;
@@ -173,7 +153,6 @@
             border-radius: 8px;
             object-fit: contain;
         }
-        /* Card Container */
         
         .card-container {
             display: flex;
@@ -202,7 +181,6 @@
             text-decoration: none;
             color: #1e88e5;
         }
-        /* Footer */
         
         footer {
             background: linear-gradient(to left, #55ba59, #27732b);
@@ -211,41 +189,39 @@
             text-align: center;
             clear: both;
         }
-        /* Media Queries */
         
         @media (max-width: 768px) {
             header {
-                padding: 15px; /* Reduce padding for smaller screens */
+                padding: 15px;
             }
 
             header h1 {
-                font-size: 24px; /* Smaller title */
+                font-size: 24px;
                 margin-bottom: 8px;
             }
 
-            header h4  
-            #welcome-message {
-                position: static; /* Remove absolute positioning */
-                text-align: center; /* Center it */
-                margin-top: 10px; /* Add spacing above */
-                font-size: 14px; /* Slightly smaller text */
+            header h4, #welcome-message {
+                position: static;
+                text-align: center;
+                margin-top: 10px;
+                font-size: 14px;
             }
 
             #search-form {
-                flex-wrap: wrap; /* Stack input and button vertically */
-                width: 80%; /* Ensure form takes full width */
+                flex-wrap: wrap;
+                width: 80%;
                 justify-content: center;
             }
 
             #search-input {
-                max-width: none; /* Remove max-width for full width */
-                margin-bottom: 10px; /* Space between input and button */
+                max-width: none;
+                margin-bottom: 10px;
             }
 
             #search-form button[type="submit"] {
-                margin-left: 0; /* Remove left margin */
-                width: 30%; /* Full-width button */
-                padding: 10px; /* Consistent padding */
+                margin-left: 0;
+                width: 30%;
+                padding: 10px;
             }
             
             nav a {
@@ -308,6 +284,14 @@
             <img src="event_img.png" alt="Event">
             <a id="event-link" href="#">Event & Promotion</a>
         </div>
+        <div class="card">
+            <img src="bookshelf.png" alt="Bookshelves Status">
+            <a id="bookshelf-status-link" href="#">Bookshelves Status</a>
+        </div>
+        <div class="card">
+            <img src="return.png" alt="Return Box Status">
+            <a id="return-box-status-link" href="#">Return Box Status</a>
+        </div>
     </div>
 
     <div class="content">
@@ -329,7 +313,8 @@
                 <h2>Library News</h2>
                 <p>Check out our library latest news.</p>
             </section>
-            <a id="lib-location-link" href="#" style="text-decoration: none; color: inherit;">
+        </a>
+        <a id="lib-location-link" href="#" style="text-decoration: none; color: inherit;">
             <section id="location" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
                 <h2>Our Libraries</h2><br>
                 <h4>Stanley Ho Library</h4>
@@ -337,45 +322,41 @@
                 <h4>Ho Sik Yee Library</h4>
                 <p>Location: HKMU</p>
             </section>
-            <a id="no-link" style="text-decoration: none; color: inherit;">
-                <section id="none" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
-                    <h2>Librarian Home Page</h2>
-                </section>
-            </a>
+        </a>
+        <a id="no-link" style="text-decoration: none; color: inherit;">
+            <section id="none" style="cursor: pointer; padding: 20px; background-color: white; border-radius: 10px; box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);">
+                <h2>Librarian Home Page</h2>
+            </section>
+        </a>
     </div>
 
     <footer>
-        <p>&copy 2024-2025 Smart Library. All rights reserved.</p><br>
+        <p>© 2024-2025 Smart Library. All rights reserved.</p><br>
         <a id="privacy-policy-link" href="#" style="text-decoration: none; color: inherit;">
             <b>Privacy Policy</b>
         </a>
     </footer>
 
     <script>
-       
         window.onload = function () {
-            // Extract token and userid from the query parameters
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token');
             const userId = urlParams.get('userid');
         
             if (token) {
-                // Save the token to localStorage for future requests
                 localStorage.setItem('token', token);
                 console.log('Token saved to localStorage:', token);
             } else {
-                // Use the token from localStorage if available
                 const storedToken = localStorage.getItem('token');
                 if (!storedToken) {
                     console.error('No token found in URL or localStorage. Redirecting to login...');
-                    window.location.href = 'login.html'; // Redirect to login if no token is found
-                    return; // Stop further execution
+                    window.location.href = 'login.html';
+                    return;
                 } else {
                     console.log('Token found in localStorage:', storedToken);
                 }
             }
         
-            // Log the userId for debugging purposes
             if (userId) {
                 console.log('User ID:', userId);
             } else {
@@ -383,92 +364,100 @@
             }
         };
 
-// Logout Button
-document.getElementById('logout-button').addEventListener('click', function (event) {
-    event.preventDefault(); // Prevent default link behavior
-    localStorage.removeItem('token'); // Remove the token from localStorage
-    window.location.href = 'login.html'; // Redirect to login page
-});
+        document.getElementById('logout-button').addEventListener('click', function (event) {
+            event.preventDefault();
+            localStorage.removeItem('token');
+            window.location.href = 'login.html';
+        });
 
- // SlideShow
-let currentIndex = 0;
-const slides = document.querySelectorAll('.slide');
-const totalSlides = slides.length;
+        let currentIndex = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
 
-function updateSliderPosition() {
-const slider = document.getElementById('homeSlider');
-slider.style.transform = `translateX(-${currentIndex * 100}%)`;
-}
+        function updateSliderPosition() {
+            const slider = document.getElementById('homeSlider');
+            slider.style.transform = `translateX(-${currentIndex * 100}%)`;
+        }
 
-setInterval(() => {
-    if (currentIndex < totalSlides - 1) {
-        currentIndex++;
-    } else {
-        currentIndex = 0;
-    }
-    updateSliderPosition();
-}, 5000);
+        setInterval(() => {
+            if (currentIndex < totalSlides - 1) {
+                currentIndex++;
+            } else {
+                currentIndex = 0;
+            }
+            updateSliderPosition();
+        }, 5000);
 
-// Books link redirect
-document.getElementById('books-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    const token = localStorage.getItem('token'); // Retrieve the token from localStorage
+        document.getElementById('books-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            const token = localStorage.getItem('token');
+            if (!token) {
+                console.error('No token found. Redirecting to login...');
+                window.location.href = 'login.html';
+                return;
+            }
+            window.location.href = `books-catalog.html?userid=${userId}&token=${token}`;
+        });
 
-    if (!token) {
-        console.error('No token found. Redirecting to login...');
-        window.location.href = 'login.html'; // Redirect to login if no token is found
-        return;
-    }
+        document.getElementById('librarian-event-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `librarian-event_booking.html?userid=${userId}`;
+        });
 
- // Redirect to the books catalog with user ID and token in the query string
-    window.location.href = `books-catalog.html?userid=${userId}&token=${token}`;
-});
+        document.getElementById('librarian-room-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `librarian-room_booking.html?userid=${userId}`;
+        });
 
-// Librarian Event Booking Link
-document.getElementById('librarian-event-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `librarian-event_booking.html?userid=${userId}`;
-});
+        document.getElementById('acc-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `acc_profile.html?userid=${userId}`;
+        });
 
-// Librarian Room Booking Link
-document.getElementById('librarian-room-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `librarian-room_booking.html?userid=${userId}`;
-});
+        document.getElementById('room-booking-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            if (userId) {
+                window.location.href = `room_booking.html?userid=${userId}`;
+            } else {
+                console.error('No user ID found in URL. Redirecting to login...');
+                window.location.href = 'login.html';
+            }
+        });
 
-// Account profile link redirect
-document.getElementById('acc-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `acc_profile.html?userid=${userId}`; // Redirect to account profile with user ID
-});
+        document.getElementById('event-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `event_booking.html?userid=${userId}`;
+        });
 
-// Room Booking link redirect
-document.getElementById('room-booking-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    if (userId) {
-        window.location.href = `room_booking.html?userid=${userId}`;
-} else {
-    console.error('No user ID found in URL. Redirecting to login...');
-    window.location.href = 'login.html'; // Redirect to login if user ID is missing
-}
-});
-// Event booking and promo link redirect
-document.getElementById('event-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `event_booking.html?userid=${userId}`; // Redirect to event booking with user ID
-});
+        document.getElementById('privacy-policy-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `privacy-policy_logined.html?userid=${userId}`;
+        });
 
-// Privacy policy link redirect
-document.getElementById('privacy-policy-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `privacy-policy_logined.html?userid=${userId}`;
-})
+        document.getElementById('lib-location-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            window.location.href = `lib-location_logined.html?userid=${userId}`;
+        });
 
-// Library Location link redirect
-document.getElementById('lib-location-link').addEventListener('click', function () {
-    const userId = new URLSearchParams(window.location.search).get('userid');
-    window.location.href = `lib-location_logined.html?userid=${userId}`;
-})
-</script>
+        document.getElementById('bookshelf-status-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            if (userId) {
+                window.location.href = `rfid_bookshelf.html?userid=${userId}`;
+            } else {
+                console.error('No user ID found in URL. Redirecting to login...');
+                window.location.href = 'login.html';
+            }
+        });
+
+        document.getElementById('return-box-status-link').addEventListener('click', function () {
+            const userId = new URLSearchParams(window.location.search).get('userid');
+            if (userId) {
+                window.location.href = `return_box_status.html?userid=${userId}`;
+            } else {
+                console.error('No user ID found in URL. Redirecting to login...');
+                window.location.href = 'login.html';
+            }
+        });
+    </script>
 
 </html>
