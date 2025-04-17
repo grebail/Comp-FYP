@@ -1,4 +1,26 @@
 {
-    "shelves": [],
-    "return_boxes": []
+    "shelves": [
+        {
+            "name": "General Books - 1/F",
+            "ip": "192.168.1.100"
+        },
+        {
+            "name": "Language and Literature Books -1/F",
+            "ip": "192.168.1.101"
+        },
+        {
+            "name": "Social Sciences Books - 2/F",
+            "ip": "192.168.1.102"
+        },
+        {
+            "name": "History Books - 2/F",
+            "ip": "192.168.1.103"
+        }
+    ],
+    "return_boxes": [
+        {
+            "name": "Return Box 1",
+            "ip": "192.168.2.100"
+        }
+    ]
 }
