@@ -12,6 +12,7 @@ const session = require('express-session');
 const multer = require('multer');
 const net = require('net');
 const xlsx = require('xlsx');
+const nodemailer = require('nodemailer');
 
 const stripBomStream = require('strip-bom-stream');
 const fs = require('fs');
@@ -24,7 +25,7 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const cron = require('node-cron');
 const base64url = require('base64-url');
-const nodemailer = require('nodemailer');
+
 const { google } = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 
@@ -66,6 +67,14 @@ app.use(session({
 
 app.use(passport.initialize());
 app.use(passport.session());
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'abbichiu@gmail.com', // Your Gmail address
+        pass: 'jqsv ndks kifw acta',  // Your Gmail App Password
+    },
+});
 
 // MongoDB connection
 const mongoURI = "mongodb+srv://Admin:admin@library.8bgvj.mongodb.net/bookManagement?retryWrites=true&w=majority&appName=Library";
@@ -956,6 +965,20 @@ const setMidnight = (date) => {
 };
 // API endpoint to borrow a book by copyId
 
+const sendConfirmBorrowEmail = async (emailData) => {
+    try {
+        const [response] = await sgMail.send(emailData);
+        console.log(`Email sent to ${emailData.to}. SendGrid Status:`, {
+            statusCode: response.statusCode,
+            headers: response.headers,
+        });
+        return response.statusCode === 202; // Return true if the email was successfully sent
+    } catch (error) {
+        console.error(`Failed to send email to ${emailData.to}. Error: ${error.message}`);
+        return false; // Return false if email sending fails
+    }
+};
+
 app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
     const { userid, copyId, selectedCopies, isbn } = req.body;
 
@@ -980,22 +1003,21 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
         // Determine which copies to borrow
         const copiesToBorrow = Array.isArray(selectedCopies) ? selectedCopies : [];
         if (copyId) {
-            copiesToBorrow.push(copyId); // Add single copyId to the list
+            copiesToBorrow.push(copyId);
         }
 
         const borrowedCopies = [];
         const unavailableCopies = [];
 
-        // Iterate through the requested copies and update their availability
+        // Update availability of requested copies
         book.copies.forEach(copy => {
             if (copiesToBorrow.includes(copy.copyId)) {
                 if (copy.availability) {
-                    // Update the copy details for borrowing
                     copy.availability = false;
                     copy.borrowedDate = new Date();
                     copy.dueDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // 14 days from today
-                    copy.status = 'borrowed'; // Set status to 'borrowed'
-                    copy.borrowStatus = true; // Mark as borrowed
+                    copy.status = 'borrowed';
+                    copy.borrowStatus = true;
                     borrowedCopies.push(copy);
                 } else {
                     unavailableCopies.push(copy.copyId);
@@ -1003,38 +1025,33 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
             }
         });
 
-        // Handle unavailable copies
         if (unavailableCopies.length > 0) {
             return res.status(400).json({
                 error: 'Some copies are unavailable.',
-                unavailableCopies
+                unavailableCopies,
             });
         }
 
         // Save the updated book document
         await book.save();
 
-        // Synchronize the status in the EPC schema
+        // Update EPC schema for borrowed copies
         for (const copy of borrowedCopies) {
             if (copy.epc) {
-                // Update the EPC status to 'borrowed'
                 await EPC.updateOne(
-                    { epc: copy.epc }, // Match the EPC number
-                    { $set: { status: 'borrowed' } } // Set status to 'borrowed'
+                    { epc: copy.epc },
+                    { $set: { status: 'borrowed' } }
                 );
-
-                console.log(`Synchronized EPC "${copy.epc}" with status "borrowed".`);
             }
         }
 
-        // Check if the user has an existing borrow record for this book
+        // Update user borrow record
         let userBorrow = await UserBorrow.findOne({
             userid,
             industryIdentifier: { $in: [isbn] },
         });
 
         if (userBorrow) {
-            // Update the existing record: append new copies to the copies array
             userBorrow.copies = [
                 ...userBorrow.copies,
                 ...borrowedCopies.map(copy => ({
@@ -1043,14 +1060,13 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
                     locationId: copy.locationId || 'Unknown',
                     borrowedDate: copy.borrowedDate,
                     dueDate: copy.dueDate,
-                    epc: copy.epc, // Include the EPC number
-                    status: 'borrowed', // Set status to 'borrowed'
-                    availability: false, // Set availability to false
-                    borrowStatus: true, // Set borrowStatus to true
+                    epc: copy.epc,
+                    status: 'borrowed',
+                    availability: false,
+                    borrowStatus: true,
                 })),
             ];
         } else {
-            // Create a new UserBorrow record
             userBorrow = new UserBorrow({
                 userid,
                 title: book.title,
@@ -1064,57 +1080,83 @@ app.post('/api/books/copy_borrow', authenticateToken, async (req, res) => {
                     locationId: copy.locationId || 'Unknown',
                     borrowedDate: copy.borrowedDate,
                     dueDate: copy.dueDate,
-                    epc: copy.epc, // Include the EPC number
-                    status: 'borrowed', // Set status to 'borrowed'
-                    availability: false, // Set availability to false
-                    borrowStatus: true, // Set borrowStatus to true
+                    epc: copy.epc,
+                    status: 'borrowed',
+                    availability: false,
+                    borrowStatus: true,
                 })),
             });
         }
 
-        // Save the updated UserBorrow record
         await userBorrow.save();
 
-        // Log the borrowed copies with their EPC numbers
-        console.log('Borrowed Copies with EPC Numbers:');
-        borrowedCopies.forEach(copy => {
-            console.log(`CopyId: ${copy.copyId}, EPC: ${copy.epc}`);
-        });
-
-        // Synchronize with BookBuy schema
+        // Update BookBuy schema
         for (const copy of borrowedCopies) {
             await BookBuy.updateOne(
-                { 'copies.copyId': copy.copyId }, // Match the copyId in the BookBuy schema
-                { 
-                    $set: { 
-                        'copies.$.availability': false, 
-                        'copies.$.status': 'borrowed', 
-                     
-                    } // Update the availability, status, and borrowStatus fields
-                }
+                { 'copies.copyId': copy.copyId },
+                { $set: { 'copies.$.availability': false, 'copies.$.status': 'borrowed' } }
             );
-
-            console.log(`Synchronized BookBuy copy "${copy.copyId}" as borrowed.`);
         }
 
-        // Respond with redirect URL including valid copy IDs
-        res.status(200).json({
-            message: 'Copies borrowed successfully.',
+        // Fetch user details
+        const userDetails = await UserDetails.findOne({ userId: userid });
+
+        // Prepare and send email to librarian
+        const librarianEmail = 'abbichiu@gmail.com';
+        const borrowedDetails = borrowedCopies.map(copy => `
+            Copy ID: ${copy.copyId}
+            Borrowed Date: ${copy.borrowedDate.toISOString()}
+            Due Date: ${copy.dueDate.toISOString()}
+        `).join('\n');
+
+        const librarianEmailMsg = {
+            to: librarianEmail,
+            from: 'abbichiu@gmail.com',
+            subject: 'Book Borrow Notification',
+            text: `Dear Librarian,\n\nThe following copies have been borrowed by User ID: ${userid}:\n\n${borrowedDetails}\n\nPlease update the records accordingly.`,
+            html: `<p>Dear Librarian,</p><p>The following copies have been borrowed by User ID: ${userid}:</p><pre>${borrowedDetails.replace(/\n/g, '<br>')}</pre><p>Please update the records accordingly.</p>`,
+        };
+
+        const librarianEmailSent = await sendConfirmBorrowEmail(librarianEmailMsg);
+
+        // Prepare and send email to the user (if email exists)
+        let userEmailSent = false;
+        if (userDetails && userDetails.email) {
+            const userBorrowedDetails = borrowedCopies.map(copy => `
+                Copy ID: ${copy.copyId}
+                Borrowed Date: ${copy.borrowedDate.toISOString()}
+                Due Date: ${copy.dueDate.toISOString()}
+            `).join('\n');
+
+            const userEmailMsg = {
+                to: userDetails.email,
+                from: 'abbichiu@gmail.com',
+                subject: 'Borrow Confirmation',
+                text: `Dear ${userDetails.name || 'User'},\n\nThank you for borrowing books from our library. Here are the details of the borrowed copies:\n\n${userBorrowedDetails}\n\nPlease ensure to return the borrowed books by their due dates to avoid penalties.\n\nBest regards,\nLibrary Team`,
+                html: `<p>Dear ${userDetails.name || 'User'},</p><p>Thank you for borrowing books from our library. Here are the details of the borrowed copies:</p><pre>${userBorrowedDetails.replace(/\n/g, '<br>')}</pre><p>Please ensure to return the borrowed books by their due dates to avoid penalties.</p><p>Best regards,<br>Library Team</p>`,
+            };
+
+            userEmailSent = await sendConfirmBorrowEmail(userEmailMsg);
+        } else {
+            console.log(`User ID ${userid} does not have an email address. User email not sent.`);
+        }
+
+        return res.status(200).json({
+            message: 'Borrowing process completed successfully.',
+            librarianEmailSent,
+            userEmailSent,
             borrowedCopies: borrowedCopies.map(copy => ({
                 copyId: copy.copyId,
-                epc: copy.epc, // Include the EPC number in the response
                 borrowedDate: copy.borrowedDate,
                 dueDate: copy.dueDate,
-                status: copy.status,
-                borrowStatus: copy.borrowStatus,
             })),
-            redirectUrl: `user_borrow_copy.html?userid=${userid}&isbn=${isbn}&copies=${copiesToBorrow.join(',')}`
         });
     } catch (error) {
         console.error('Error borrowing copies:', error);
-        res.status(500).json({ error: error.message || 'Internal server error.' });
+        res.status(500).json({ error: 'Internal server error.' });
     }
 });
+
 
 app.post('/api/books/return', async (req, res) => {
     const { epc } = req.body;
