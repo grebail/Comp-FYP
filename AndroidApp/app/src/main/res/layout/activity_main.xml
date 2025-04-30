@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/overlay_bg"
+    android:padding="16dp"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/userGuideButton"
+        android:layout_width="67dp"
+        android:layout_height="70dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="21dp"
+        android:layout_marginEnd="20dp"
+        android:background="@drawable/buttons"
+        android:drawableTop="@drawable/question_mark" />
+
+    <TextView
+        android:id="@+id/welcomeTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Welcome to My Library App"
+        android:textSize="30sp"
+        android:textColor="@color/white"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="100dp"/>
+
+    <Button
+        android:id="@+id/myLibraryButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Connect to My Library"
+        android:textColor="#FFFFFF"
+        android:background="@drawable/buttons"
+        android:backgroundTint="@color/green_300"
+        android:layout_below="@id/welcomeTextView"
+        android:layout_marginTop="40dp"
+        android:padding="16dp"
+        android:textSize="18sp"/>
+
+    <Button
+        android:id="@+id/scanBorrowButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/myLibraryButton"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/buttons"
+        android:padding="16dp"
+        android:text="Scan to Borrow"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"/>
+
+    <Button
+        android:id="@+id/bookMapButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/scanBorrowButton"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/buttons"
+        android:padding="16dp"
+        android:text="Locate Books"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"/>
+
+    <Button
+        android:id="@+id/roomBookButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/bookMapButton"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/buttons"
+        android:padding="16dp"
+        android:text="Room Booking"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"/>
+
+    <Button
+        android:id="@+id/eventBookButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_below="@id/roomBookButton"
+        android:layout_marginTop="20dp"
+        android:background="@drawable/buttons"
+        android:padding="16dp"
+        android:text="Event Booking"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"/>
+
+    <TextView
+        android:id="@+id/copyrightTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="© 2024-2025 Smart Library\nUsing our service means that you agree to our Privacy Policy."
+        android:textSize="12sp"
+        android:textColor="@color/white"
+        android:layout_alignParentBottom="true"
+        android:layout_alignParentLeft="true"
+        android:layout_marginLeft="-30dp"
+        android:padding="30dp"/>
+
+</RelativeLayout>

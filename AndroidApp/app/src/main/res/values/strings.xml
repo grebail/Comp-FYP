@@ -1,0 +1,16 @@
+<resources>
+    <string name="app_name">LibraryAPP</string>
+    <string name="user_guide_text">
+        My Library App User Guide\n\n
+        Connect to My Library\n\n
+        Access to your library account before using any services (include borrowing books and make any bookings).You are welcome to access our website through browsers(e.g. Chrome) to continue to browse other online resources in the library. If you wish to borrow books directly, you can access back to the app to use "Scan to Borrow".\n\n
+        Scan to borrow\n\n
+        You are required to login to your library account before using "Connect to My Library" to scanning any books.\n\n
+        Locate books\n\n
+        Locate your desire book inside library to see its availability and status.\n\n
+        Room booking\n\n
+        You are required to login to your library account before using "Room Booking" to book any rooms.\n\n
+        Event booking\n\n
+        You are required to login to your library account before using "Event Booking" to register any events.
+    </string>
+</resources>
